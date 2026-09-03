@@ -1,0 +1,213 @@
+name: meetingmind
+
+x-nest-environment: &nest-environment
+  SERVER_ENV: development
+  JWT_SECRET: meetingmind_jwt_secret
+  JWT_EXP: 3600
+  JWT_REFRESH_SECRET: meetingmind_refresh_secret
+  JWT_REFRESH_EXP: 15552000
+  MONGODB_URI: mongodb://mongodb:27017/meetingmind
+  SQL_TYPE: postgres
+  SQL_HOST: postgres
+  SQL_PORT: 5432
+  SQL_USER: mmuser
+  SQL_PASSWORD: mmpass
+  SQL_DB: meetingmind
+  SQL_SCHEMA: public
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ""
+  MICROSERVICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+  MICROSERVICE_TCP_HOST: 0.0.0.0
+  MICROSERVICE_TCP_HOST_CORE: core-service
+  MICROSERVICE_TCP_PORT_CORE: 3002
+  MINIO_ENDPOINT: minio
+  MINIO_PORT: 9000
+  MINIO_USE_SSL: 0
+  MINIO_ACCESS_KEY: minioadmin
+  MINIO_SECRET_KEY: minioadmin
+  MINIO_REGION: ap-southeast-1
+  MINIO_BUCKET: meetingmind
+  MINIO_MULTIPART_PART_SIZE: 16777216
+  ONE_SIGNAL_APP_ID: ""
+  ONE_SIGNAL_API_KEY: ""
+  SSO_JWKS_URI: ""
+  SERVER_GW_API_KEY: local-dev-gateway-key
+
+x-nest-common: &nest-common
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    mongodb:
+      condition: service_started
+    redis:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+    minio:
+      condition: service_started
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: meetingmind
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: mmpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmuser -d meetingmind"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongodb:
+    image: mongo:6.0
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  api-gateway:
+    <<: *nest-common
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    environment:
+      <<: *nest-environment
+      SERVER_ADDRESS: http://localhost:3000
+      SERVER_PORT: 3000
+      SERVER_MASTER: 1
+      MICROSERVICE_GRPC_PORT: 3001
+      MICROSERVICE_TCP_PORT: 3002
+      SERVER_GW_ADDRESS: http://api-gateway:3000
+    ports:
+      - "3000:3000"
+
+  core-service:
+    <<: *nest-common
+    build:
+      context: ./core-service
+      dockerfile: Dockerfile
+    environment:
+      <<: *nest-environment
+      SERVER_ADDRESS: http://localhost:3010
+      SERVER_PORT: 3010
+      SERVER_MASTER: 0
+      MICROSERVICE_GRPC_PORT: 3011
+      MICROSERVICE_TCP_PORT: 3002
+      SERVER_GW_ADDRESS: http://api-gateway:3000
+    ports:
+      - "3010:3010"
+
+  integration-service:
+    <<: *nest-common
+    build:
+      context: ./integration-service
+      dockerfile: Dockerfile
+    environment:
+      <<: *nest-environment
+      SERVER_ADDRESS: http://localhost:3020
+      SERVER_PORT: 3020
+      SERVER_MASTER: 0
+      MICROSERVICE_GRPC_PORT: 3021
+      MICROSERVICE_TCP_PORT: 3022
+      SERVER_GW_ADDRESS: http://api-gateway:3000
+    ports:
+      - "3020:3020"
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["/app/entrypoint.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PROJECT_NAME: MeetingMind AI Service
+      DEBUG: "true"
+      SECRET_KEY: meetingmind_ai_secret
+      POSTGRES_DB: meetingmind
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: mmpass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      BACKEND_CORS_ORIGINS: '["*"]'
+      API_PREFIX: /api
+      API_VERSIONS: v1,v2
+      API_VERSION: v2
+      KEYCLOAK_VERIFY: "false"
+    ports:
+      - "8000:8000"
+
+  bot-worker:
+    image: alpine:3.20
+    profiles: ["bot"]
+    command: ["sh", "-c", "echo 'bot-worker chua co source code/Dockerfile nen dang de placeholder'; sleep infinity"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3005:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  minio_data:
+  grafana_data:
