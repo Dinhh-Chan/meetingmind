@@ -11,7 +11,7 @@ import { SettingService } from "./setting.service";
 export class SettingController {
     constructor(private readonly settingService: SettingService) {}
     @Get(":key/value")
-    @AllowSystemRoles(SystemRole.ADMIN, SystemRole.USER)
+    @AllowSystemRoles(SystemRole.SUPER_ADMIN, SystemRole.USER)
     @ApiParam({ name: "key", enum: SettingKey })
     async getSettingValue(@Param("key") key: SettingKey) {
         return this.settingService.getSettingValue(key);

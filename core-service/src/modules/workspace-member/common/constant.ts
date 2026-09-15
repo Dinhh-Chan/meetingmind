@@ -1,6 +1,6 @@
 export enum WorkspaceMemberRole {
     OWNER = "OWNER",
-    PM = "PM",
+    ADMIN = "ADMIN",
     MEMBER = "MEMBER",
     VIEWER = "VIEWER",
 }

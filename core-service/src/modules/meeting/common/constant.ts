@@ -11,10 +11,9 @@ export enum MeetingPlatform {
     OTHER = "other",
 }
 
-export enum MeetingVisibility {
+export enum MeetingAccessScope {
     PROJECT = "project",
-    PARTICIPANTS = "participants",
-    PRIVATE = "private",
+    RESTRICTED = "restricted",
 }
 
 export enum MeetingStatus {

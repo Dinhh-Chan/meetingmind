@@ -56,3 +56,4 @@ export const TASK_DEPENDENCY = "TaskDependency";
 export const PROCESSING_JOB = "ProcessingJob";
 export const OUTBOX_EVENT = "OutboxEvent";
 export const PROCESSED_MESSAGE = "ProcessedMessage";
+export const MEETING_ACCESS = "MeetingAccess";

@@ -8,6 +8,7 @@ import { PageableDto } from "@common/dto/pageable.dto";
 import { BaseEntity } from "@common/interface/base-entity.interface";
 import { BaseImportDto } from "@common/interface/base-import.dto";
 import { AuditLogProps } from "@module/audit-log/common/constant";
+import { Permission } from "@module/permission/common/constant";
 import { QueryCondition } from "@module/repository/common/base-repository.interface";
 import { SystemRole } from "@module/user/common/constant";
 import { User } from "@module/user/entities/user.entity";
@@ -82,6 +83,18 @@ export interface BaseController<E extends BaseEntity>
 export interface BaseControllerConfig {
     authorize?: boolean;
     roles?: SystemRole[];
+    /**
+     * Quyền mặc định cho mọi route của controller, xét theo vai trò trong
+     * workspace/project/meeting. Route nào cần quyền khác thì khai riêng
+     * trong `routes.<route>.permission`.
+     */
+    permission?: Permission;
+    /**
+     * Cho biết tham số `:id` của controller này là gì trong phạm vi phân quyền.
+     * Ví dụ `/project/:id` thì `:id` chính là `projectId`, nhờ đó guard tra
+     * được vai trò project mà không phải load bản ghi.
+     */
+    scopeParam?: "projectId" | "meetingId";
     dataPartition?: {
         enable?: boolean;
         /**
@@ -113,6 +126,8 @@ export interface BaseImportControllerConfig
 export interface BaseRouteConfig {
     enable?: boolean;
     roles?: SystemRole[];
+    /** Quyền riêng cho route này, đè lên `permission` của controller. */
+    permission?: Permission;
     auditLog?: { enable: true } & AuditLogProps;
     dataPartition?: {
         enable?: boolean;

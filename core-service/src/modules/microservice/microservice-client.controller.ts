@@ -13,7 +13,7 @@ import { MicroserviceService } from "./microservice.service";
 export class MicroserviceClientController {
     constructor(private readonly microserviceSerice: MicroserviceService) {}
 
-    @AllowSystemRoles(SystemRole.ADMIN)
+    @AllowSystemRoles(SystemRole.SUPER_ADMIN)
     @Get("hello-world")
     async clientHelloWorld() {
         return this.microserviceSerice.clientHelloWorld();

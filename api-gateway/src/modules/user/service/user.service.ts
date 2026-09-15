@@ -87,7 +87,9 @@ export class UserService
     }
 
     async create(user: User, dto: CreateUserDto): Promise<User> {
-        // dto.password = await createUserPassword(dto.password);
+        if (dto.password) {
+            dto.password = await createUserPassword(dto.password);
+        }
         const t = await this.userTransaction.startTransaction();
         try {
             const res = await this.userRepository.create(dto, {

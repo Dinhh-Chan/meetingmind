@@ -40,12 +40,12 @@ export function BaseImportControllerFactory<E extends BaseEntity>(
     conditionDto: Type<unknown>,
     config: BaseImportControllerConfig = {
         authorize: true,
-        roles: [SystemRole.ADMIN],
+        roles: [SystemRole.SUPER_ADMIN],
     },
 ): new (
     service: BaseImportService<E, BaseRepository<E, unknown>>,
 ) => BaseImportController<E> {
-    config.roles = config.roles || [SystemRole.ADMIN];
+    config.roles = config.roles || [SystemRole.SUPER_ADMIN];
 
     @BaseControllerSetup(config)
     // @ApiTags(entity.name)

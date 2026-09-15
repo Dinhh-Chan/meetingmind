@@ -4,6 +4,7 @@ export enum Gender {
 }
 
 export enum SystemRole {
-    ADMIN = "Admin",
-    USER = "User",
+    /** Quản trị nền tảng MeetingMind, không phải quyền đọc nội dung khách hàng */
+    SUPER_ADMIN = "SUPER_ADMIN",
+    USER = "USER",
 }

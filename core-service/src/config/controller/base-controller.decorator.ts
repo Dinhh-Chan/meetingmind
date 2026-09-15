@@ -10,8 +10,21 @@ import {
     BaseRoute,
 } from "@config/controller/base-controller.interface";
 import { UseAuditLog } from "@module/audit-log/common/constant";
+import {
+    RequirePermission,
+    ScopeParam,
+} from "@module/permission/common/decorator";
+import { PermissionGuard } from "@module/permission/guards/permission.guard";
 import { SystemRole } from "@module/user/common/constant";
-import { Delete, Get, Patch, Post, Put, applyDecorators } from "@nestjs/common";
+import {
+    Delete,
+    Get,
+    Patch,
+    Post,
+    Put,
+    UseGuards,
+    applyDecorators,
+} from "@nestjs/common";
 
 export const BaseControllerSetup = (config: BaseControllerConfig) => {
     const decorators: Array<ClassDecorator> = [];
@@ -19,6 +32,7 @@ export const BaseControllerSetup = (config: BaseControllerConfig) => {
     const authorization = config?.authorize ?? true;
     if (authorization) {
         decorators.push(Authorization());
+        decorators.push(UseGuards(PermissionGuard));
         const controllerRoles = config?.roles;
         if (controllerRoles) {
             decorators.push(AllowSystemRoles(...controllerRoles));
@@ -78,10 +92,16 @@ export const BaseRouteSetup = (
     }
 
     const decorators: MethodDecorator[] = [];
+    const permission = routeConfig.permission ?? config?.permission;
     const authorization = config?.authorize ?? true;
     if (authorization) {
-        const routeRoles = routeConfig.roles ||
-            config?.roles || [SystemRole.ADMIN];
+        // Route đã khai quyền theo workspace thì không chặn thêm bằng system
+        // role — SUPER_ADMIN là quyền quản trị nền tảng, không phải quyền
+        // đọc nội dung khách hàng (ma trận phân quyền mục 9).
+        const routeRoles =
+            routeConfig.roles ||
+            config?.roles ||
+            (permission ? undefined : [SystemRole.SUPER_ADMIN]);
         if (routeRoles) {
             decorators.push(AllowSystemRoles(...routeRoles));
         }
@@ -91,6 +111,13 @@ export const BaseRouteSetup = (
         if (enableDataPartition) {
             const requireDataPartition = routeConfig?.dataPartition?.require;
             decorators.push(RequireDataPartition(requireDataPartition));
+        }
+    }
+
+    if (permission) {
+        decorators.push(RequirePermission(permission));
+        if (config?.scopeParam) {
+            decorators.push(ScopeParam(config.scopeParam));
         }
     }
 

@@ -1,7 +1,7 @@
 import { StrObjectId } from "@common/constant";
 import { Column, DataType, Model, Table } from "sequelize-typescript";
 import { Meeting } from "../entities/meeting.entity";
-import { MeetingPlatform, MeetingSourceType, MeetingStatus, MeetingVisibility, ProcessingStatus } from "../common/constant";
+import { MeetingAccessScope, MeetingPlatform, MeetingSourceType, MeetingStatus, ProcessingStatus } from "../common/constant";
 
 @Table({
     tableName: "meetings",
@@ -42,7 +42,7 @@ export class MeetingModel extends Model implements Meeting {
     language: string;
 
     @Column({ type: DataType.STRING, allowNull: false })
-    visibility: MeetingVisibility;
+    accessScope: MeetingAccessScope;
 
     @Column({ type: DataType.STRING, allowNull: false })
     status: MeetingStatus;

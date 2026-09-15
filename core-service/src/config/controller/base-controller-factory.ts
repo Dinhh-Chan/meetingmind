@@ -68,49 +68,49 @@ export function BaseControllerFactory<E extends BaseEntity>(
         authorize: true,
         routes: {
             create: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             getById: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             getOne: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             getMany: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             getPage: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             updateById: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             updateByIds: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             deleteById: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             deleteByIds: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             importDefinition: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             importXlsxTemplate: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             importInsert: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             importValidate: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             exportDefinition: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
             exportXlsx: {
-                roles: [SystemRole.ADMIN],
+                roles: [SystemRole.SUPER_ADMIN],
             },
         },
         import: {

@@ -1,3 +1,4 @@
+import { MeetingAccessModel } from "@module/meeting-access/models/meeting-access.model";
 import { UserSessionModel } from "@module/user-session/models/user-session.model";
 import { AgendaItemModel } from "@module/agenda-item/models/agenda-item.model";
 import { RecordingConsentModel } from "@module/recording-consent/models/recording-consent.model";
@@ -101,4 +102,5 @@ export const SequelizeModel: ModelCtor<Model>[] = [
     ProcessingJobModel,
     OutboxEventModel,
     ProcessedMessageModel,
+    MeetingAccessModel,
 ];

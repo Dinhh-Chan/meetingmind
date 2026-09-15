@@ -1,3 +1,5 @@
+import { PermissionModule } from "@module/permission/permission.module";
+import { MeetingAccessModule } from "@module/meeting-access/meeting-access.module";
 import { UserSessionModule } from "@module/user-session/user-session.module";
 import { AgendaItemModule } from "@module/agenda-item/agenda-item.module";
 import { RecordingConsentModule } from "@module/recording-consent/recording-consent.module";
@@ -58,6 +60,7 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
 @Module({
     imports: [
         ...DefaultModules,
+        PermissionModule,
         AuthModule,
         UserModule,
         EventAccountModule,
@@ -111,6 +114,7 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
         ProcessingJobModule,
         OutboxEventModule,
         ProcessedMessageModule,
+        MeetingAccessModule,
     ],
     providers: [...DefaultProviders],
     controllers: [AppController],

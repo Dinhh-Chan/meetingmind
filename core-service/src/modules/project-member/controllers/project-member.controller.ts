@@ -1,4 +1,5 @@
 import { BaseControllerFactory } from "@config/controller/base-controller-factory";
+import { Permission } from "@module/permission/common/constant";
 import { Controller } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { CreateProjectMemberDto } from "../dto/create-project-member.dto";
@@ -16,6 +17,21 @@ export class ProjectMemberController extends BaseControllerFactory<ProjectMember
     UpdateProjectMemberDto,
     {
         import: { enable: false },
+        routes: {
+            getMany: { permission: Permission.PROJECT_VIEW },
+            getPage: { permission: Permission.PROJECT_VIEW },
+            getOne: { permission: Permission.PROJECT_VIEW },
+            getById: { permission: Permission.PROJECT_VIEW },
+            exportDefinition: { permission: Permission.PROJECT_VIEW },
+            exportXlsx: { permission: Permission.PROJECT_VIEW },
+            create: { permission: Permission.PROJECT_MEMBER_MANAGE },
+            upsert: { permission: Permission.PROJECT_MEMBER_MANAGE },
+            getOneOrUpsert: { permission: Permission.PROJECT_MEMBER_MANAGE },
+            updateById: { permission: Permission.PROJECT_MEMBER_MANAGE },
+            updateByIds: { permission: Permission.PROJECT_MEMBER_MANAGE },
+            deleteById: { permission: Permission.PROJECT_MEMBER_MANAGE },
+            deleteByIds: { permission: Permission.PROJECT_MEMBER_MANAGE },
+        },
     },
 ) {
     constructor(private readonly projectMemberService: ProjectMemberService) {

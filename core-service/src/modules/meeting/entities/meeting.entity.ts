@@ -1,7 +1,7 @@
 import { EntityDefinition } from "@common/constant/class/entity-definition";
 import { BaseEntity } from "@common/interface/base-entity.interface";
 import { IsDateString, IsEnum, IsOptional, IsString } from "class-validator";
-import { MeetingPlatform, MeetingSourceType, MeetingStatus, MeetingVisibility, ProcessingStatus } from "../common/constant";
+import { MeetingAccessScope, MeetingPlatform, MeetingSourceType, MeetingStatus, ProcessingStatus } from "../common/constant";
 
 export class Meeting implements BaseEntity {
     /**
@@ -72,11 +72,11 @@ export class Meeting implements BaseEntity {
     language: string;
 
     /**
-     * Phạm vi xem
+     * Phạm vi truy cập
      */
-    @IsEnum(MeetingVisibility)
-    @EntityDefinition.field({ label: "Phạm vi xem", required: true, enum: Object.values(MeetingVisibility) })
-    visibility: MeetingVisibility;
+    @IsEnum(MeetingAccessScope)
+    @EntityDefinition.field({ label: "Phạm vi truy cập", required: true, enum: Object.values(MeetingAccessScope) })
+    accessScope: MeetingAccessScope;
 
     /**
      * Trạng thái
