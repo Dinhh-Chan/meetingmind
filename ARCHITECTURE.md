@@ -1,46 +1,187 @@
-# MeetingMind — Kiến trúc tổng quan (MVP)
+# MeetingMind — Kiến trúc hệ thống (MVP)
 
-Bản tóm tắt này phản ánh đề xuất: gom các service logic thành ~6 service deploy độc lập cho phiên bản MVP.
+Tài liệu này mô tả cách các service phối hợp, ai được ghi dữ liệu nào, và luồng xử lý một cuộc họp từ lúc tạo đến lúc đồng bộ ra công cụ ngoài.
 
-Các folder chính:
+Đọc kèm: [DATABASE_DESIGN.md](DATABASE_DESIGN.md) cho chi tiết bảng và cột.
 
-- `frontend/` — Next.js (UI, realtime, WebSocket)
-- `api-gateway/` — NestJS (auth, routing, WebSocket, rate-limit)
-- `core-service/` — NestJS (modules: auth, user, workspace, project, meeting, task, review)
-- `integration-service/` — NestJS (Jira/Trello/Slack/Google Calendar integrations)
-- `bot-worker/` — Python worker (Playwright, capture audio)
-- `ai-service/` — FastAPI (transcript, summary, action_item, risk, rag)
-- `infrastructure/` — Docker Compose, Postgres, RabbitMQ, Redis, MinIO, monitoring
+## 1. Các thành phần
 
-Kiến trúc tóm tắt (MVP):
+| Thư mục | Công nghệ | Trách nhiệm | Trạng thái |
+| --- | --- | --- | --- |
+| `frontend/` | Next.js | UI, realtime, ghi âm phía trình duyệt | Chưa tạo |
+| `api-gateway/` | NestJS | Cổng vào duy nhất: xác thực token, định tuyến, rate limit, WebSocket | Đang là template |
+| `core-service/` | NestJS | Nghiệp vụ và điều phối: workspace, project, meeting, transcript, minutes, task, review, job | 18 module CRUD đã dựng |
+| `integration-service/` | NestJS | Kết nối ngoài: Calendar, Jira/Trello, export tài liệu, webhook | Đang là template |
+| `ai-service/` | FastAPI | STT, tóm tắt, trích xuất công việc, RAG | Đang là template |
+| `bot-worker/` | Python + Playwright | Vào phòng họp trực tuyến, ghi âm, upload | Thư mục rỗng |
+| `contracts/` | JSON Schema | Định nghĩa chung cho API và event giữa các service | Chưa tạo |
+| `infrastructure/` | Docker Compose | Postgres, RabbitMQ, Redis, MinIO, monitoring | Đã bị `docker-compose.yml` ở root thay thế |
 
-- Giao tiếp sync: HTTPS / WebSocket qua `api-gateway` (NestJS)
-- Giao tiếp async: RabbitMQ cho các event/job nền (meeting.created, transcript.completed, ai.completed, ...)
-- Lưu trữ chính: PostgreSQL (extension: pgvector cho RAG)
-- Object storage: MinIO (dev) → S3/R2 cho production
-- Cache/session: Redis
-- Observability: Prometheus + Grafana + Loki + OpenTelemetry
+Đây là **5 backend triển khai độc lập + 1 frontend**. `core-service` là một backend chia module bên trong, không phải monolith của cả hệ thống.
 
-Lý do gom nhóm:
+## 2. Sơ đồ
 
-- Tránh tạo 10 repo/service ngay từ đầu — gây overhead vận hành.
-- `core-service` chứa nhiều module nghiệp vụ, dễ tách sau này nếu cần scale.
-- `ai-service` gom các module AI; nếu một module (ví dụ transcript) cần GPU scale thì tách thành `transcript-service` sau.
+```mermaid
+flowchart TD
+    FE["Frontend · Next.js"] --> GW["API Gateway :3000"]
+    GW --> CORE["Core Service :3010"]
+    GW --> AI["AI Service :8000<br/>(chat/RAG)"]
+    GW --> INT["Integration Service :3020"]
 
-Chiến lược triển khai MVP:
+    CORE --> CDB[("core schema")]
+    AI --> ADB[("ai schema<br/>pgvector")]
+    INT --> IDB[("integration schema")]
 
-1. Bắt đầu với 5–6 process deploy độc lập: `api-gateway`, `core-service`, `integration-service`, `bot-worker`, `ai-service`, `frontend`.
-2. Dùng Docker Compose để dev/run local. Chuyển sang Kubernetes khi cần scale.
-3. Dùng RabbitMQ để kết nối các worker và event-driven flow.
-4. Lưu embeddings trong Postgres + `pgvector` — không cần Pinecone/Milvus cho MVP.
+    CORE <--> MQ["RabbitMQ"]
+    AI <--> MQ
+    INT <--> MQ
+    BOT["Bot Worker"] <--> MQ
 
-Tài liệu chi tiết hơn (modules, stack, events, db schemas) nằm trong repo con hoặc có thể mở rộng khi bạn muốn scaffold tiếp.
+    BOT --> OBJ[("MinIO")]
+    AI --> OBJ
+    CORE --> OBJ
+```
 
----
-Nếu bạn muốn, tôi có thể:
+Mũi tên tới RabbitMQ là gửi **và** nhận; không phải service nào cũng nhận mọi message.
 
-- Scaffold thư mục + README/boilerplate cho từng service.
-- Sinh `docker-compose.dev.yml` trong `infrastructure/` để chạy Postgres/Redis/RabbitMQ/MinIO và placeholder services.
-- Di chuyển hoặc tidy code hiện có vào cấu trúc mới (cần PR/backup).
+## 3. Nguyên tắc kiến trúc
 
-Hãy chọn bước tiếp theo (scaffold / tạo docker-compose / refactor code).
+### 3.1. Cổng vào duy nhất
+
+Chỉ `api-gateway` được expose ra ngoài. `core-service`, `integration-service`, `ai-service` chỉ nghe trong mạng nội bộ.
+
+> Hiện `docker-compose.yml` vẫn publish cổng 3010/3020/8000 ra host. Đây là **ngoại lệ dev** để gọi Swagger trực tiếp, phải bỏ khi triển khai thật.
+
+Gateway chịu trách nhiệm: kiểm tra token, rate limit, định tuyến, đẩy thông báo realtime. **Không** chứa logic phân quyền nghiệp vụ — việc đó thuộc Core.
+
+### 3.2. Mỗi bảng có đúng một service sở hữu
+
+- Service sở hữu là service duy nhất được **ghi** vào bảng đó.
+- Service khác lấy dữ liệu qua API hoặc nhận event, không truy vấn trực tiếp.
+- Foreign key chỉ dùng **trong phạm vi schema của một service**.
+- ID trỏ sang service khác là tham chiếu logic, không khai báo FK.
+
+Ví dụ: `external_task_links.actionItemId` nằm ở Integration nên không có FK sang Core. Ngược lại `action_item_citations.transcriptSegmentId` có FK vì cùng thuộc Core.
+
+### 3.3. Tách schema database
+
+MVP dùng **một PostgreSQL instance, ba schema, ba tài khoản**:
+
+| Service | Schema | Tài khoản |
+| --- | --- | --- |
+| core-service, api-gateway | `core` | `mm_core` |
+| integration-service | `integration` | `mm_integration` |
+| ai-service | `ai` | `mm_ai` |
+
+Mỗi service tự quản migration của mình. Tắt `synchronize`/`sync.alter` ở mọi môi trường.
+
+> Lý do bắt buộc: hiện cả 4 service dùng chung `meetingmind` + schema `public` + user `mmuser`. `ai-service` đã tạo bảng `users` bằng Alembic, trùng tên với bảng `users` mà Core cần theo thiết kế. Ba service NestJS còn cùng chạy `ALTER TABLE` lúc khởi động.
+
+Image Postgres phải là bản có pgvector (`pgvector/pgvector:pg15`), không dùng `postgres:15-alpine`.
+
+### 3.4. Core là bên điều phối
+
+Bot và AI **không tự sửa** bảng nghiệp vụ. Chúng nhận lệnh, làm việc, rồi báo kết quả bằng event. Core quyết định kết quả đó có được ghi thành dữ liệu chính thức hay không.
+
+Hệ quả: `bot_sessions`, `processing_jobs`, `files` thuộc Core, không thuộc bot-worker/ai-service.
+
+### 3.5. Message chỉ mang tham chiếu
+
+RabbitMQ truyền ID, số phiên bản và object key. Không đưa audio hoặc toàn bộ transcript vào message.
+
+### 3.6. Outbox và idempotency
+
+Mỗi service ghi `outbox_events` trong **cùng transaction** với thay đổi nghiệp vụ, rồi publisher đẩy ra RabbitMQ. Bên nhận ghi `processed_messages` để chống xử lý lặp.
+
+Mọi job (`processing_jobs`, `sync_jobs`) có `idempotencyKey` và unique constraint trên khóa đó.
+
+## 4. Hợp đồng sự kiện
+
+Đặt trong `contracts/` dưới dạng JSON Schema để cả TypeScript và Python dùng chung.
+
+Mọi event đều có phần đầu chung: `eventId`, `eventType`, `eventVersion`, `occurredAt`, `workspaceId`, `correlationId`.
+
+| Event | Publisher | Consumer | Payload chính |
+| --- | --- | --- | --- |
+| `bot.join.requested` | Core | Bot | `botSessionId`, `meetingId`, `joinUrl` |
+| `bot.status.changed` | Bot | Core | `botSessionId`, `status`, `error?` |
+| `recording.completed` | Bot | Core | `botSessionId`, `objectKey[]`, `durationMs` |
+| `transcription.requested` | Core | AI | `jobId`, `meetingId`, `fileId`, `objectKey`, `language` |
+| `transcription.completed` | AI | Core | `jobId`, `runId`, `segments[]` hoặc `resultObjectKey` |
+| `analysis.requested` | Core | AI | `jobId`, `meetingId`, `transcriptVersionId` |
+| `analysis.completed` | AI | Core | `jobId`, `runId`, `minutesDraft`, `proposedItems[]` |
+| `index.requested` | Core | AI | `sourceType`, `sourceId`, `sourceVersion` |
+| `permission.changed` | Core | AI | `scopeType`, `scopeId` — để cập nhật lại ACL của chunk |
+| `source.deleted` | Core | AI | `sourceType`, `sourceId` — để xóa chunk |
+| `task.sync.requested` | Core | Integration | `actionItemId`, `integrationId`, `idempotencyKey` |
+| `task.sync.completed` | Integration | Core | `actionItemId`, `externalKey`, `status`, `error?` |
+
+Job thất bại được retry có giới hạn rồi chuyển vào dead-letter queue, không im lặng bỏ qua.
+
+## 5. Luồng xử lý một cuộc họp
+
+| Bước | Ai làm | Việc |
+| --- | --- | --- |
+| 1 | Core | Tạo meeting, lưu lịch chạy |
+| 2 | Scheduler (Core) | Đến giờ thì tạo `bot_session`, phát `bot.join.requested` |
+| 3 | Bot | Vào phòng, báo `waiting_admission` → `recording` |
+| 4 | Bot | Upload audio lên MinIO, phát `recording.completed` kèm object key |
+| 5 | Core | Ghi `files`, tạo `processing_job`, phát `transcription.requested` |
+| 6 | AI | Phiên âm, ghi `ai_runs`, phát `transcription.completed` |
+| 7 | Core | Tạo `transcript_version` mới và các `transcript_segments`, phát `analysis.requested` |
+| 8 | AI | Sinh tóm tắt + đề xuất công việc, phát `analysis.completed` |
+| 9 | Core | Tạo `minutes_version` nháp và `review_batch` + `review_items` |
+| 10 | Người dùng | Sửa, duyệt → Core sinh `action_items` chính thức |
+| 11 | Core | Phát `task.sync.requested` khi cấu hình cho phép |
+| 12 | Integration | Tạo/cập nhật issue ngoài, phát `task.sync.completed` |
+
+Hai lưu ý:
+
+- **`meeting.created` không đồng nghĩa bot phải vào ngay.** Scheduler phải bền vững: chịu được dời lịch, hủy lịch, và service khởi động lại.
+- Luồng trên là xử lý **sau** ghi âm. Transcript realtime cần luồng khác (audio theo chunk, số thứ tự, transcript tạm) và chỉ chốt phiên bản chính thức lúc kết thúc. WebSocket ở gateway tự nó không tạo ra khả năng phiên âm realtime.
+
+Với nguồn `upload`, luồng bắt đầu thẳng từ bước 5.
+
+## 6. Phân quyền
+
+Ba trục vai trò tách biệt, không gộp vào một cột `role`:
+
+| Trục | Lưu ở | Giá trị |
+| --- | --- | --- |
+| Quyền hệ thống | `users.systemRole` | `SUPER_ADMIN`, `USER` |
+| Quyền workspace | `workspace_members.role` | `OWNER`, `PM`, `MEMBER`, `VIEWER` |
+| Quyền project | `project_members.role` | `PM`, `MEMBER`, `VIEWER` |
+| Vai trò chuyên môn | `project_members.discipline` | `BACKEND`, `FRONTEND`, `QA`, `BA`, ... |
+| Vai trò trong cuộc họp | `meeting_participants.role` | `host`, `secretary`, `presenter`, `approver`, `participant` |
+
+Quy tắc bắt buộc:
+
+- AI **không** được thay đổi bất kỳ trục nào. Gợi ý của AI luôn ở trạng thái chờ xác nhận.
+- `SUPER_ADMIN` quản trị cấu hình **không** mặc nhiên đọc được nội dung cuộc họp riêng tư. Quyền đọc nội dung xét theo `meetings.visibility` + membership.
+- RAG lọc quyền **trước** khi truy xuất, và kiểm tra lại quyền khi người dùng mở nguồn trích dẫn.
+
+`BaseControllerFactory` mặc định đặt mọi route ở `roles: [SystemRole.ADMIN]`. Toàn bộ 18 module hiện đang để nguyên mặc định đó — phải thay bằng guard theo workspace trước khi dùng thật.
+
+## 7. Quan trắc và vận hành
+
+- Mỗi service expose `/metrics` cho Prometheus. Hiện container Prometheus chạy nhưng **không có file cấu hình scrape nào trong repo**.
+- Log có `correlationId` xuyên suốt một cuộc họp để lần được cả chuỗi Core → Bot → AI → Integration.
+- Giữ trạng thái từng bước trong `processing_jobs` để retry đúng bước lỗi, không chạy lại từ đầu.
+- Không hiển thị "hoàn tất" khi transcript/AI chưa xong.
+
+## 8. Phân kỳ
+
+| Giai đoạn | Phạm vi |
+| --- | --- |
+| MVP | Tài khoản/workspace/project; họp trực tiếp và upload file; note gắn timestamp; STT sau họp; gán speaker thủ công; biên bản + task nháp; duyệt; Task Board; RAG có nguồn và lọc quyền |
+| Tiếp theo | Bot cho một nền tảng; kết nối Calendar; đồng bộ một chiều Jira hoặc Trello; mẫu biên bản; nhắc việc; ghi âm khi mất mạng |
+| Nâng cao | Nhận diện qua mẫu giọng; transcript realtime; họp kết hợp; ghi chú cộng tác; đồng bộ hai chiều; đánh giá tải công việc |
+
+## 9. Việc cần làm trước khi viết thêm code
+
+1. Đổi image Postgres sang bản có pgvector, tách 3 schema + 3 tài khoản.
+2. Tắt `synchronize`, sinh migration cho 18 module đã có.
+3. Sửa `meetings`: thêm `sourceType`, cho `meetingUrl`/`platform`/`scheduledStartAt` nullable — hiện schema không lưu nổi cuộc họp trực tiếp, vốn là use case chính của MVP.
+4. Chốt mô hình duyệt: `review_items` → duyệt → sinh `action_items`; bỏ `reviewStatus` khỏi `action_items`.
+5. Bổ sung các bảng còn thiếu: `notes`, `agenda_items`, `decisions`, `files`, `recording_segments`, `upload_sessions`, `recording_consents`, `transcript_versions`, `minutes_versions`.
+6. Dựng `contracts/` và thay guard mặc định bằng phân quyền theo workspace.

@@ -5,13 +5,13 @@ import {
     RepositoryProviderName,
 } from "@module/repository/common/repository";
 import { TransactionProvider } from "@module/repository/common/transaction";
-import { MongoTransaction } from "@module/repository/mongo/mongo.transaction";
+import { SqlTransaction } from "@module/repository/sequelize/sql.transaction";
 import { BullModule } from "@nestjs/bull";
 import { Module } from "@nestjs/common";
 import { AuditLogController } from "./audit-log.controller";
 import { AuditLogProcessor } from "./audit-log.process";
 import { AuditLogService } from "./audit-log.service";
-import { AuditLogMongoRepository } from "./repository/audit-log-mongo.repository";
+import { AuditLogSqlRepository } from "./repository/audit-log-sql.repository";
 
 @Module({
     imports: [
@@ -28,8 +28,8 @@ import { AuditLogMongoRepository } from "./repository/audit-log-mongo.repository
     providers: [
         AuditLogService,
         AuditLogProcessor,
-        RepositoryProvider(Entity.AUDIT_LOG, AuditLogMongoRepository),
-        TransactionProvider(MongoTransaction),
+        RepositoryProvider(Entity.AUDIT_LOG, AuditLogSqlRepository),
+        TransactionProvider(SqlTransaction),
     ],
     exports: [RepositoryProviderName(Entity.AUDIT_LOG), BullModule],
     controllers: [AuditLogController],

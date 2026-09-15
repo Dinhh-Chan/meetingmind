@@ -6,7 +6,7 @@ COPY ["package.json", "package-lock.json", "tsconfig.*", "nest-cli.json", "./"]
 RUN npm install
 
 COPY ["src", "./src"]
-RUN npm run build-bundle
+RUN npm run build
 
 FROM node:22-alpine
 ENV TZ=Asia/Ho_Chi_Minh

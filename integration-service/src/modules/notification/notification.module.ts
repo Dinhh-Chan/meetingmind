@@ -4,13 +4,13 @@ import { RepositoryProvider } from "@module/repository/common/repository";
 import { Module } from "@nestjs/common";
 import { NotificationController } from "./notification.controller";
 import { NotificationService } from "./notification.service";
-import { NotificationMongoRepository } from "./repository/notification-mongo.repository";
+import { NotificationSqlRepository } from "./repository/notification-sql.repository";
 
 @Module({
     imports: [OneSignalModule],
     providers: [
         NotificationService,
-        RepositoryProvider(Entity.NOTIFICATION, NotificationMongoRepository),
+        RepositoryProvider(Entity.NOTIFICATION, NotificationSqlRepository),
     ],
     controllers: [NotificationController],
 })

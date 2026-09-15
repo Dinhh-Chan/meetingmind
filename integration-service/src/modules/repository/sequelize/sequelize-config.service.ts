@@ -21,6 +21,7 @@ export class SequelizeConfigService implements SequelizeOptionsFactory {
             schema,
             database,
             maxPool,
+            synchronize,
         } = this.configService.get("sql", { infer: true });
         const environment = this.configService.get("server.env", {
             infer: true,
@@ -39,9 +40,9 @@ export class SequelizeConfigService implements SequelizeOptionsFactory {
             },
             autoLoadModels: true,
             logging: environment !== Environment.PRODUCTION,
-            synchronize: environment !== Environment.PRODUCTION,
+            synchronize,
             sync: {
-                alter: true,
+                alter: synchronize,
             },
             dialectOptions: {
                 useUTC: false,

@@ -6,14 +6,14 @@ x-nest-environment: &nest-environment
   JWT_EXP: 3600
   JWT_REFRESH_SECRET: meetingmind_refresh_secret
   JWT_REFRESH_EXP: 15552000
-  MONGODB_URI: mongodb://mongodb:27017/meetingmind
   SQL_TYPE: postgres
   SQL_HOST: postgres
   SQL_PORT: 5432
-  SQL_USER: mmuser
-  SQL_PASSWORD: mmpass
   SQL_DB: meetingmind
-  SQL_SCHEMA: public
+  # SQL_USER / SQL_PASSWORD / SQL_SCHEMA khai riêng cho từng service.
+  # SQL_SYNCHRONIZE chỉ bật ở đúng một service mỗi schema, nếu không
+  # nhiều tiến trình sẽ cùng ALTER TABLE lúc khởi động.
+  SQL_SYNCHRONIZE: 0
   REDIS_HOST: redis
   REDIS_PORT: 6379
   REDIS_PASSWORD: ""
@@ -39,8 +39,6 @@ x-nest-common: &nest-common
   depends_on:
     postgres:
       condition: service_healthy
-    mongodb:
-      condition: service_started
     redis:
       condition: service_healthy
     rabbitmq:
@@ -50,7 +48,7 @@ x-nest-common: &nest-common
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     restart: unless-stopped
     environment:
       POSTGRES_DB: meetingmind
@@ -60,19 +58,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Chỉ chạy khi volume rỗng. Tạo extension vector, 3 schema, 3 role.
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mmuser -d meetingmind"]
       interval: 10s
       timeout: 5s
       retries: 10
-
-  mongodb:
-    image: mongo:6.0
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
 
   redis:
     image: redis:7-alpine
@@ -126,6 +118,10 @@ services:
       MICROSERVICE_GRPC_PORT: 3001
       MICROSERVICE_TCP_PORT: 3002
       SERVER_GW_ADDRESS: http://api-gateway:3000
+      SQL_USER: mm_core
+      SQL_PASSWORD: mm_core_pass
+      SQL_SCHEMA: core
+      # core-service là chủ schema `core` nên chỉ nó được sinh bảng
     ports:
       - "3000:3000"
 
@@ -142,6 +138,10 @@ services:
       MICROSERVICE_GRPC_PORT: 3011
       MICROSERVICE_TCP_PORT: 3002
       SERVER_GW_ADDRESS: http://api-gateway:3000
+      SQL_USER: mm_core
+      SQL_PASSWORD: mm_core_pass
+      SQL_SCHEMA: core
+      SQL_SYNCHRONIZE: 1
     ports:
       - "3010:3010"
 
@@ -158,6 +158,10 @@ services:
       MICROSERVICE_GRPC_PORT: 3021
       MICROSERVICE_TCP_PORT: 3022
       SERVER_GW_ADDRESS: http://api-gateway:3000
+      SQL_USER: mm_integration
+      SQL_PASSWORD: mm_integration_pass
+      SQL_SCHEMA: integration
+      SQL_SYNCHRONIZE: 1
     ports:
       - "3020:3020"
 
@@ -175,10 +179,11 @@ services:
       DEBUG: "true"
       SECRET_KEY: meetingmind_ai_secret
       POSTGRES_DB: meetingmind
-      POSTGRES_USER: mmuser
-      POSTGRES_PASSWORD: mmpass
+      POSTGRES_USER: mm_ai
+      POSTGRES_PASSWORD: mm_ai_pass
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
+      POSTGRES_SCHEMA: ai
       BACKEND_CORS_ORIGINS: '["*"]'
       API_PREFIX: /api
       API_VERSIONS: v1,v2
@@ -208,6 +213,5 @@ services:
 
 volumes:
   postgres_data:
-  mongodb_data:
   minio_data:
   grafana_data:

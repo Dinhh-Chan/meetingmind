@@ -19,3 +19,23 @@ export const DATA_PARTITION_USER = "DataPartitionUser";
 
 export const QUY_TAC_MA = "QuyTacMa";
 export const HAM_SINH_MA = "HamSinhMa";
+
+/** MeetingMind */
+export const OAUTH_ACCOUNT = "OauthAccount";
+export const WORKSPACE = "Workspace";
+export const WORKSPACE_MEMBER = "WorkspaceMember";
+export const WORKSPACE_SETTING = "WorkspaceSetting";
+export const PROJECT = "Project";
+export const PROJECT_MEMBER = "ProjectMember";
+export const MEETING = "Meeting";
+export const MEETING_PARTICIPANT = "MeetingParticipant";
+export const TRANSCRIPT_SEGMENT = "TranscriptSegment";
+export const SPEAKER_ALIAS = "SpeakerAlias";
+export const MEETING_MINUTES = "MeetingMinutes";
+export const ACTION_ITEM = "ActionItem";
+export const ACTION_ITEM_CITATION = "ActionItemCitation";
+export const ACTION_ITEM_COMMENT = "ActionItemComment";
+export const ACTION_ITEM_HISTORY = "ActionItemHistory";
+export const REVIEW_BATCH = "ReviewBatch";
+export const REVIEW_ITEM = "ReviewItem";
+export const RISK_FLAG = "RiskFlag";

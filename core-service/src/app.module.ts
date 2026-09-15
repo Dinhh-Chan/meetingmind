@@ -1,3 +1,21 @@
+import { OauthAccountModule } from "@module/oauth-account/oauth-account.module";
+import { WorkspaceModule } from "@module/workspace/workspace.module";
+import { WorkspaceMemberModule } from "@module/workspace-member/workspace-member.module";
+import { WorkspaceSettingModule } from "@module/workspace-setting/workspace-setting.module";
+import { ProjectModule } from "@module/project/project.module";
+import { ProjectMemberModule } from "@module/project-member/project-member.module";
+import { MeetingModule } from "@module/meeting/meeting.module";
+import { MeetingParticipantModule } from "@module/meeting-participant/meeting-participant.module";
+import { TranscriptSegmentModule } from "@module/transcript-segment/transcript-segment.module";
+import { SpeakerAliasModule } from "@module/speaker-alias/speaker-alias.module";
+import { MeetingMinutesModule } from "@module/meeting-minutes/meeting-minutes.module";
+import { ActionItemModule } from "@module/action-item/action-item.module";
+import { ActionItemCitationModule } from "@module/action-item-citation/action-item-citation.module";
+import { ActionItemCommentModule } from "@module/action-item-comment/action-item-comment.module";
+import { ActionItemHistoryModule } from "@module/action-item-history/action-item-history.module";
+import { ReviewBatchModule } from "@module/review-batch/review-batch.module";
+import { ReviewItemModule } from "@module/review-item/review-item.module";
+import { RiskFlagModule } from "@module/risk-flag/risk-flag.module";
 import { DefaultModules, DefaultProviders } from "@config/module/config";
 import { AuditLogModule } from "@module/audit-log/audit-log.module";
 import { IncrementModule } from "@module/increment/increment.module";
@@ -45,6 +63,24 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
         EventModule,
         EventLogModule,
         WebSocketModule,
+        OauthAccountModule,
+        WorkspaceModule,
+        WorkspaceMemberModule,
+        WorkspaceSettingModule,
+        ProjectModule,
+        ProjectMemberModule,
+        MeetingModule,
+        MeetingParticipantModule,
+        TranscriptSegmentModule,
+        SpeakerAliasModule,
+        MeetingMinutesModule,
+        ActionItemModule,
+        ActionItemCitationModule,
+        ActionItemCommentModule,
+        ActionItemHistoryModule,
+        ReviewBatchModule,
+        ReviewItemModule,
+        RiskFlagModule,
     ],
     providers: [...DefaultProviders],
     controllers: [AppController],

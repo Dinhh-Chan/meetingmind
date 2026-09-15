@@ -22,8 +22,6 @@ import {
     UpdateDocument,
 } from "@module/repository/common/base-repository.interface";
 import { BaseTransaction } from "@module/repository/common/base-transaction.interface";
-import { MongoRepository } from "@module/repository/mongo/mongo.repository";
-import { MongoTransaction } from "@module/repository/mongo/mongo.transaction";
 import { SqlRepository } from "@module/repository/sequelize/sql.repository";
 import { SqlTransaction } from "@module/repository/sequelize/sql.transaction";
 import { SettingService } from "@module/setting/setting.service";
@@ -42,9 +40,6 @@ export class BaseService<
     R extends BaseRepository<E> = BaseRepository<E>,
 > implements OnModuleInit
 {
-    @Inject(MongoTransaction)
-    private readonly mongoTransaction: MongoTransaction;
-
     @Inject(SqlTransaction)
     private readonly sqlTransaction: SqlTransaction;
 
@@ -54,11 +49,9 @@ export class BaseService<
     async onModuleInit() {
         const transaction: BaseTransaction =
             this.property.transaction ||
-            (this.repository instanceof MongoRepository
-                ? this.mongoTransaction
-                : this.repository instanceof SqlRepository
-                  ? this.sqlTransaction
-                  : null);
+            (this.repository instanceof SqlRepository
+                ? this.sqlTransaction
+                : null);
         this.property.importService =
             this.property.importService ||
             new BaseImportService(this.repository, {

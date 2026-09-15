@@ -80,6 +80,11 @@ export interface Configuration {
         schema: string;
         database: string;
         maxPool: number;
+        /**
+         * Cho Sequelize tự tạo/sửa bảng. Chỉ bật ở đúng một service mỗi
+         * schema, nếu không nhiều tiến trình sẽ cùng ALTER TABLE lúc khởi động.
+         */
+        synchronize: boolean;
     };
     redis: {
         host: string;
@@ -202,6 +207,7 @@ export default (): Configuration => {
         schema: getEnv("SQL_SCHEMA"),
         database: getEnv("SQL_DB"),
         maxPool: Number(getEnv("SQL_DB_MAX_POOL", "5")),
+        synchronize: getEnv("SQL_SYNCHRONIZE", "0") === "1",
     };
 
     const redis: Configuration["redis"] = {

@@ -1,16 +1,16 @@
 import { QueueName } from "@common/constant";
-import { AuthMongoRepository } from "@module/auth/repository/auth-mongo.repository";
+import { AuthSqlRepository } from "@module/auth/repository/auth-sql.repository";
 import { OneSignalProcessor } from "@module/one-signal/provider/one-signal.process";
 import { Entity } from "@module/repository";
 import { RepositoryProvider } from "@module/repository/common/repository";
-import { UserTopicMongoRepository } from "@module/topic/repository/user-topic-mongo.repository";
+import { UserTopicSqlRepository } from "@module/topic/repository/user-topic-sql.repository";
 import { HttpModule } from "@nestjs/axios";
 import { BullModule } from "@nestjs/bull";
 import { Module } from "@nestjs/common";
 import { OneSignalApiService } from "./one-signal-api.service";
 import { OneSignalController } from "./one-signal.controller";
 import { OneSignalService } from "./one-signal.service";
-import { OneSignalUserMongoRepository } from "./repository/one-signal-user-mongo.repository";
+import { OneSignalUserSqlRepository } from "./repository/one-signal-user-sql.repository";
 
 @Module({
     imports: [
@@ -34,10 +34,10 @@ import { OneSignalUserMongoRepository } from "./repository/one-signal-user-mongo
         OneSignalProcessor,
         RepositoryProvider(
             Entity.ONE_SIGNAL_USER,
-            OneSignalUserMongoRepository,
+            OneSignalUserSqlRepository,
         ),
-        RepositoryProvider(Entity.USER_TOPIC, UserTopicMongoRepository),
-        RepositoryProvider(Entity.AUTH, AuthMongoRepository),
+        RepositoryProvider(Entity.USER_TOPIC, UserTopicSqlRepository),
+        RepositoryProvider(Entity.AUTH, AuthSqlRepository),
     ],
     controllers: [OneSignalController],
     exports: [OneSignalService],
