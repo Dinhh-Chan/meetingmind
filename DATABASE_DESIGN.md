@@ -48,7 +48,9 @@ Image Postgres phải có pgvector (`pgvector/pgvector:pg15`). Tắt `synchroniz
 | `lastLoginAt` | datetime | no |  |
 | `deletedAt` | datetime | no |  |
 
-> Tên bảng `users` hiện đang bị `ai-service` chiếm trong schema `public`. Sau khi tách schema, bảng này nằm ở `core.users`, không còn xung đột.
+> Xung đột với bảng `users` của `ai-service` đã được giải quyết bằng việc tách schema.
+> Lưu ý: module `user` của template đang đặt tên bảng là `core."User"` (PascalCase),
+> chưa đổi sang `core.users` như đặc tả ở đây — xem mục *Trạng thái triển khai* ở cuối.
 
 ### oauth_accounts
 
@@ -952,19 +954,23 @@ ai
 
 **Không hoãn:** `sync_jobs`, `outbox_events`, `processed_messages`, `transcript_versions`, `minutes_versions`. Đây là các bảng bảo đảm tính đúng đắn, thêm sau sẽ phải sửa dữ liệu đã có.
 
-## Khoảng cách với code hiện tại
+## Trạng thái triển khai
 
-18 module đã dựng trong `core-service` bám theo **bản thiết kế cũ**. Để khớp tài liệu này cần:
+`core-service` đã có **34 module** khớp tài liệu này, chạy trên schema `core`
+của PostgreSQL. Kiểm chứng bằng cách gọi `GET /<tên-module>/page` sau khi đăng nhập.
 
-| Việc | Module ảnh hưởng |
+Hai điểm còn lệch:
+
+| Việc | Lý do hoãn |
 | --- | --- |
-| Thêm `sourceType`, `visibility`, `status`; bỏ `botStatus`, `audioFileId`; nới nullable | `meeting` |
-| Bỏ `reviewStatus`, `approvedById`, `approvedAt`; thêm `proposerId`, `approverId`, `definitionOfDone`, `deadlineRawText` | `action-item` |
-| Bỏ `synced`/`partially_synced`; thêm `sourceTranscriptVersionId` | `review-batch` |
-| Bỏ trạng thái `edited`; thêm `originalPayload`, `editedAt`, `editedById` | `review-item` |
-| Thêm `transcriptVersionId`, `identityStatus`, `isOverlapping` | `transcript-segment`, `speaker-alias` |
-| Tách nội dung sang `minutes_versions` | `meeting-minutes` |
-| Thêm `ruleKey`, `evidence`, `dedupKey` | `risk-flag` |
-| Thêm `discipline` | `project-member` |
-| Thêm `autoSyncEnabled` | `workspace-setting` |
-| **Tạo mới** | `agenda-item`, `recording-consent`, `file`, `upload-session`, `recording-segment`, `bot-session`, `transcript-version`, `note`, `minutes-version`, `decision`, `decision-citation`, `task-dependency`, `processing-job`, `outbox-event`, `processed-message` |
+| Bảng `files` | Template đã có module `file` lưu nội dung vào cột `data: TEXT`. Chuyển sang lưu object key của MinIO phải sửa cả luồng upload/download nên tách thành việc riêng. Trong lúc chờ, `upload_sessions.fileId` và `recording_segments.fileId` trỏ tới bảng `File` cũ. |
+| `users.password` → `passwordHash` | Đổi tên cột kéo theo `auth.service.ts` và `user.service.ts`. Thuần cosmetic, chưa làm để không đụng đường đăng nhập đang chạy. |
+| Tên bảng `User` → `users` | Module `user` của template dùng `Entity.USER = "User"` làm `tableName`. Đổi sang `users` kéo theo model Sequelize và dữ liệu đang có. |
+
+Khác biệt nhỏ so với đặc tả ở trên: `processed_messages` dùng `_id` làm PK
+kèm unique `(messageId, consumer)`, thay vì lấy `messageId` làm PK — để thống
+nhất với quy ước `StrObjectId()` của toàn bộ codebase.
+
+Vi phạm ràng buộc unique (ví dụ trùng `idempotencyKey`) hiện trả HTTP 500 thay
+vì 409. Ràng buộc vẫn chặn đúng, chỉ là mã lỗi chưa được map — cần bổ sung
+xử lý `UniqueConstraintError` trong `HttpExceptionFilter`.

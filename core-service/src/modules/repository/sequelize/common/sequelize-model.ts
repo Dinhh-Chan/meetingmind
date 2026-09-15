@@ -1,3 +1,18 @@
+import { UserSessionModel } from "@module/user-session/models/user-session.model";
+import { AgendaItemModel } from "@module/agenda-item/models/agenda-item.model";
+import { RecordingConsentModel } from "@module/recording-consent/models/recording-consent.model";
+import { UploadSessionModel } from "@module/upload-session/models/upload-session.model";
+import { RecordingSegmentModel } from "@module/recording-segment/models/recording-segment.model";
+import { BotSessionModel } from "@module/bot-session/models/bot-session.model";
+import { TranscriptVersionModel } from "@module/transcript-version/models/transcript-version.model";
+import { NoteModel } from "@module/note/models/note.model";
+import { MinutesVersionModel } from "@module/minutes-version/models/minutes-version.model";
+import { DecisionModel } from "@module/decision/models/decision.model";
+import { DecisionCitationModel } from "@module/decision-citation/models/decision-citation.model";
+import { TaskDependencyModel } from "@module/task-dependency/models/task-dependency.model";
+import { ProcessingJobModel } from "@module/processing-job/models/processing-job.model";
+import { OutboxEventModel } from "@module/outbox-event/models/outbox-event.model";
+import { ProcessedMessageModel } from "@module/processed-message/models/processed-message.model";
 import { OauthAccountModel } from "@module/oauth-account/models/oauth-account.model";
 import { WorkspaceModel } from "@module/workspace/models/workspace.model";
 import { WorkspaceMemberModel } from "@module/workspace-member/models/workspace-member.model";
@@ -71,4 +86,19 @@ export const SequelizeModel: ModelCtor<Model>[] = [
     ReviewBatchModel,
     ReviewItemModel,
     RiskFlagModel,
+    UserSessionModel,
+    AgendaItemModel,
+    RecordingConsentModel,
+    UploadSessionModel,
+    RecordingSegmentModel,
+    BotSessionModel,
+    TranscriptVersionModel,
+    NoteModel,
+    MinutesVersionModel,
+    DecisionModel,
+    DecisionCitationModel,
+    TaskDependencyModel,
+    ProcessingJobModel,
+    OutboxEventModel,
+    ProcessedMessageModel,
 ];

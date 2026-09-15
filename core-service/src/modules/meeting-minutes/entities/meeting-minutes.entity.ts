@@ -1,7 +1,6 @@
 import { EntityDefinition } from "@common/constant/class/entity-definition";
 import { BaseEntity } from "@common/interface/base-entity.interface";
-import { IsArray, IsDateString, IsEnum, IsObject, IsOptional, IsString } from "class-validator";
-import { MinutesStatus } from "../common/constant";
+import { IsOptional, IsString } from "class-validator";
 
 export class MeetingMinutes implements BaseEntity {
     /**
@@ -26,54 +25,18 @@ export class MeetingMinutes implements BaseEntity {
     meetingId: string;
 
     /**
-     * Tóm tắt
-     */
-    @IsString()
-    @EntityDefinition.field({ label: "Tóm tắt", required: true })
-    summary: string;
-
-    /**
-     * Danh sách quyết định
-     */
-    @IsArray()
-    @EntityDefinition.field({ label: "Danh sách quyết định", required: true })
-    decisions: Record<string, any>[];
-
-    /**
-     * Vấn đề tồn đọng
-     */
-    @IsArray()
-    @EntityDefinition.field({ label: "Vấn đề tồn đọng", required: true })
-    openIssues: Record<string, any>[];
-
-    /**
-     * Nội dung editor
-     */
-    @IsObject()
-    @IsOptional()
-    @EntityDefinition.field({ label: "Nội dung editor" })
-    editorContent?: Record<string, any>;
-
-    /**
-     * Trạng thái
-     */
-    @IsEnum(MinutesStatus)
-    @EntityDefinition.field({ label: "Trạng thái", required: true, enum: Object.values(MinutesStatus) })
-    status: MinutesStatus;
-
-    /**
-     * Người duyệt
+     * Phiên bản hiện tại
      */
     @IsString()
     @IsOptional()
-    @EntityDefinition.field({ label: "Người duyệt" })
-    approvedById?: string;
+    @EntityDefinition.field({ label: "Phiên bản hiện tại" })
+    currentVersionId?: string;
 
     /**
-     * Thời điểm duyệt
+     * Phiên bản đã duyệt
      */
-    @IsDateString()
+    @IsString()
     @IsOptional()
-    @EntityDefinition.field({ label: "Thời điểm duyệt" })
-    approvedAt?: Date;
+    @EntityDefinition.field({ label: "Phiên bản đã duyệt" })
+    approvedVersionId?: string;
 }

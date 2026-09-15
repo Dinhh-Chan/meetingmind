@@ -39,3 +39,20 @@ export const ACTION_ITEM_HISTORY = "ActionItemHistory";
 export const REVIEW_BATCH = "ReviewBatch";
 export const REVIEW_ITEM = "ReviewItem";
 export const RISK_FLAG = "RiskFlag";
+
+/** MeetingMind */
+export const USER_SESSION = "UserSession";
+export const AGENDA_ITEM = "AgendaItem";
+export const RECORDING_CONSENT = "RecordingConsent";
+export const UPLOAD_SESSION = "UploadSession";
+export const RECORDING_SEGMENT = "RecordingSegment";
+export const BOT_SESSION = "BotSession";
+export const TRANSCRIPT_VERSION = "TranscriptVersion";
+export const NOTE = "Note";
+export const MINUTES_VERSION = "MinutesVersion";
+export const DECISION = "Decision";
+export const DECISION_CITATION = "DecisionCitation";
+export const TASK_DEPENDENCY = "TaskDependency";
+export const PROCESSING_JOB = "ProcessingJob";
+export const OUTBOX_EVENT = "OutboxEvent";
+export const PROCESSED_MESSAGE = "ProcessedMessage";

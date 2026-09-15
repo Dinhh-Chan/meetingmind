@@ -10,7 +10,7 @@ Tài liệu này mô tả cách các service phối hợp, ai được ghi dữ 
 | --- | --- | --- | --- |
 | `frontend/` | Next.js | UI, realtime, ghi âm phía trình duyệt | Chưa tạo |
 | `api-gateway/` | NestJS | Cổng vào duy nhất: xác thực token, định tuyến, rate limit, WebSocket | Đang là template |
-| `core-service/` | NestJS | Nghiệp vụ và điều phối: workspace, project, meeting, transcript, minutes, task, review, job | 18 module CRUD đã dựng |
+| `core-service/` | NestJS | Nghiệp vụ và điều phối: workspace, project, meeting, transcript, minutes, task, review, job | 34 module CRUD đã dựng |
 | `integration-service/` | NestJS | Kết nối ngoài: Calendar, Jira/Trello, export tài liệu, webhook | Đang là template |
 | `ai-service/` | FastAPI | STT, tóm tắt, trích xuất công việc, RAG | Đang là template |
 | `bot-worker/` | Python + Playwright | Vào phòng họp trực tuyến, ghi âm, upload | Thư mục rỗng |
@@ -73,9 +73,9 @@ MVP dùng **một PostgreSQL instance, ba schema, ba tài khoản**:
 | integration-service | `integration` | `mm_integration` |
 | ai-service | `ai` | `mm_ai` |
 
-Mỗi service tự quản migration của mình. Tắt `synchronize`/`sync.alter` ở mọi môi trường.
+Mỗi service tự quản migration của mình. Cờ `SQL_SYNCHRONIZE` quyết định service nào được sinh bảng — chỉ bật ở đúng một service mỗi schema, và phải tắt hẳn khi có migration thật.
 
-> Lý do bắt buộc: hiện cả 4 service dùng chung `meetingmind` + schema `public` + user `mmuser`. `ai-service` đã tạo bảng `users` bằng Alembic, trùng tên với bảng `users` mà Core cần theo thiết kế. Ba service NestJS còn cùng chạy `ALTER TABLE` lúc khởi động.
+> Đã triển khai. Trước đó cả 4 service dùng chung `meetingmind` + schema `public` + user `mmuser`: `ai-service` đã chiếm mất tên bảng `users` bằng Alembic, và ba service NestJS cùng chạy `ALTER TABLE` lúc khởi động.
 
 Image Postgres phải là bản có pgvector (`pgvector/pgvector:pg15`), không dùng `postgres:15-alpine`.
 
@@ -177,11 +177,19 @@ Quy tắc bắt buộc:
 | Tiếp theo | Bot cho một nền tảng; kết nối Calendar; đồng bộ một chiều Jira hoặc Trello; mẫu biên bản; nhắc việc; ghi âm khi mất mạng |
 | Nâng cao | Nhận diện qua mẫu giọng; transcript realtime; họp kết hợp; ghi chú cộng tác; đồng bộ hai chiều; đánh giá tải công việc |
 
-## 9. Việc cần làm trước khi viết thêm code
+## 9. Việc còn lại
 
-1. Đổi image Postgres sang bản có pgvector, tách 3 schema + 3 tài khoản.
-2. Tắt `synchronize`, sinh migration cho 18 module đã có.
-3. Sửa `meetings`: thêm `sourceType`, cho `meetingUrl`/`platform`/`scheduledStartAt` nullable — hiện schema không lưu nổi cuộc họp trực tiếp, vốn là use case chính của MVP.
-4. Chốt mô hình duyệt: `review_items` → duyệt → sinh `action_items`; bỏ `reviewStatus` khỏi `action_items`.
-5. Bổ sung các bảng còn thiếu: `notes`, `agenda_items`, `decisions`, `files`, `recording_segments`, `upload_sessions`, `recording_consents`, `transcript_versions`, `minutes_versions`.
-6. Dựng `contracts/` và thay guard mặc định bằng phân quyền theo workspace.
+Đã xong: tách 3 schema + pgvector, bỏ MongoDB, 34 module core-service khớp thiết kế.
+
+Còn lại, theo thứ tự ưu tiên:
+
+1. **Phân quyền theo workspace** — thay mặc định `roles: [SystemRole.ADMIN]` của
+   `BaseControllerFactory` bằng guard đọc `workspace_members`. Đây là việc chặn
+   sử dụng thật, vì hiện mọi route đều đòi quyền Admin hệ thống.
+2. **Migration thật** — sinh migration cho 34 module rồi tắt `SQL_SYNCHRONIZE`.
+3. **Thư mục `contracts/`** — JSON Schema cho 12 event ở mục 4.
+4. **Viết lại module `file`** — lưu object key MinIO thay vì base64 trong cột `data`.
+5. **Cron dọn bảng `Auth`** — thay TTL index đã mất khi bỏ MongoDB.
+6. **Cấu hình Prometheus** — hiện container chạy nhưng không có scrape target.
+7. **Bỏ publish cổng 3010/3020/8000** khi triển khai thật.
+8. **bot-worker và frontend** — hai thư mục còn rỗng.

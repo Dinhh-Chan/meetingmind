@@ -1,3 +1,18 @@
+import { UserSessionModule } from "@module/user-session/user-session.module";
+import { AgendaItemModule } from "@module/agenda-item/agenda-item.module";
+import { RecordingConsentModule } from "@module/recording-consent/recording-consent.module";
+import { UploadSessionModule } from "@module/upload-session/upload-session.module";
+import { RecordingSegmentModule } from "@module/recording-segment/recording-segment.module";
+import { BotSessionModule } from "@module/bot-session/bot-session.module";
+import { TranscriptVersionModule } from "@module/transcript-version/transcript-version.module";
+import { NoteModule } from "@module/note/note.module";
+import { MinutesVersionModule } from "@module/minutes-version/minutes-version.module";
+import { DecisionModule } from "@module/decision/decision.module";
+import { DecisionCitationModule } from "@module/decision-citation/decision-citation.module";
+import { TaskDependencyModule } from "@module/task-dependency/task-dependency.module";
+import { ProcessingJobModule } from "@module/processing-job/processing-job.module";
+import { OutboxEventModule } from "@module/outbox-event/outbox-event.module";
+import { ProcessedMessageModule } from "@module/processed-message/processed-message.module";
 import { OauthAccountModule } from "@module/oauth-account/oauth-account.module";
 import { WorkspaceModule } from "@module/workspace/workspace.module";
 import { WorkspaceMemberModule } from "@module/workspace-member/workspace-member.module";
@@ -81,6 +96,21 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
         ReviewBatchModule,
         ReviewItemModule,
         RiskFlagModule,
+        UserSessionModule,
+        AgendaItemModule,
+        RecordingConsentModule,
+        UploadSessionModule,
+        RecordingSegmentModule,
+        BotSessionModule,
+        TranscriptVersionModule,
+        NoteModule,
+        MinutesVersionModule,
+        DecisionModule,
+        DecisionCitationModule,
+        TaskDependencyModule,
+        ProcessingJobModule,
+        OutboxEventModule,
+        ProcessedMessageModule,
     ],
     providers: [...DefaultProviders],
     controllers: [AppController],
