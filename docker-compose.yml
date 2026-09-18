@@ -211,6 +211,37 @@ services:
     ports:
       - "8000:8000"
 
+  ai-worker:
+    # Cùng image với ai-service, khác lệnh chạy: đây là tiến trình nhận việc
+    # từ RabbitMQ, không phục vụ HTTP.
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "app.worker.main"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      MICROSERVICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_USE_SSL: 0
+      # stub cho tới khi bật Whisper và Claude
+      AI_STT: stub
+      AI_LLM: stub
+      SECRET_KEY: meetingmind_ai_secret
+      POSTGRES_DB: meetingmind
+      POSTGRES_USER: mm_ai
+      POSTGRES_PASSWORD: mm_ai_pass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_SCHEMA: ai
+
   bot-worker:
     image: alpine:3.20
     profiles: ["bot"]

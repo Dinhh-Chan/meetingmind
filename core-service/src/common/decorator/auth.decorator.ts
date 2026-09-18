@@ -2,6 +2,7 @@ import { RequestAuthData } from "@common/constant/class/request-auth-data";
 import { DataPartitionGuard } from "@common/guard/data-partition.guard";
 import { JwtAuthGuard } from "@common/guard/jwt-auth.guard";
 import { SystemRoleGuard } from "@common/guard/system-role.guard";
+import { PermissionGuard } from "@module/permission/guards/permission.guard";
 import { ApiError } from "@config/exception/api-error";
 import { AccessSsoJwtPayload } from "@module/auth/auth.interface";
 import { SystemRole } from "@module/user/common/constant";
@@ -36,6 +37,8 @@ export const Authorization = () =>
             // JwtSsoGuard,
             SystemRoleGuard,
             DataPartitionGuard,
+            // Phải đứng sau JwtAuthGuard: nó cần user đã xác thực.
+            PermissionGuard,
         ),
         ApiBearerAuth(),
         ApiSecurity("dataPartitionCode"),

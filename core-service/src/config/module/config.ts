@@ -14,6 +14,7 @@ import {
     Type,
 } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ScheduleModule } from "@nestjs/schedule";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { SequelizeModule } from "@nestjs/sequelize";
 import { ClsModule } from "nestjs-cls";
@@ -50,6 +51,7 @@ export const DefaultModules: Array<
         }),
         inject: [ConfigService],
     }),
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
         load: [configuration],
         isGlobal: true,

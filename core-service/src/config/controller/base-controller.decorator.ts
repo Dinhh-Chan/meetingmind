@@ -14,17 +14,8 @@ import {
     RequirePermission,
     ScopeParam,
 } from "@module/permission/common/decorator";
-import { PermissionGuard } from "@module/permission/guards/permission.guard";
 import { SystemRole } from "@module/user/common/constant";
-import {
-    Delete,
-    Get,
-    Patch,
-    Post,
-    Put,
-    UseGuards,
-    applyDecorators,
-} from "@nestjs/common";
+import { Delete, Get, Patch, Post, Put, applyDecorators } from "@nestjs/common";
 
 export const BaseControllerSetup = (config: BaseControllerConfig) => {
     const decorators: Array<ClassDecorator> = [];
@@ -32,7 +23,6 @@ export const BaseControllerSetup = (config: BaseControllerConfig) => {
     const authorization = config?.authorize ?? true;
     if (authorization) {
         decorators.push(Authorization());
-        decorators.push(UseGuards(PermissionGuard));
         const controllerRoles = config?.roles;
         if (controllerRoles) {
             decorators.push(AllowSystemRoles(...controllerRoles));

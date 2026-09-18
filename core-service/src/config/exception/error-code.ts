@@ -2,6 +2,7 @@ import { FileErrorCode } from "@module/file/common/constant";
 
 export type ErrorCode =
     | "error-user-not-found"
+    | "error-meeting-not-found"
     | "error-user-exist"
     | "error-password-wrong"
     | "error-old-password-wrong"

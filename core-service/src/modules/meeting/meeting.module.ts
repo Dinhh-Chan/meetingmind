@@ -1,3 +1,4 @@
+import { MeetingAccessModule } from "@module/meeting-access/meeting-access.module";
 import { Entity } from "@module/repository";
 import { RepositoryProvider } from "@module/repository/common/repository";
 import { TransactionProvider } from "@module/repository/common/transaction";
@@ -8,6 +9,7 @@ import { MeetingSqlRepository } from "./repositories/meeting-sql.repository";
 import { MeetingService } from "./services/meeting.service";
 
 @Module({
+    imports: [MeetingAccessModule],
     controllers: [MeetingController],
     providers: [
         MeetingService,

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MeetingMind — hợp đồng sự kiện",
+  "description": "Nguồn chung cho TypeScript (core-service, integration-service) và Python (ai-service, bot-worker). Message chỉ mang tham chiếu: ID, số phiên bản, object key — không mang audio hay toàn bộ transcript.",
+  "exchange": "meetingmind",
+  "exchangeType": "topic",
+  "envelope": {
+    "eventId": "string · uuid, dùng để dedup phía consumer",
+    "eventType": "string · trùng routing key",
+    "eventVersion": "integer · tăng khi payload đổi không tương thích",
+    "occurredAt": "string · ISO 8601",
+    "workspaceId": "string",
+    "correlationId": "string · xuyên suốt một cuộc họp, để lần chuỗi Core → AI → Integration",
+    "payload": "object · theo từng eventType bên dưới"
+  },
+  "events": {
+    "transcription.requested": {
+      "publisher": "core-service",
+      "consumer": "ai-service",
+      "queue": "ai.jobs",
+      "payload": {
+        "jobId": "string · processing_jobs._id",
+        "meetingId": "string",
+        "fileId": "string · files._id",
+        "bucket": "string",
+        "objectKey": "string",
+        "language": "string · vi | en"
+      }
+    },
+    "transcription.completed": {
+      "publisher": "ai-service",
+      "consumer": "core-service",
+      "queue": "core.events",
+      "payload": {
+        "jobId": "string",
+        "meetingId": "string",
+        "runId": "string · ai_runs._id",
+        "model": "string",
+        "segments": "array · [{ speakerLabel, startMs, endMs, text, confidence }]"
+      }
+    },
+    "transcription.failed": {
+      "publisher": "ai-service",
+      "consumer": "core-service",
+      "queue": "core.events",
+      "payload": {
+        "jobId": "string",
+        "meetingId": "string",
+        "error": "string"
+      }
+    },
+    "analysis.requested": {
+      "publisher": "core-service",
+      "consumer": "ai-service",
+      "queue": "ai.jobs",
+      "payload": {
+        "jobId": "string",
+        "meetingId": "string",
+        "transcriptVersionId": "string",
+        "language": "string"
+      }
+    },
+    "analysis.completed": {
+      "publisher": "ai-service",
+      "consumer": "core-service",
+      "queue": "core.events",
+      "payload": {
+        "jobId": "string",
+        "meetingId": "string",
+        "transcriptVersionId": "string",
+        "runId": "string",
+        "model": "string",
+        "summary": "string",
+        "openIssues": "array · [string]",
+        "decisions": "array · [{ title, description, quote, transcriptSequence }]",
+        "actionItems": "array · [{ title, description, assigneeHint, deadlineRawText, priority, confidence, quote, transcriptSequence }]"
+      }
+    },
+    "analysis.failed": {
+      "publisher": "ai-service",
+      "consumer": "core-service",
+      "queue": "core.events",
+      "payload": {
+        "jobId": "string",
+        "meetingId": "string",
+        "error": "string"
+      }
+    }
+  },
+  "rules": [
+    "Bên nhận ghi processed_messages theo (eventId, consumer) để chống xử lý lặp.",
+    "Bên gửi ghi outbox_events trong cùng transaction với thay đổi nghiệp vụ, publisher đẩy sau.",
+    "AI không ghi thẳng bảng nghiệp vụ. Nó trả kết quả, Core quyết định có ghi thành dữ liệu chính thức hay không.",
+    "assigneeHint là tên người nói trong transcript, KHÔNG phải userId. Core không tự map sang tài khoản.",
+    "Thiếu người thực hiện hoặc deadline thì để trống, không bịa."
+  ]
+}

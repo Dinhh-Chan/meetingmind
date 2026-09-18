@@ -1,3 +1,5 @@
+import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
+import { MessagingModule } from "@module/messaging/messaging.module";
 import { PermissionModule } from "@module/permission/permission.module";
 import { MeetingAccessModule } from "@module/meeting-access/meeting-access.module";
 import { UserSessionModule } from "@module/user-session/user-session.module";
@@ -61,6 +63,8 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
     imports: [
         ...DefaultModules,
         PermissionModule,
+        MeetingProcessingModule,
+        MessagingModule,
         AuthModule,
         UserModule,
         EventAccountModule,

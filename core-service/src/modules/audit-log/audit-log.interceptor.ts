@@ -31,6 +31,9 @@ export class AuditLogInterceptor implements NestInterceptor {
     ) {}
 
     async intercept(context: ExecutionContext, next: CallHandler) {
+        if (context.getType() !== "http") {
+            return next.handle();
+        }
         const auditLogProps =
             this.reflector.get<AuditLogProps>(
                 "audit-log",

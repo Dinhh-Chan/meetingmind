@@ -1,4 +1,5 @@
 {
+    "error-meeting-not-found": "Không tìm thấy cuộc họp",
     "error-user-not-found": "Không tìm thấy người dùng",
     "error-password-wrong": "Mật khẩu không chính xác",
     "error-old-password-wrong": "Mật khẩu cũ không chính xác",

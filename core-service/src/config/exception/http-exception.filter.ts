@@ -50,6 +50,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     catch(exception: any, host: ArgumentsHost) {
+        // Ngữ cảnh RabbitMQ/TCP không có response để ghi lỗi vào.
+        if (host.getType() !== "http") {
+            throw exception;
+        }
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<Response>();
         const errResponse = this.createError(exception);

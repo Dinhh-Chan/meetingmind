@@ -104,11 +104,15 @@ export const WORKSPACE_ROLE_PERMISSIONS: Record<
         Permission.WORKSPACE_VIEW,
         Permission.CHAT_QUERY,
         Permission.INTEGRATION_PERSONAL_MANAGE,
+        // Thành viên tạo được cuộc họp độc lập; người tạo thành MANAGER của
+        // cuộc họp đó (ma trận mục 4).
+        Permission.MEETING_CREATE,
     ],
     [WorkspaceMemberRole.ADMIN]: [
         Permission.WORKSPACE_VIEW,
         Permission.CHAT_QUERY,
         Permission.INTEGRATION_PERSONAL_MANAGE,
+        Permission.MEETING_CREATE,
         Permission.WORKSPACE_SETTINGS_UPDATE,
         Permission.WORKSPACE_MEMBER_INVITE,
         Permission.WORKSPACE_MEMBER_MANAGE,
@@ -123,6 +127,7 @@ export const WORKSPACE_ROLE_PERMISSIONS: Record<
         Permission.WORKSPACE_VIEW,
         Permission.CHAT_QUERY,
         Permission.INTEGRATION_PERSONAL_MANAGE,
+        Permission.MEETING_CREATE,
         Permission.WORKSPACE_SETTINGS_UPDATE,
         Permission.WORKSPACE_MEMBER_INVITE,
         Permission.WORKSPACE_MEMBER_MANAGE,
