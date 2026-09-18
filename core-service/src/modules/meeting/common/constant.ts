@@ -2,6 +2,8 @@ export enum MeetingSourceType {
     MEETING_LINK = "meeting_link",
     IN_PERSON = "in_person",
     UPLOAD = "upload",
+    /** Extension đọc phụ đề trực tiếp của nền tảng, không có bot và không có audio. */
+    LIVE_CAPTION = "live_caption",
 }
 
 export enum MeetingPlatform {

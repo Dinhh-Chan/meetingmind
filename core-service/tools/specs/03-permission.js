@@ -68,6 +68,7 @@ module.exports = [
                 MEETING_LINK: "meeting_link",
                 IN_PERSON: "in_person",
                 UPLOAD: "upload",
+                LIVE_CAPTION: "live_caption",
             },
             MeetingPlatform: {
                 GOOGLE_MEET: "google_meet",

@@ -5,11 +5,13 @@ import { MinutesVersionModule } from "@module/minutes-version/minutes-version.mo
 import { ProcessingJobModule } from "@module/processing-job/processing-job.module";
 import { ReviewBatchModule } from "@module/review-batch/review-batch.module";
 import { ReviewItemModule } from "@module/review-item/review-item.module";
+import { SpeakerAliasModule } from "@module/speaker-alias/speaker-alias.module";
 import { TranscriptSegmentModule } from "@module/transcript-segment/transcript-segment.module";
 import { TranscriptVersionModule } from "@module/transcript-version/transcript-version.module";
 import { Module } from "@nestjs/common";
 import { MeetingProcessingConsumer } from "./consumers/meeting-processing.consumer";
 import { MeetingProcessingController } from "./controllers/meeting-processing.controller";
+import { LiveTranscriptService } from "./services/live-transcript.service";
 import { MeetingProcessingService } from "./services/meeting-processing.service";
 
 @Module({
@@ -20,12 +22,17 @@ import { MeetingProcessingService } from "./services/meeting-processing.service"
         ProcessingJobModule,
         ReviewBatchModule,
         ReviewItemModule,
+        SpeakerAliasModule,
         TranscriptSegmentModule,
         TranscriptVersionModule,
         MessagingModule,
     ],
     controllers: [MeetingProcessingController],
-    providers: [MeetingProcessingService, MeetingProcessingConsumer],
-    exports: [MeetingProcessingService],
+    providers: [
+        MeetingProcessingService,
+        LiveTranscriptService,
+        MeetingProcessingConsumer,
+    ],
+    exports: [MeetingProcessingService, LiveTranscriptService],
 })
 export class MeetingProcessingModule {}

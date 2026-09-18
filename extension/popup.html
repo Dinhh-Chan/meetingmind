@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+    body { font: 13px system-ui, sans-serif; width: 320px; margin: 0; padding: 14px; }
+    h1 { font-size: 14px; margin: 0 0 10px; }
+    label { display: block; margin: 8px 0 3px; color: #555; font-size: 12px; }
+    input, button { width: 100%; box-sizing: border-box; padding: 7px; font-size: 13px; }
+    button { margin-top: 10px; cursor: pointer; border: 0; border-radius: 4px;
+             background: #1a73e8; color: #fff; font-weight: 600; }
+    button.secondary { background: #eee; color: #333; }
+    .row { display: flex; gap: 8px; }
+    .muted { color: #777; font-size: 12px; }
+    .err { color: #c00; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+    .ok { color: #137333; }
+    hr { border: 0; border-top: 1px solid #eee; margin: 12px 0; }
+    .hidden { display: none; }
+</style>
+<h1>MeetingMind</h1>
+
+<div id="login">
+    <label>Địa chỉ core-service</label>
+    <input id="apiUrl" value="http://localhost:3010" />
+    <label>Tài khoản</label>
+    <input id="username" value="admin" />
+    <label>Mật khẩu</label>
+    <input id="password" type="password" value="admin" />
+    <button id="btnLogin">Đăng nhập</button>
+</div>
+
+<div id="session" class="hidden">
+    <label>Workspace ID</label>
+    <input id="workspaceId" placeholder="dán id workspace" />
+    <label>Tiêu đề cuộc họp</label>
+    <input id="title" placeholder="để trống thì lấy tên mặc định" />
+    <button id="btnStart">Bắt đầu ghi phụ đề</button>
+    <hr />
+    <div class="muted">
+        Trạng thái: <b id="status">chưa chạy</b><br />
+        Đã gửi: <b id="sent">0</b> đoạn
+    </div>
+    <div class="row">
+        <button id="btnProbe" class="secondary">Kiểm tra phụ đề</button>
+        <button id="btnEnd" class="secondary">Kết thúc</button>
+    </div>
+</div>
+
+<div id="err" class="err"></div>
+<script src="popup.js"></script>

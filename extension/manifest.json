@@ -1,0 +1,20 @@
+{
+    "manifest_version": 3,
+    "name": "MeetingMind",
+    "version": "0.1.0",
+    "description": "Ghi lại phụ đề cuộc họp và gửi về MeetingMind. Không có bot vào phòng, không ghi âm.",
+    "permissions": ["storage", "activeTab", "scripting"],
+    "host_permissions": [
+        "http://localhost:3010/*",
+        "https://meet.google.com/*"
+    ],
+    "background": { "service_worker": "background.js", "type": "module" },
+    "action": { "default_popup": "popup.html", "default_title": "MeetingMind" },
+    "content_scripts": [
+        {
+            "matches": ["https://meet.google.com/*"],
+            "js": ["content.js"],
+            "run_at": "document_idle"
+        }
+    ]
+}

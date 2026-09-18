@@ -176,12 +176,15 @@ export class MeetingProcessingService {
             `Transcript v${versionNo} cho ${meeting._id}: ${sequence} đoạn`,
         );
 
-        await this.startAnalysis(meeting, version._id);
+        await this.requestAnalysis(meeting, version._id);
         return version;
     }
 
-    /** Bước 8: xin AI tóm tắt và trích xuất công việc. */
-    private async startAnalysis(
+    /**
+     * Bước 8: xin AI tóm tắt và trích xuất công việc.
+     * Công khai vì đường transcript trực tiếp (extension) cũng dùng lại.
+     */
+    async requestAnalysis(
         meeting: { _id: string; workspaceId: string; language: string },
         transcriptVersionId: string,
     ) {
