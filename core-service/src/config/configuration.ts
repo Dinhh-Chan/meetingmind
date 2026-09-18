@@ -109,6 +109,9 @@ export interface Configuration {
         endPoint: string;
         port: number;
         useSsl: boolean;
+        publicEndPoint: string;
+        publicPort: number;
+        publicUseSsl: boolean;
         address: string;
         accessKey: string;
         secretKey: string;
@@ -236,6 +239,11 @@ export default (): Configuration => {
         endPoint: getEnv("MINIO_ENDPOINT", "localhost"),
         port: Number(getEnv("MINIO_PORT")),
         useSsl: getEnv("MINIO_USE_SSL", "1") === "1",
+        // Host mà TRÌNH DUYỆT gọi được. URL ký gắn chặt với host, nên URL ký
+        // bằng host nội bộ `minio` sẽ sai chữ ký khi mở từ ngoài.
+        publicEndPoint: getEnv("MINIO_PUBLIC_ENDPOINT", getEnv("MINIO_ENDPOINT", "localhost")),
+        publicPort: Number(getEnv("MINIO_PUBLIC_PORT", getEnv("MINIO_PORT"))),
+        publicUseSsl: getEnv("MINIO_PUBLIC_USE_SSL", getEnv("MINIO_USE_SSL", "1")) === "1",
         address: getEnv("MINIO_ADDRESS"),
         accessKey: getEnv("MINIO_ACCESS_KEY"),
         secretKey: getEnv("MINIO_SECRET_KEY"),

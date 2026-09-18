@@ -5,6 +5,6 @@ import { MinioService } from "./minio.service";
 @Global()
 @Module({
     providers: [MinioService, ...MinioClientProviders],
-    exports: [...MinioClientProviders],
+    exports: [...MinioClientProviders, MinioService],
 })
 export class MinioModule {}

@@ -57,3 +57,4 @@ export const PROCESSING_JOB = "ProcessingJob";
 export const OUTBOX_EVENT = "OutboxEvent";
 export const PROCESSED_MESSAGE = "ProcessedMessage";
 export const MEETING_ACCESS = "MeetingAccess";
+export const MEDIA_FILE = "MediaFile";

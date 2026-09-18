@@ -1,3 +1,4 @@
+import { MediaFileModel } from "@module/media-file/models/media-file.model";
 import { MeetingAccessModel } from "@module/meeting-access/models/meeting-access.model";
 import { UserSessionModel } from "@module/user-session/models/user-session.model";
 import { AgendaItemModel } from "@module/agenda-item/models/agenda-item.model";
@@ -103,4 +104,5 @@ export const SequelizeModel: ModelCtor<Model>[] = [
     OutboxEventModel,
     ProcessedMessageModel,
     MeetingAccessModel,
+    MediaFileModel,
 ];

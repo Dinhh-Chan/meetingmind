@@ -29,6 +29,10 @@ x-nest-environment: &nest-environment
   MINIO_REGION: ap-southeast-1
   MINIO_BUCKET: meetingmind
   MINIO_MULTIPART_PART_SIZE: 16777216
+  # Host trình duyệt gọi được; URL ký gắn với host nên phải khác host nội bộ.
+  MINIO_PUBLIC_ENDPOINT: localhost
+  MINIO_PUBLIC_PORT: 9000
+  MINIO_PUBLIC_USE_SSL: 0
   ONE_SIGNAL_APP_ID: ""
   ONE_SIGNAL_API_KEY: ""
   SSO_JWKS_URI: ""
