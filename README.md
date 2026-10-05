@@ -2,6 +2,8 @@
 
 Monorepo cho MeetingMind (MVP) — chứa frontend, backend, AI workers và infra helper.
 
+Tổng quan dự án (mục tiêu, phạm vi, phân quyền): [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)
+
 Xem sơ đồ kiến trúc chi tiết: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 Thao tác nhanh cho dev local:
