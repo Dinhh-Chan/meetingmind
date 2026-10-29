@@ -25,7 +25,7 @@ extension      → phụ đề ──────┘   (bỏ qua STT)
 1. `chrome://extensions` → bật **Developer mode**
 2. **Load unpacked** → chọn thư mục `extension/`
 3. Bấm biểu tượng extension, đăng nhập (mặc định `admin` / `admin`)
-4. Dán **Workspace ID** — lấy từ `GET /workspace/page` hoặc Swagger `:3010/api`
+4. Dán **Workspace ID** — lấy từ `GET /me/workspaces` (Swagger `:3010/api`) hoặc màn web MeetingMind
 
 ## Dùng
 
@@ -41,12 +41,23 @@ Nút **Kiểm tra phụ đề** cho biết extension có đọc được không,
 Class trong DOM của Meet bị làm rối và Google đổi định kỳ. Khi extension báo
 "Chưa thấy phụ đề" dù đã bật CC:
 
-1. Mở DevTools ở tab Meet → Console
+1. Mở DevTools ở tab Meet → Console, đổi ô context `top` sang **MeetingMind**
+   (content script chạy trong isolated world, để `top` thì không thấy hàm)
 2. Chạy `__mmDebug()`
 3. Nếu in ra "KHÔNG THẤY": trong tab Elements tìm phần tử bao quanh vùng phụ đề,
    lấy một selector ổn định (ưu tiên `aria-label`, `role`, tránh class rối)
 4. Thêm vào `CAPTION_CONTAINER_SELECTORS` ở đầu [content.js](content.js)
 5. Tải lại extension và tab Meet
+
+Cấu trúc ghi được trên Meet ngày 29/10/2026:
+
+```
+[role=region][aria-label=Captions]
+  div            ← một khối = một người nói, câu mới nối tiếp vào khối cũ
+    div          ← avatar + tên ("You" nếu là chính mình)
+    div          ← nội dung
+  div            ← nút "Jump to bottom"
+```
 
 `extractBlocks()` cố ý **không dựa vào tên class** mà dựa vào cấu trúc — khối con
 có ít nhất hai vùng text thì vùng đầu là tên người nói. Nhờ vậy nó sống sót qua
@@ -62,6 +73,14 @@ phần lớn các lần Google đổi class.
   `background.js` tự gọi `/auth/refresh` khi gặp 401 rồi gửi lại.
 - **Gửi lỗi thì không mất phụ đề**: lô bị trả lại buffer và gửi kèm lô sau.
 - Mốc thời gian tính từ lúc bấm "Bắt đầu", không phải từ lúc cuộc họp mở.
+
+## Test
+
+```
+node --test extension/test/*.test.js
+```
+
+Test phần tách text (`caption-text.js`) bằng dòng thời gian phụ đề ghi từ Meet thật.
 
 ## Chưa làm
 

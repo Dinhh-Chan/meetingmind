@@ -54,14 +54,21 @@ $("btnStart").onclick = async () => {
     });
     if (!res?.ok) return showError(res?.error || "Không tạo được phiên");
 
-    const started = await chrome.tabs.sendMessage(tab.id, { type: "mm:start" });
-    if (!started?.ok) {
-        return showError(
-            "Chưa thấy phụ đề. Bật nút CC trong Meet rồi bấm lại.\n" +
-            "Meet đổi giao diện thì mở DevTools tab Meet, chạy __mmDebug().",
-        );
+    let started;
+    try {
+        started = await chrome.tabs.sendMessage(tab.id, { type: "mm:start" });
+    } catch {
+        return showError("Không gọi được tab Meet. Tải lại trang Meet rồi bấm lại.");
     }
-    showError("Đang ghi. Có thể đóng cửa sổ này.", true);
+    if (!started?.ok) return showError("Không bắt đầu được, thử tải lại trang Meet.");
+    showError(
+        started.captionsVisible
+            ? "Đang ghi. Có thể đóng cửa sổ này."
+            : "Đang ghi, nhưng chưa thấy phụ đề.\n" +
+              "Kiểm tra nút CC đã bật. Nếu bật rồi mà có người nói vẫn không thấy, " +
+              "mở DevTools tab Meet, chạy __mmDebug().",
+        started.captionsVisible,
+    );
     render();
 };
 
@@ -69,12 +76,15 @@ $("btnProbe").onclick = async () => {
     const tab = await activeTab();
     try {
         const res = await chrome.tabs.sendMessage(tab.id, { type: "mm:probe" });
+        if (!res.found) {
+            return showError("Không thấy vùng phụ đề. Bật nút CC trong Meet.");
+        }
         showError(
-            res.found
+            res.sample.length
                 ? `Thấy phụ đề qua: ${res.selector}\n` +
                   res.sample.map((b) => `${b.speaker}: ${b.text}`).join("\n")
-                : "Không thấy vùng phụ đề. Bật nút CC trong Meet.",
-            res.found,
+                : `Đã thấy vùng phụ đề (${res.selector}), chưa ai nói.`,
+            true,
         );
     } catch {
         showError("Không gọi được tab Meet. Tải lại trang Meet rồi thử lại.");

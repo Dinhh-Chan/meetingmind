@@ -7,8 +7,18 @@
 
 import { DEFAULT_API, FLUSH_INTERVAL_MS } from "./config.js";
 
-let buffer = [];
+// Buffer nằm trong storage chứ không trong biến: Chrome tắt service worker
+// MV3 sau ~30 giây không có sự kiện, biến trong bộ nhớ và setInterval mất theo.
+// Trước đây vì vậy mà phụ đề cứ nằm trong buffer, không bao giờ được gửi đi.
 let flushTimer = null;
+let queue = Promise.resolve();
+
+/** Chạy tuần tự các thao tác đọc-sửa-ghi buffer để không ghi đè lẫn nhau. */
+function serial(fn) {
+    const next = queue.then(fn, fn);
+    queue = next.catch(() => {});
+    return next;
+}
 
 const store = {
     async get(keys) {
@@ -69,16 +79,17 @@ async function refresh() {
     }
 }
 
-async function flush() {
-    if (!buffer.length) return;
-    const { meetingId, workspaceId } = await store.get([
+function flush() {
+    return serial(async () => {
+    const { meetingId, workspaceId, buffer = [] } = await store.get([
         "meetingId",
         "workspaceId",
+        "buffer",
     ]);
-    if (!meetingId) return;
+    if (!meetingId || !buffer.length) return;
 
     const segments = buffer;
-    buffer = [];
+    await store.set({ buffer: [] });
     try {
         await api("/meeting-processing/live-transcript", {
             body: { workspaceId, meetingId, segments },
@@ -87,26 +98,34 @@ async function flush() {
         await store.set({ sentCount: sentCount + segments.length });
     } catch (err) {
         // Gửi lỗi thì trả lại buffer, lần sau gửi tiếp — không mất phụ đề.
-        buffer = segments.concat(buffer);
-        await store.set({ lastError: err.message });
+        const { buffer: rest = [] } = await store.get(["buffer"]);
+        await store.set({ buffer: segments.concat(rest), lastError: err.message });
+        scheduleFlush();
     }
+    });
 }
 
-function startFlushLoop() {
+/**
+ * Hẹn gửi sau FLUSH_INTERVAL_MS. Gọi mỗi khi có đoạn mới: chính sự kiện đó
+ * đánh thức service worker, nên hẹn giờ ngắn luôn chạy kịp trước khi bị tắt.
+ */
+function scheduleFlush() {
     if (flushTimer) return;
-    flushTimer = setInterval(flush, FLUSH_INTERVAL_MS);
-}
-
-function stopFlushLoop() {
-    clearInterval(flushTimer);
-    flushTimer = null;
+    flushTimer = setTimeout(() => {
+        flushTimer = null;
+        flush();
+    }, FLUSH_INTERVAL_MS);
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     (async () => {
         switch (msg.type) {
             case "mm:segment":
-                buffer.push(msg.segment);
+                await serial(async () => {
+                    const { buffer = [] } = await store.get(["buffer"]);
+                    await store.set({ buffer: [...buffer, msg.segment] });
+                });
+                scheduleFlush();
                 sendResponse({ ok: true });
                 break;
 
@@ -159,8 +178,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                         meetingTitle: meeting.title,
                         sentCount: 0,
                         lastError: "",
+                        buffer: [],
                     });
-                    startFlushLoop();
                     sendResponse({ ok: true, meeting });
                 } catch (err) {
                     sendResponse({ ok: false, error: err.message });
@@ -178,7 +197,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                     await api("/meeting-processing/live-transcript/finalize", {
                         body: { workspaceId, meetingId },
                     });
-                    stopFlushLoop();
+                    clearTimeout(flushTimer);
+                    flushTimer = null;
                     await store.set({ meetingId: "", captureStatus: "idle" });
                     sendResponse({ ok: true });
                 } catch (err) {
