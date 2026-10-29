@@ -1,5 +1,6 @@
 import { RequestAuthData } from "@common/constant/class/request-auth-data";
 import { ApiRecordResponse } from "@common/decorator/api.decorator";
+import { Authorization, ReqUser } from "@common/decorator/auth.decorator";
 import { BaseControllerFactory } from "@config/controller/base-controller-factory";
 import { Body, Controller, Get, Put, Req } from "@nestjs/common";
 
@@ -36,14 +37,19 @@ export class UserController extends BaseControllerFactory<User>(
         dataPartition: {
             enable: true,
         },
-        authorize: false,
+        // Không đặt `authorize: false`: trước đây mọi route /user/* gọi được
+        // mà không đăng nhập, kể cả danh sách user kèm hash mật khẩu. Route
+        // CRUD giờ chỉ dành cho SUPER_ADMIN; tự đăng ký dùng POST /auth/register.
     },
 ) {
     constructor(private readonly userService: UserService) {
         super(userService);
     }
 
+    // Controller đặt `authorize: false` nên route tự thêm phải tự gắn guard,
+    // không thì `req.user` rỗng và getMe lỗi 500.
     @Get("me")
+    @Authorization()
     @ApiRecordResponse(User)
     // @UseAuditLog({
     //     action: "getMe",
@@ -59,8 +65,9 @@ export class UserController extends BaseControllerFactory<User>(
 
     @Put("me/password")
     @ApiRecordResponse(User)
-    async changePasswordMe(@Body() dto: ChangePasswordDto) {
-        return this.userService.changePasswordMe(null, dto);
+    @Authorization()
+    async changePasswordMe(@ReqUser() user: User, @Body() dto: ChangePasswordDto) {
+        return this.userService.changePasswordMe(user, dto);
     }
 
     // @Get("test")

@@ -83,7 +83,37 @@ export class UserService
 
     async getMe(authData: RequestAuthData) {
         const user = await authData.getUser();
-        return user;
+        return withoutPassword(user);
+    }
+
+    /** Tự đăng ký: luôn là tài khoản thường, không nhận systemRole từ client. */
+    async register(dto: {
+        username: string;
+        email: string;
+        fullname: string;
+        password: string;
+    }) {
+        const username = dto.username.trim().toLowerCase();
+        const email = dto.email.trim().toLowerCase();
+        const [byName] = await this.userRepository.getMany(
+            { username },
+            { enableDataPartition: false },
+        );
+        const [byEmail] = await this.userRepository.getMany(
+            { email },
+            { enableDataPartition: false },
+        );
+        if (byName || byEmail) {
+            throw ApiError.BadRequest("error-user-exist");
+        }
+        const user = await this.create(null, {
+            username,
+            email,
+            fullname: dto.fullname.trim(),
+            password: dto.password,
+            systemRole: SystemRole.USER,
+        } as CreateUserDto);
+        return withoutPassword(user);
     }
 
     async create(user: User, dto: CreateUserDto): Promise<User> {
@@ -104,21 +134,32 @@ export class UserService
     }
 
     async changePasswordMe(user: User, dto: ChangePasswordDto) {
-        const correctOldPassword = await this.comparePassword(
-            user,
-            dto.oldPass,
-        );
-        if (!correctOldPassword) {
+        // Lấy lại từ DB để chắc có hash mật khẩu hiện tại.
+        const current = await this.userRepository.getById(user._id, {
+            enableDataPartition: false,
+        });
+        if (!current || !(await this.comparePassword(current, dto.oldPass))) {
             throw ApiError.BadRequest("error-old-password-wrong");
         }
-        user.password = await createUserPassword(dto.newPass);
-        const res = await this.userRepository.updateById(user._id, {
-            password: dto.oldPass,
+        if (dto.oldPass === dto.newPass) {
+            throw ApiError.BadRequest("error-duplicate-new-password");
+        }
+        // Trước đây ghi `dto.oldPass` dạng chữ thường vào cột password.
+        const res = await this.userRepository.updateById(current._id, {
+            password: await createUserPassword(dto.newPass),
         });
-        return res;
+        return withoutPassword(res);
     }
 
     async comparePassword(user: User, password: string) {
         return bcrypt.compare(password, user.password);
     }
+}
+
+/** Không trả hash mật khẩu ra ngoài. */
+function withoutPassword<T extends { password?: string }>(user: T | null) {
+    if (!user) return user;
+    const plain = { ...((user as { toJSON?: () => T }).toJSON?.() ?? user) };
+    delete plain.password;
+    return plain;
 }

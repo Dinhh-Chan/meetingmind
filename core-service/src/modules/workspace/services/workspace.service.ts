@@ -29,7 +29,9 @@ export class WorkspaceService extends BaseService<Workspace, WorkspaceRepository
      * Ma trận phân quyền: "Mỗi workspace có một Owner đang hoạt động".
      */
     async create(user: User, dto: Partial<Workspace>) {
-        const ownerId = dto.ownerId || user?._id;
+        // Có người gọi thì người đó là chủ; chỉ tác vụ nội bộ (user null) mới
+        // được chỉ định chủ khác.
+        const ownerId = user?._id ?? dto.ownerId;
         const workspace = await super.create(user, { ...dto, ownerId });
 
         await this.workspaceMemberService.create(user, {
