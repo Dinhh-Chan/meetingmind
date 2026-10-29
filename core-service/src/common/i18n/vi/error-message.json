@@ -20,5 +20,17 @@
     "error-event-log-exist": "Nhật ký sự kiện đã tồn tại",
     "error-event-log-already-checked-in": "Người dùng đã check-in",
     "error-event-log-already-checked-out": "Người dùng đã check-out",
-    "error-event-log-identity-code-exist": "Mã định danh đã tồn tại"
+    "error-event-log-identity-code-exist": "Mã định danh đã tồn tại",
+    "error-task-not-found": "Không tìm thấy task",
+    "error-minutes-not-found": "Cuộc họp chưa có biên bản",
+    "error-minutes-status-invalid": "Trạng thái biên bản không cho phép thao tác này",
+    "error-review-item-not-found": "Không tìm thấy đề xuất",
+    "error-review-title-required": "Đề xuất cần có tiêu đề",
+    "error-review-already-approved": "Đề xuất đã được duyệt",
+    "error-comment-empty": "Bình luận trống",
+    "error-note-empty": "Ghi chú trống",
+    "error-note-not-found": "Không tìm thấy ghi chú",
+    "error-transcript-not-found": "Cuộc họp chưa có transcript",
+    "error-user-not-in-workspace": "Người này không thuộc workspace",
+    "error-role-invalid": "Vai trò không hợp lệ"
 }

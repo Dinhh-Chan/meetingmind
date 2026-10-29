@@ -1,4 +1,6 @@
 import { MediaFileModule } from "@module/media-file/media-file.module";
+import { MeModule } from "@module/me/me.module";
+import { WorkflowModule } from "@module/workflow/workflow.module";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
 import { MessagingModule } from "@module/messaging/messaging.module";
 import { PermissionModule } from "@module/permission/permission.module";
@@ -64,6 +66,8 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
     imports: [
         ...DefaultModules,
         PermissionModule,
+        MeModule,
+        WorkflowModule,
         MeetingProcessingModule,
         MessagingModule,
         AuthModule,

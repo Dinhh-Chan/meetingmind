@@ -13,5 +13,17 @@
     "error-event-log-exist": "Event log already exists",
     "error-event-log-already-checked-in": "User already checked in",
     "error-event-log-already-checked-out": "User already checked out",
-    "error-event-log-identity-code-exist": "Identity code already exists"
+    "error-event-log-identity-code-exist": "Identity code already exists",
+    "error-task-not-found": "Task not found",
+    "error-minutes-not-found": "Minutes not found",
+    "error-minutes-status-invalid": "Invalid minutes status for this action",
+    "error-review-item-not-found": "Review item not found",
+    "error-review-title-required": "Review item title is required",
+    "error-review-already-approved": "Review item already approved",
+    "error-comment-empty": "Comment is empty",
+    "error-note-empty": "Note is empty",
+    "error-note-not-found": "Note not found",
+    "error-transcript-not-found": "Transcript not found",
+    "error-user-not-in-workspace": "User is not a workspace member",
+    "error-role-invalid": "Invalid role"
 }
