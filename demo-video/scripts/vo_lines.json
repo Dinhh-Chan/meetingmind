@@ -1,0 +1,13 @@
+{
+  "vo01a_hook":    {"text": "Họp xong… ai ghi biên bản?", "speed": 1.0},
+  "vo01b_hook":    {"text": "Việc đã giao… ai còn nhớ?", "speed": 1.0},
+  "vo02_problem":  {"text": "Ghi chép tay. Sót việc. Giao nhầm người. Trễ hạn.", "speed": 1.0},
+  "vo03_logo":     {"text": "Giới thiệu MeetingMind. Trợ lý họp AI, từ âm thanh đến công việc.", "speed": 1.0},
+  "vo04_capture":  {"text": "Tải tệp ghi âm, mời bốt vào Google Meet, hoặc đọc phụ đề bằng tiện ích trình duyệt.", "speed": 1.0},
+  "vo05_transcript": {"text": "Phiên âm tiếng Việt bằng Whisper, tự tách từng người nói.", "speed": 1.0},
+  "vo06_minutes":  {"text": "AI viết biên bản, đề xuất công việc kèm câu trích nguồn. Con người duyệt.", "speed": 1.0},
+  "vo07_hero":     {"text": "Một cú nhấp duyệt. Thẻ Trello và tin Telegram có ngay, chỉ sau ba phẩy bốn giây.", "speed": 1.0},
+  "vo08_numbers":  {"text": "Số liệu đo thực tế, không phải lời hứa.", "speed": 1.0},
+  "vo09_stack":    {"text": "Mười hai dịch vụ, chạy gọn bằng Đốc-cơ.", "speed": 1.0},
+  "vo10_outro":    {"text": "MeetingMind. Họp xong, việc đã vào guồng.", "speed": 1.0}
+}

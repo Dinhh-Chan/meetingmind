@@ -1,0 +1,29 @@
+{
+  "name": "meetingmind-demo-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MeetingMind product demo video (Remotion)",
+  "scripts": {
+    "studio": "remotion studio src/index.ts --browser-executable=/usr/bin/google-chrome",
+    "render": "remotion render src/index.ts MeetingMindDemo out/render_raw.mp4 --browser-executable=/usr/bin/google-chrome",
+    "master": "python3 scripts/master.py out/render_raw.mp4 out/MeetingMind_Demo.mp4",
+    "build": "npm run render && npm run master",
+    "stills": "node scripts/stills.mjs",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@fontsource/be-vietnam-pro": "5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@remotion/cli": "4.0.540",
+    "@remotion/noise": "4.0.540",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.540"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "4.0.540",
+    "@remotion/renderer": "4.0.540",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}
