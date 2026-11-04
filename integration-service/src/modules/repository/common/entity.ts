@@ -19,3 +19,9 @@ export const DATA_PARTITION_USER = "DataPartitionUser";
 
 export const QUY_TAC_MA = "QuyTacMa";
 export const HAM_SINH_MA = "HamSinhMa";
+
+/** MeetingMind — schema `integration` */
+export const INTEGRATION = "Integration";
+export const EXTERNAL_TASK_LINK = "ExternalTaskLink";
+export const SYNC_JOB = "SyncJob";
+export const PROCESSED_MESSAGE = "ProcessedMessage";

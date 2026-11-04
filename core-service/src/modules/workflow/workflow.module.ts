@@ -18,6 +18,7 @@ import { UserModule } from "@module/user/user.module";
 import { WorkspaceMemberModule } from "@module/workspace-member/workspace-member.module";
 import { Module } from "@nestjs/common";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
+import { TaskSyncConsumer } from "./consumers/task-sync.consumer";
 import { WorkflowController } from "./controllers/workflow.controller";
 import { WorkflowService } from "./services/workflow.service";
 
@@ -44,6 +45,6 @@ import { WorkflowService } from "./services/workflow.service";
         MeetingProcessingModule,
     ],
     controllers: [WorkflowController],
-    providers: [WorkflowService],
+    providers: [WorkflowService, TaskSyncConsumer],
 })
 export class WorkflowModule {}

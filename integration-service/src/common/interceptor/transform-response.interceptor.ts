@@ -16,6 +16,11 @@ export class TransformResponseInterceptor implements NestInterceptor {
         context: ExecutionContext,
         next: CallHandler,
     ): Observable<ResponseDataDto | unknown> {
+        // Handler của RabbitMQ/TCP không có HTTP response để gắn status, và
+        // kết quả của chúng không đi ra ngoài nên cũng không cần bọc.
+        if (context.getType() !== "http") {
+            return next.handle();
+        }
         context.switchToHttp().getResponse<Response>().status(HttpStatus.OK);
         return next.handle().pipe(
             map((data) => {

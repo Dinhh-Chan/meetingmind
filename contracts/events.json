@@ -88,6 +88,26 @@
         "meetingId": "string",
         "error": "string"
       }
+    },
+    "task.sync.requested": {
+      "publisher": "core-service",
+      "consumer": "integration-service",
+      "queue": "integration.jobs.task-sync",
+      "payload": {
+        "actionItemId": "string",
+        "meetingId": "string",
+        "idempotencyKey": "string · <actionItemId>:push, một công việc chỉ đẩy ra ngoài một lần",
+        "task": "object · { title, description?, assigneeName?, deadline? (ISO), deadlineRawText?, priority, meetingTitle, sourceQuote? } · ảnh chụp công việc vì Integration không đọc DB của Core"
+      }
+    },
+    "task.sync.completed": {
+      "publisher": "integration-service",
+      "consumer": "core-service",
+      "queue": "core.events.task-sync-completed",
+      "payload": {
+        "actionItemId": "string",
+        "results": "array · [{ provider: trello|telegram, status: synced|failed|skipped, externalId?, externalUrl?, error? }]"
+      }
     }
   },
   "rules": [

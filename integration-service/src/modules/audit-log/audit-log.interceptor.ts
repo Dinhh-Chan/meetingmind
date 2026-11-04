@@ -31,6 +31,10 @@ export class AuditLogInterceptor implements NestInterceptor {
     ) {}
 
     async intercept(context: ExecutionContext, next: CallHandler) {
+        // Audit log chỉ ghi request HTTP; handler RabbitMQ không có request.
+        if (context.getType() !== "http") {
+            return next.handle();
+        }
         const auditLogProps =
             this.reflector.get<AuditLogProps>(
                 "audit-log",

@@ -1,3 +1,7 @@
+import { ExternalTaskLinkModel } from "@module/external-task-link/models/external-task-link.model";
+import { IntegrationModel } from "@module/integration/models/integration.model";
+import { ProcessedMessageModel } from "@module/processed-message/models/processed-message.model";
+import { SyncJobModel } from "@module/sync-job/models/sync-job.model";
 import { EventAccount } from "@module/event-account/entities/event-account.entity";
 import { Event } from "@module/event/entities/event.entity";
 import { EventLog } from "@module/event-log/entities/event-log.entity";
@@ -35,4 +39,8 @@ export const SequelizeModel: ModelCtor<Model>[] = [
     AuditLogModel,
     DataPartitionModel,
     DataPartitionUserModel,
+    IntegrationModel,
+    ExternalTaskLinkModel,
+    SyncJobModel,
+    ProcessedMessageModel,
 ];

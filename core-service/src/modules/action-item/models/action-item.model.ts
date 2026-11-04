@@ -1,6 +1,6 @@
 import { StrObjectId } from "@common/constant";
 import { Column, DataType, Model, Table } from "sequelize-typescript";
-import { ActionItem } from "../entities/action-item.entity";
+import { ActionItem, ActionItemExternalLink } from "../entities/action-item.entity";
 import { ActionItemPriority, ActionItemSource, ActionItemStatus } from "../common/constant";
 
 @Table({
@@ -75,6 +75,10 @@ export class ActionItemModel extends Model implements ActionItem {
 
     @Column({ type: DataType.STRING, allowNull: true })
     createdById?: string;
+
+    /** Kết quả đồng bộ ra công cụ ngoài (Trello, Telegram), do integration-service báo về. */
+    @Column({ type: DataType.JSONB, allowNull: true })
+    externalLinks?: ActionItemExternalLink[];
 
     @Column({ type: DataType.DATE, allowNull: true })
     deletedAt?: Date;

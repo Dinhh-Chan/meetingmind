@@ -35,6 +35,12 @@ import {
 } from "@module/review-item/common/constant";
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
 import { MeetingProcessingService } from "@module/meeting-processing/services/meeting-processing.service";
+import {
+    EventType,
+    TaskSyncCompletedPayload,
+    TaskSyncRequestedPayload,
+} from "@module/messaging/common/constant";
+import { OutboxService } from "@module/messaging/services/outbox.service";
 import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
 import { TranscriptSegmentService } from "@module/transcript-segment/services/transcript-segment.service";
 import { TranscriptVersionService } from "@module/transcript-version/services/transcript-version.service";
@@ -44,7 +50,7 @@ import {
     WorkspaceMemberStatus,
 } from "@module/workspace-member/common/constant";
 import { WorkspaceMemberService } from "@module/workspace-member/services/workspace-member.service";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 /** Ghi chú cá nhân được chủ sở hữu cho phép đưa vào biên bản (§6.7). */
 export const NOTE_TAG_IN_MINUTES = "use_in_minutes";
@@ -80,6 +86,8 @@ export interface TaskPatch {
  */
 @Injectable()
 export class WorkflowService {
+    private readonly logger = new Logger(WorkflowService.name);
+
     constructor(
         private readonly permissionService: PermissionService,
         private readonly meetingService: MeetingService,
@@ -97,6 +105,7 @@ export class WorkflowService {
         private readonly transcriptSegmentService: TranscriptSegmentService,
         private readonly speakerAliasService: SpeakerAliasService,
         private readonly meetingProcessingService: MeetingProcessingService,
+        private readonly outboxService: OutboxService,
         private readonly workspaceMemberService: WorkspaceMemberService,
         private readonly userService: UserService,
         private readonly meetingAccessService: MeetingAccessService,
@@ -390,6 +399,7 @@ export class WorkflowService {
                 createdById: userId,
             });
             patch.actionItemId = task._id;
+            await this.requestTaskSync(task, meeting, payload);
         } else if (item.type === ReviewItemType.DECISION) {
             const decision = await this.decisionService.create(null, {
                 workspaceId: meeting.workspaceId,
@@ -624,6 +634,64 @@ export class WorkflowService {
             });
         }
         return { updatedSegments: segments.length };
+    }
+
+    /**
+     * Công việc đã duyệt mới được đẩy ra ngoài (Trello, Telegram). Ghi vào
+     * outbox để không mất sự kiện; integration-service tự bỏ qua nhà cung cấp
+     * chưa cấu hình.
+     */
+    private async requestTaskSync(
+        task: { _id: string; title: string; assigneeId?: string | null; deadline?: Date | null; deadlineRawText?: string; priority: string },
+        meeting: Meeting,
+        payload: Record<string, unknown>,
+    ) {
+        let assigneeName: string | undefined;
+        if (task.assigneeId) {
+            const [assignee] = await this.userService.getMany(
+                null,
+                { _id: task.assigneeId },
+                { enableDataPartition: false } as any,
+            );
+            assigneeName = assignee?.fullname || assignee?.username;
+        }
+        const body: TaskSyncRequestedPayload = {
+            actionItemId: task._id,
+            meetingId: meeting._id,
+            idempotencyKey: `${task._id}:push`,
+            task: {
+                title: task.title,
+                description: (payload.description as string) || undefined,
+                assigneeName: assigneeName ?? ((payload.assigneeHint as string) || undefined),
+                deadline: task.deadline ? new Date(task.deadline).toISOString() : undefined,
+                deadlineRawText: task.deadlineRawText || undefined,
+                priority: task.priority,
+                meetingTitle: meeting.title,
+                sourceQuote: (payload.quote as string) || undefined,
+            },
+        };
+        await this.outboxService.emit({
+            aggregateType: "action_item",
+            aggregateId: task._id,
+            eventType: EventType.TASK_SYNC_REQUESTED,
+            workspaceId: meeting.workspaceId,
+            payload: body,
+        });
+    }
+
+    /** integration-service báo kết quả đồng bộ: lưu liên kết để giao diện hiện. */
+    async onTaskSyncCompleted(payload: TaskSyncCompletedPayload) {
+        const task = await this.actionItemService.getOne(null, { _id: payload.actionItemId });
+        if (!task) {
+            this.logger.warn(`Kết quả đồng bộ cho công việc không tồn tại ${payload.actionItemId}`);
+            return;
+        }
+        const syncedAt = new Date().toISOString();
+        await this.actionItemService.updateById(null, payload.actionItemId, {
+            externalLinks: payload.results.map((r) => ({ ...r, syncedAt })),
+        });
+        const summary = payload.results.map((r) => `${r.provider}=${r.status}`).join(", ");
+        this.logger.log(`Đồng bộ công việc ${payload.actionItemId}: ${summary}`);
     }
 
     /**

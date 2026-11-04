@@ -21,6 +21,8 @@ import { UserModule } from "./modules/user/user.module";
 import { EventModule } from "./modules/event/event.module";
 import { EventLogModule } from "./modules/event-log/event-log.module";
 import { WebSocketModule } from "./modules/websocket/websocket.module";
+import { MessagingModule } from "./modules/messaging/messaging.module";
+import { TaskSyncModule } from "./modules/task-sync/task-sync.module";
 
 @Module({
     imports: [
@@ -45,6 +47,8 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
         EventModule,
         EventLogModule,
         WebSocketModule,
+        MessagingModule,
+        TaskSyncModule,
     ],
     providers: [...DefaultProviders],
     controllers: [AppController],

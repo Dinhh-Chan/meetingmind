@@ -3,6 +3,15 @@ import { BaseEntity } from "@common/interface/base-entity.interface";
 import { IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 import { ActionItemPriority, ActionItemSource, ActionItemStatus } from "../common/constant";
 
+export interface ActionItemExternalLink {
+    provider: "trello" | "telegram";
+    status: "synced" | "failed" | "skipped";
+    externalId?: string;
+    externalUrl?: string;
+    error?: string;
+    syncedAt: string;
+}
+
 export class ActionItem implements BaseEntity {
     /**
      * ID
@@ -156,6 +165,13 @@ export class ActionItem implements BaseEntity {
     @IsOptional()
     @EntityDefinition.field({ label: "Người tạo" })
     createdById?: string;
+
+    /**
+     * Kết quả đồng bộ ra công cụ ngoài
+     */
+    @IsOptional()
+    @EntityDefinition.field({ label: "Kết quả đồng bộ ra công cụ ngoài" })
+    externalLinks?: ActionItemExternalLink[];
 
     /**
      * Thời điểm xóa mềm

@@ -116,6 +116,19 @@ export interface Configuration {
         bucket: string;
         multipartPartSize: number;
     };
+    /** Rỗng nghĩa là chưa cấu hình: đồng bộ Trello được bỏ qua. */
+    trello: {
+        apiKey: string;
+        token: string;
+        listId: string;
+        boardId: string;
+        listName: string;
+    };
+    /** Rỗng nghĩa là chưa cấu hình: thông báo Telegram được bỏ qua. */
+    telegram: {
+        botToken: string;
+        chatId: string;
+    };
 }
 
 export default (): Configuration => {
@@ -246,6 +259,20 @@ export default (): Configuration => {
         ),
     };
 
+    // MVP: mỗi nhà cung cấp một kết nối, đọc từ env (file .env ở gốc repo).
+    const trello: Configuration["trello"] = {
+        apiKey: getEnv("TRELLO_API_KEY", ""),
+        token: getEnv("TRELLO_TOKEN", ""),
+        listId: getEnv("TRELLO_LIST_ID", ""),
+        boardId: getEnv("TRELLO_BOARD_ID", ""),
+        listName: getEnv("TRELLO_LIST_NAME", ""),
+    };
+
+    const telegram: Configuration["telegram"] = {
+        botToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+        chatId: getEnv("TELEGRAM_CHAT_ID", ""),
+    };
+
     return {
         server,
         microservice,
@@ -257,5 +284,7 @@ export default (): Configuration => {
         sso,
         sentry,
         minio,
+        trello,
+        telegram,
     };
 };

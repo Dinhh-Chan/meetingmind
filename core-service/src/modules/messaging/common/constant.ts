@@ -18,6 +18,9 @@ export const AI_JOBS_QUEUE = "ai.jobs";
 export const BOT_JOBS_QUEUE = "bot.jobs";
 export const BOT_CONTROL_QUEUE = "bot.control";
 
+/** Queue của integration-service: đẩy công việc đã duyệt ra công cụ ngoài. */
+export const INTEGRATION_JOBS_QUEUE = "integration.jobs";
+
 export enum EventType {
     TRANSCRIPTION_REQUESTED = "transcription.requested",
     TRANSCRIPTION_COMPLETED = "transcription.completed",
@@ -29,6 +32,8 @@ export enum EventType {
     BOT_STOP_REQUESTED = "bot.stop.requested",
     BOT_STATUS_CHANGED = "bot.status.changed",
     RECORDING_COMPLETED = "recording.completed",
+    TASK_SYNC_REQUESTED = "task.sync.requested",
+    TASK_SYNC_COMPLETED = "task.sync.completed",
 }
 
 export interface EventEnvelope<T = Record<string, any>> {
@@ -163,4 +168,44 @@ export interface RecordingCompletedPayload {
     durationMs: number;
     sizeBytes: number;
     endReason: string;
+}
+
+/**
+ * Công việc vừa được duyệt, gửi sang integration-service để tạo thẻ Trello và
+ * báo Telegram. Integration không đọc DB của Core nên ảnh chụp công việc đi kèm.
+ */
+export interface TaskSyncRequestedPayload {
+    actionItemId: string;
+    meetingId: string;
+    /** Một công việc chỉ được đẩy ra ngoài một lần, kể cả khi tin bị giao lặp. */
+    idempotencyKey: string;
+    task: {
+        title: string;
+        description?: string;
+        /** Tên người thực hiện đã chốt khi duyệt (không phải userId). */
+        assigneeName?: string;
+        /** Hạn đã chuẩn hoá, ISO 8601. */
+        deadline?: string;
+        /** Câu gốc khi chưa chốt ngày, ví dụ "thứ Sáu". */
+        deadlineRawText?: string;
+        priority: string;
+        meetingTitle: string;
+        sourceQuote?: string;
+    };
+}
+
+export type ExternalProvider = "trello" | "telegram";
+
+export interface TaskSyncResult {
+    provider: ExternalProvider;
+    /** skipped: chưa cấu hình nhà cung cấp này. */
+    status: "synced" | "failed" | "skipped";
+    externalId?: string;
+    externalUrl?: string;
+    error?: string;
+}
+
+export interface TaskSyncCompletedPayload {
+    actionItemId: string;
+    results: TaskSyncResult[];
 }

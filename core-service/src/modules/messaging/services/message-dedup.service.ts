@@ -1,5 +1,6 @@
 import { ProcessedMessageService } from "@module/processed-message/services/processed-message.service";
 import { Injectable, Logger } from "@nestjs/common";
+import { UniqueConstraintError } from "sequelize";
 
 /**
  * Chống xử lý lặp: RabbitMQ đảm bảo at-least-once, nên cùng một message có thể
@@ -27,11 +28,15 @@ export class MessageDedupService {
             });
             return true;
         } catch (err) {
-            // Unique (messageId, consumer) chặn — đã xử lý rồi.
-            this.logger.debug(
-                `Bỏ qua message đã xử lý ${messageId} / ${consumer}`,
-            );
-            return false;
+            // Chỉ unique (messageId, consumer) mới là "đã xử lý rồi". Lỗi khác
+            // (mất kết nối DB) mà coi là trùng thì tin bị bỏ mất âm thầm.
+            if (err instanceof UniqueConstraintError) {
+                this.logger.debug(
+                    `Bỏ qua message đã xử lý ${messageId} / ${consumer}`,
+                );
+                return false;
+            }
+            throw err;
         }
     }
 }

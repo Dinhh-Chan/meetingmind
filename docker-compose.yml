@@ -185,6 +185,20 @@ services:
       SQL_PASSWORD: mm_integration_pass
       SQL_SCHEMA: integration
       SQL_SYNCHRONIZE: 1
+      # MICROSERVICE_RABBITMQ_URL lấy từ *nest-environment như core-service.
+      # Đồng bộ công việc đã duyệt ra Trello/Telegram. Giá trị đặt ở file .env
+      # cạnh file này (đã gitignore). Thiếu key/token thì nhà cung cấp đó bị
+      # bỏ qua (skipped), không lỗi.
+      TRELLO_API_KEY: ${TRELLO_API_KEY:-}
+      TRELLO_TOKEN: ${TRELLO_TOKEN:-}
+      # Có TRELLO_LIST_ID thì dùng thẳng; không thì tìm/tạo list
+      # TRELLO_LIST_NAME (mặc định "Việc từ cuộc họp") trên TRELLO_BOARD_ID.
+      TRELLO_LIST_ID: ${TRELLO_LIST_ID:-}
+      TRELLO_BOARD_ID: ${TRELLO_BOARD_ID:-}
+      TRELLO_LIST_NAME: ${TRELLO_LIST_NAME:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      # Bỏ trống thì tự dò chat gần nhất đã nhắn cho bot (getUpdates).
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     ports:
       - "3020:3020"
 
