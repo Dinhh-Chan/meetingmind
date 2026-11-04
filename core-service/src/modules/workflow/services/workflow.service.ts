@@ -34,6 +34,7 @@ import {
     ReviewItemType,
 } from "@module/review-item/common/constant";
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
+import { MeetingProcessingService } from "@module/meeting-processing/services/meeting-processing.service";
 import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
 import { TranscriptSegmentService } from "@module/transcript-segment/services/transcript-segment.service";
 import { TranscriptVersionService } from "@module/transcript-version/services/transcript-version.service";
@@ -95,6 +96,7 @@ export class WorkflowService {
         private readonly transcriptVersionService: TranscriptVersionService,
         private readonly transcriptSegmentService: TranscriptSegmentService,
         private readonly speakerAliasService: SpeakerAliasService,
+        private readonly meetingProcessingService: MeetingProcessingService,
         private readonly workspaceMemberService: WorkspaceMemberService,
         private readonly userService: UserService,
         private readonly meetingAccessService: MeetingAccessService,
@@ -583,7 +585,19 @@ export class WorkflowService {
             transcriptVersionId: version._id,
             speakerLabel,
         });
+        // Tên hiển thị đi kèm transcript sang AI khi phân tích lại: AI ghi người
+        // thực hiện theo tên này thay vì "Người nói 2".
+        let displayName = speakerLabel;
+        if (targetUserId) {
+            const [target] = await this.userService.getMany(
+                null,
+                { _id: targetUserId },
+                { enableDataPartition: false } as any,
+            );
+            displayName = target?.fullname || target?.username || speakerLabel;
+        }
         const aliasData = {
+            displayName,
             userId: targetUserId,
             confirmedById: targetUserId ? userId : null,
             confirmedAt: targetUserId ? new Date() : null,
@@ -596,7 +610,6 @@ export class WorkflowService {
                 meetingId,
                 transcriptVersionId: version._id,
                 speakerLabel,
-                displayName: speakerLabel,
                 ...aliasData,
             });
         }
@@ -611,6 +624,22 @@ export class WorkflowService {
             });
         }
         return { updatedSegments: segments.length };
+    }
+
+    /**
+     * Chạy lại phân tích AI trên transcript hiện tại, thường sau khi đã gán tên
+     * người nói. Tạo biên bản nháp và lô đề xuất mới; bản đã duyệt giữ nguyên.
+     */
+    async reanalyze(userId: string, meetingId: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_UPDATE_DRAFT);
+        const version = await this.transcriptVersionService.getOne(null, {
+            meetingId,
+            isCurrent: true,
+        });
+        if (!version) throw ApiError.NotFound("error-transcript-not-found");
+        return this.meetingProcessingService.requestAnalysis(meeting, version._id, {
+            rerun: true,
+        });
     }
 
     /* ------------------------------------------------------- thành viên */

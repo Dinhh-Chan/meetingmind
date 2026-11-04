@@ -54,10 +54,12 @@ export class MediaFileUploadService {
         const bucket = this.minioService.getBucket();
         const checksum = createHash("sha256").update(input.buffer).digest("hex");
 
-        // Cùng nội dung tải lại thì dùng lại bản ghi cũ, không tạo file trùng
-        // trên MinIO.
+        // Cùng nội dung tải lại cho cùng cuộc họp thì dùng lại bản ghi cũ, không
+        // tạo file trùng trên MinIO. Khác cuộc họp thì lưu riêng: bản ghi tệp
+        // gắn với cuộc họp (quyền, lịch sử), và object key là duy nhất.
         const existing = await this.mediaFileService.getOne(null, {
             workspaceId: input.workspaceId,
+            meetingId: input.meetingId ?? null,
             checksum,
             status: MediaFileStatus.READY,
         });

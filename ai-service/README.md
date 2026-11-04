@@ -107,18 +107,20 @@ Kết quả gửi về Core có `language` từng đoạn, ngôn ngữ chính `l
 
 `diarizer.py`: cắt lời Whisper thành khúc ~1,5 s theo mốc từ, tính vector giọng (3D-Speaker qua sherpa-onnx,
 CPU), gộp cụm theo độ giống → "Người nói 1, 2…" theo thứ tự lên tiếng; một câu Whisper trùm hai người được cắt
-đúng chỗ đổi người. Khúc giống người thứ hai cao bất thường (so với chính bản ghi) → `isOverlapping`.
+đúng chỗ đổi người. (Thử nghiệm) khúc giống người thứ hai cao bất thường → `isOverlapping`.
 
-Đo trên dữ liệu thử tổng hợp (3 giọng Piper, 26 s; bản sạch và bản vang + ồn SNR 12 dB):
-gán đúng người 89–94 % thời gian nói, đúng số người; nói chồng đánh dấu đúng 3/4 trường hợp, không báo nhầm
-với model `small`. **Chưa đo trên ghi âm thật** — ngưỡng chỉnh trên dữ liệu thử nên cần kiểm lại. Whisper chép
-giọng át và **bỏ mất lời người nói chồng**; cờ chỉ là gợi ý nghe lại.
+Đo trên cuộc họp thử 4 người, 151 s, giọng FPT TTS (báo cáo nghiệm thu, `nghiem-thu/thuc-nghiem/`):
+đúng 4/4 người và 99,5 % thời gian nói ở bản sạch; có nhiễu thì tách thừa 1–3 cụm nhỏ, vẫn đúng 85–95 %.
+Đánh dấu nói chồng **không đạt** trên bộ này (báo nhầm 8–11 đoạn ở bản không có nói chồng, không bắt được
+đoạn chồng 1,2 s) nên mặc định tắt. Whisper chép giọng át và bỏ mất lời người nói chồng. **Chưa đo trên ghi
+âm thật.**
 
 | Biến | Mặc định | |
 | --- | --- | --- |
 | `AI_DIARIZATION` | `1` | `0` để tắt (mọi đoạn là "Người nói 1") |
 | `AI_DIARIZATION_THRESHOLD` | `0.3` | ngưỡng gộp cụm; thấp → gộp nhiều người, cao → tách thừa |
 | `AI_DIARIZATION_MIN_SPEAKER_S` | `2.0` | "người" nói tổng ít hơn ngần này giây gộp vào người giống nhất |
+| `AI_DIARIZATION_OVERLAP` | `0` | `1` để bật đánh dấu nói chồng; mặc định tắt vì còn báo nhầm nhiều (xem báo cáo thực nghiệm) |
 
 | Biến | Mặc định | |
 | --- | --- | --- |

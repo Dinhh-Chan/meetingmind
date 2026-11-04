@@ -282,6 +282,12 @@ export class WorkflowController {
         return this.workflowService.assignSpeaker(user._id, id, dto.speakerLabel, dto.userId ?? null);
     }
 
+    /** Phân tích lại transcript hiện tại (sau khi gán tên người nói). */
+    @Post("meetings/:id/reanalyze")
+    reanalyze(@ReqUser() user: User, @Param("id") id: string) {
+        return this.workflowService.reanalyze(user._id, id);
+    }
+
     /* thành viên */
 
     @Post("members/invite")

@@ -291,6 +291,10 @@ class Diarizer:
 
         self.threshold = threshold if threshold is not None else float(os.environ.get("AI_DIARIZATION_THRESHOLD", "0.3"))
         self.min_speaker_s = float(os.environ.get("AI_DIARIZATION_MIN_SPEAKER_S", "2.0"))
+        # Đánh dấu nói chồng mặc định tắt: thực nghiệm trên bản ghi 4 người cho
+        # thấy ngưỡng tương đối báo nhầm 8–11 đoạn trên bản ghi không có nói
+        # chồng và không bắt được đoạn chồng ngắn 1,2 s. Bật để thử nghiệm tiếp.
+        self.detect_overlap = os.environ.get("AI_DIARIZATION_OVERLAP", "0") in ("1", "true")
         self._extractor = sherpa_onnx.SpeakerEmbeddingExtractor(
             sherpa_onnx.SpeakerEmbeddingExtractorConfig(
                 model=str(ensure_model()), num_threads=int(os.environ.get("AI_DIARIZATION_THREADS", "2"))
@@ -315,5 +319,8 @@ class Diarizer:
         embeddings = [self._embed(audio, w, sample_rate) for w in windows]
         labels = cluster(embeddings, self.threshold)
         labels = merge_small_clusters(embeddings, labels, [w.end - w.start for w in windows], self.min_speaker_s)
-        overlapping = overlap_windows(embeddings, labels)
+        if self.detect_overlap:
+            overlapping = overlap_windows(embeddings, labels)
+        else:
+            overlapping = [False] * len(windows)
         return turns_from_windows(windows, labels, overlapping)

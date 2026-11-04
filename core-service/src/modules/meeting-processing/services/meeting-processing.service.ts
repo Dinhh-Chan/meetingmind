@@ -1,7 +1,10 @@
 import { ApiError } from "@config/exception/api-error";
 import { MeetingMinutesService } from "@module/meeting-minutes/services/meeting-minutes.service";
 import { MeetingService } from "@module/meeting/services/meeting.service";
-import { ProcessingStatus as MeetingProcessingStatus } from "@module/meeting/common/constant";
+import {
+    MeetingStatus,
+    ProcessingStatus as MeetingProcessingStatus,
+} from "@module/meeting/common/constant";
 import {
     EventType,
     TranscriptionCompletedPayload,
@@ -190,6 +193,15 @@ export class MeetingProcessingService {
             meeting.language = payload.language;
         }
 
+        // Đã có bản ghi tức là cuộc họp đã diễn ra: tệp tải lên của buổi họp
+        // trực tiếp không đi qua bước bắt đầu/kết thúc nên vẫn đang "đã lên lịch".
+        if (meeting.status === MeetingStatus.SCHEDULED) {
+            await this.meetingService.updateById(null, meeting._id, {
+                status: MeetingStatus.ENDED,
+                actualEndAt: new Date(),
+            });
+        }
+
         this.logger.log(
             `Transcript v${versionNo} cho ${meeting._id}: ${sequence} đoạn`,
         );
@@ -205,8 +217,19 @@ export class MeetingProcessingService {
     async requestAnalysis(
         meeting: { _id: string; workspaceId: string; language: string },
         transcriptVersionId: string,
+        options: { rerun?: boolean } = {},
     ) {
-        const idempotencyKey = `${meeting._id}:analyze:${transcriptVersionId}`;
+        let idempotencyKey = `${meeting._id}:analyze:${transcriptVersionId}`;
+        if (options.rerun) {
+            // Người dùng chủ động phân tích lại (ví dụ sau khi gán tên người nói):
+            // mỗi lần là một job mới, còn tin trùng của cùng một lần vẫn bị chặn.
+            const previous = await this.processingJobService.getMany(
+                null,
+                { meetingId: meeting._id, type: ProcessingJobType.SUMMARIZE },
+                {} as any,
+            );
+            idempotencyKey += `:r${previous.length}`;
+        }
         const existing = await this.processingJobService.getOne(null, {
             idempotencyKey,
         });

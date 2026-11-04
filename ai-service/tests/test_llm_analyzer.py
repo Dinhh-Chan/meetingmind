@@ -49,8 +49,20 @@ def settings(**kw) -> Settings:
     return Settings(**base)
 
 
+def sse(*chunks: dict) -> httpx.Response:
+    body = "".join(f"data: {json.dumps(c, ensure_ascii=False)}\n\n" for c in chunks) + "data: [DONE]\n\n"
+    return httpx.Response(200, text=body, headers={"content-type": "text/event-stream"})
+
+
 def reply(content: str, finish: str = "stop") -> httpx.Response:
-    return httpx.Response(200, json={"choices": [{"finish_reason": finish, "message": {"content": content}}]})
+    """Luồng như gateway thật: vài mẩu suy luận, nội dung chia làm hai mẩu, rồi lý do kết thúc."""
+    half = len(content) // 2
+    return sse(
+        {"choices": [{"delta": {"reasoning_content": "Cần đọc kỹ transcript…"}}]},
+        {"choices": [{"delta": {"content": content[:half]}}]},
+        {"choices": [{"delta": {"content": content[half:]}}]},
+        {"choices": [{"delta": {}, "finish_reason": finish}]},
+    )
 
 
 def run(analyzer: LlmAnalyzer, segments=SEGMENTS):
@@ -144,6 +156,7 @@ def test_analyze_uses_primary_model():
         assert request.headers["Authorization"] == "Bearer k"
         assert request.url.path == "/v1/chat/completions"
         assert "response_format" not in body
+        assert body["stream"] is True
         return reply(json.dumps(GOOD, ensure_ascii=False))
 
     result = run(LlmAnalyzer(settings(), transport=httpx.MockTransport(handler)))
@@ -157,10 +170,11 @@ def test_analyze_uses_primary_model():
     "primary",
     [
         httpx.Response(402, json={"message": "Payment required"}),
-        httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": ""}}]}),
-        httpx.Response(200, json={"choices": [{"finish_reason": "length", "message": {"content": '{"summ'}}]}),
+        sse({"choices": [{"delta": {"reasoning_content": "chỉ nghĩ, không trả lời"}, "finish_reason": "stop"}]}),
+        sse({"choices": [{"delta": {"content": '{"summ'}, "finish_reason": "length"}]}),
+        sse({"error": {"message": "upstream reset"}}),
     ],
-    ids=["http-error", "empty-content", "truncated"],
+    ids=["http-error", "only-reasoning", "truncated", "error-mid-stream"],
 )
 def test_analyze_falls_back_when_primary_unusable(primary):
     def handler(request: httpx.Request) -> httpx.Response:
@@ -199,3 +213,22 @@ def test_analyze_empty_transcript_skips_llm():
     result = run(LlmAnalyzer(settings(), transport=httpx.MockTransport(handler)), segments=[{"sequence": 0, "text": "  "}])
     assert result.model == "none"
     assert result.action_items == []
+
+
+def test_analyze_accepts_plain_json_when_gateway_ignores_stream():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(GOOD)}}]})
+
+    result = run(LlmAnalyzer(settings(), transport=httpx.MockTransport(handler)))
+    assert result.model == "main"
+    assert result.summary == "Chốt hạn thanh toán."
+
+
+def test_analyze_falls_back_when_primary_too_slow():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if json.loads(request.content)["model"] == "main":
+            await asyncio.sleep(1)
+        return reply(json.dumps(GOOD, ensure_ascii=False))
+
+    result = run(LlmAnalyzer(settings(timeout_s=0.2), transport=httpx.MockTransport(handler)))
+    assert result.model == "backup"

@@ -15,8 +15,12 @@ tiền riêng và gửi dữ liệu ra ngoài FPT.
 Không dùng response_format=json_object: DeepSeek-V4.1-Flash khi bật chế độ
 này trả nội dung rỗng (dồn hết vào phần suy luận). Prompt yêu cầu JSON và phía
 này tự bóc, tự kiểm tra.
+
+Gọi theo luồng (stream): gọi thường thì cổng dịch vụ trả 524 khi mô hình suy
+luận quá lâu (gặp khi chạy thực nghiệm), luồng giữ kết nối sống bằng token suy luận.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -249,16 +253,18 @@ class LlmAnalyzer:
         async with httpx.AsyncClient(
             base_url=self.settings.base_url,
             headers={"Authorization": f"Bearer {self.settings.api_key}"},
-            timeout=httpx.Timeout(self.settings.timeout_s, connect=15.0),
+            # Thời gian chờ giữa hai mẩu dữ liệu; tổng thời gian giới hạn bằng timeout_s.
+            timeout=httpx.Timeout(180.0, connect=15.0),
             transport=self._transport,
         ) as client:
             for model in models:
                 try:
                     content = await self._complete(client, model, messages)
                     result = normalize(parse_json(content), segments)
-                except (httpx.HTTPError, LlmError) as err:
-                    log.warning("Model %s không dùng được cho %s: %s", model, meeting_id, err)
-                    errors.append(f"{model}: {err}")
+                except (httpx.HTTPError, LlmError, asyncio.TimeoutError) as err:
+                    reason = str(err) or type(err).__name__
+                    log.warning("Model %s không dùng được cho %s: %s", model, meeting_id, reason)
+                    errors.append(f"{model}: {reason}")
                     continue
                 log.info(
                     "LLM %s: %d công việc, %d quyết định, %d vấn đề mở",
@@ -271,19 +277,52 @@ class LlmAnalyzer:
         raise LlmError("; ".join(errors))
 
     async def _complete(self, client: httpx.AsyncClient, model: str, messages: list[dict[str, str]]) -> str:
-        response = await client.post(
-            "/chat/completions",
-            json={
-                "model": model,
-                "messages": messages,
-                "temperature": self.settings.temperature,
-                "max_tokens": self.settings.max_tokens,
-            },
-        )
-        if response.status_code != 200:
-            # Thân lỗi của gateway (402 hết tiền, 404 sai tên model…) giúp biết sửa gì.
-            raise LlmError(f"HTTP {response.status_code}: {response.text[:300]}")
-        choice = (response.json().get("choices") or [{}])[0]
-        if choice.get("finish_reason") == "length":
+        # Truyền luồng: mô hình suy luận có thể nghĩ hơn một phút trước khi ra
+        # chữ đầu tiên; gọi thường thì cổng dịch vụ trả 524 (hết giờ chờ), còn
+        # luồng thì token suy luận chảy về liên tục nên kết nối không bị cắt.
+        body = {
+            "model": model,
+            "messages": messages,
+            "temperature": self.settings.temperature,
+            "max_tokens": self.settings.max_tokens,
+            "stream": True,
+        }
+        return await asyncio.wait_for(self._stream(client, body), timeout=self.settings.timeout_s)
+
+    async def _stream(self, client: httpx.AsyncClient, body: dict[str, Any]) -> str:
+        parts: list[str] = []
+        finish = None
+        async with client.stream("POST", "/chat/completions", json=body) as response:
+            if response.status_code != 200:
+                # Thân lỗi của gateway (402 hết tiền, 404 sai tên model…) giúp biết sửa gì.
+                text = (await response.aread()).decode("utf-8", "replace")
+                raise LlmError(f"HTTP {response.status_code}: {text[:300]}")
+            if "json" in response.headers.get("content-type", ""):
+                # Gateway bỏ qua stream và trả một cục JSON như gọi thường.
+                choice = (json.loads(await response.aread()).get("choices") or [{}])[0]
+                parts.append((choice.get("message") or {}).get("content") or "")
+                finish = choice.get("finish_reason")
+            else:
+                async for line in response.aiter_lines():
+                    line = line.strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[len("data:") :].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                    except ValueError:
+                        continue
+                    if chunk.get("error"):
+                        raise LlmError(f"lỗi giữa luồng: {str(chunk['error'])[:300]}")
+                    for choice in chunk.get("choices") or []:
+                        # Bỏ reasoning_content: chỉ phần nội dung mới là JSON kết quả.
+                        content = (choice.get("delta") or {}).get("content")
+                        if content:
+                            parts.append(content)
+                        if choice.get("finish_reason"):
+                            finish = choice["finish_reason"]
+        if finish == "length":
             raise LlmError("hết max_tokens trước khi trả xong JSON")
-        return (choice.get("message") or {}).get("content") or ""
+        return "".join(parts)
