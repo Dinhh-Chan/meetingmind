@@ -1,0 +1,10 @@
+# Bí mật cục bộ: API key, khoá ký extension. Không bao giờ commit.
+.env
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+
+# Frontend là repo riêng (Zianggg/meeting-mind-fe), clone vào đây để chạy chung.
+meeting-mind-fe/

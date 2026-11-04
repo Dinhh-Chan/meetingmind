@@ -223,6 +223,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     entrypoint: ["python", "-m", "app.worker.main"]
+    volumes:
+      - whisper-models:/root/.cache/huggingface
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -235,9 +237,23 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_USE_SSL: 0
-      # stub cho tới khi bật Whisper và Claude
-      AI_STT: stub
-      AI_LLM: stub
+      # Phiên âm thật bằng faster-whisper; đổi AI_STT=stub để chạy nhanh khi
+      # không cần nội dung thật. Lần đầu tự tải model (small ~480 MB) về volume
+      # whisper-models. Model lớn hơn (medium, large-v3) nghe tiếng Việt tốt hơn
+      # nhưng chậm hơn nhiều trên CPU.
+      AI_STT: ${AI_STT:-whisper}
+      AI_WHISPER_MODEL: ${AI_WHISPER_MODEL:-small}
+      AI_WHISPER_DEVICE: ${AI_WHISPER_DEVICE:-cpu}
+      AI_WHISPER_COMPUTE_TYPE: ${AI_WHISPER_COMPUTE_TYPE:-int8}
+      # Phân tích biên bản bằng LLM của FPT AI Factory (API kiểu OpenAI). Key
+      # đặt ở file .env cạnh file này (đã gitignore), docker compose tự đọc:
+      #   FPT_AI_API_KEY=sk-...
+      # Thiếu key thì worker tự lùi về stub. Lý do chọn model: llm_analyzer.py.
+      AI_LLM: ${AI_LLM:-fpt}
+      AI_LLM_BASE_URL: ${AI_LLM_BASE_URL:-https://token-api.fpt.ai/v1}
+      AI_LLM_API_KEY: ${FPT_AI_API_KEY:-}
+      AI_LLM_MODEL: ${AI_LLM_MODEL:-DeepSeek-V4.1-Flash}
+      AI_LLM_FALLBACK_MODEL: ${AI_LLM_FALLBACK_MODEL:-GLM-5.2}
       SECRET_KEY: meetingmind_ai_secret
       POSTGRES_DB: meetingmind
       POSTGRES_USER: mm_ai
@@ -247,9 +263,36 @@ services:
       POSTGRES_SCHEMA: ai
 
   bot-worker:
-    image: alpine:3.20
-    profiles: ["bot"]
-    command: ["sh", "-c", "echo 'bot-worker chua co source code/Dockerfile nen dang de placeholder'; sleep infinity"]
+    # Vào Google Meet bằng Chromium (Playwright) trên màn hình ảo, ghi âm
+    # giọng những người khác rồi đẩy lên MinIO. Cần đăng nhập tài khoản Google
+    # của bot một lần — xem bot-worker/README.md.
+    build:
+      context: ./bot-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    # Chromium cần /dev/shm lớn, mặc định 64 MB làm tab Meet sập.
+    shm_size: "1gb"
+    environment:
+      MICROSERVICE_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_USE_SSL: 0
+      MINIO_BUCKET: meetingmind
+      BOT_PROFILE_DIR: /profile
+      BOT_NAME: MeetingMind Bot
+      BOT_ADMISSION_TIMEOUT_S: 300
+      BOT_ALONE_TIMEOUT_S: 60
+      # Ảnh chụp từng bước trong container, lấy ra bằng docker cp khi cần dò lỗi.
+      BOT_DEBUG_DIR: /tmp/mm-bot/debug
+    volumes:
+      - bot-profile:/profile
 
   prometheus:
     image: prom/prometheus:latest
@@ -269,3 +312,7 @@ volumes:
   postgres_data:
   minio_data:
   grafana_data:
+  # Model Whisper tải lần đầu; giữ lại khi dựng lại container ai-worker.
+  whisper-models:
+  # Hồ sơ Chromium đã đăng nhập tài khoản Google của bot (bot-worker/login.sh).
+  bot-profile:

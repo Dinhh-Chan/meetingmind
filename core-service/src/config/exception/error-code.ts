@@ -3,6 +3,8 @@ import { FileErrorCode } from "@module/file/common/constant";
 export type ErrorCode =
     | "error-user-not-found"
     | "error-meeting-not-found"
+    | "error-meeting-url-required"
+    | "error-bot-session-not-found"
     | "error-task-not-found"
     | "error-minutes-not-found"
     | "error-minutes-status-invalid"

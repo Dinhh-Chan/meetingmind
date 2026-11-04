@@ -103,3 +103,9 @@ wheel==0.43.0
 zipp==3.21.0
 aio-pika==9.5.5
 minio==7.2.15
+# Phiên âm thật (AI_STT=whisper): Whisper chạy bằng CTranslate2, CPU int8 được.
+faster-whisper==1.2.1
+# av 19 bỏ tham số metadata_errors mà faster-whisper 1.2.1 vẫn truyền vào av.open.
+av==18.1.0
+# Tách người nói (diarization) trên CPU: mô hình pyannote dạng ONNX, không cần token Hugging Face.
+sherpa-onnx==2.0.1

@@ -13,7 +13,11 @@ log = logging.getLogger("ai-worker")
 class TranscriptResult:
     run_id: str
     model: str
+    # Mỗi đoạn: speakerLabel, startMs, endMs, text, confidence, language.
     segments: list[dict[str, Any]] = field(default_factory=list)
+    # Ngôn ngữ nói nhiều nhất (mã ISO 639-1) và tỷ lệ thời lượng từng ngôn ngữ.
+    language: str | None = None
+    languages: dict[str, float] = field(default_factory=dict)
 
 
 class Transcriber(Protocol):
@@ -38,10 +42,7 @@ class StubTranscriber:
             bucket,
             object_key,
         )
-        return TranscriptResult(
-            run_id=str(uuid.uuid4()),
-            model="stub",
-            segments=[
+        segments = [
                 {
                     "speakerLabel": "Speaker 1",
                     "startMs": 0,
@@ -63,7 +64,15 @@ class StubTranscriber:
                     "text": "Hay là mình dùng luôn JWT cho gọn, chưa cần session.",
                     "confidence": 0.9,
                 },
-            ],
+            ]
+        for s in segments:
+            s["language"] = "vi"
+        return TranscriptResult(
+            run_id=str(uuid.uuid4()),
+            model="stub",
+            segments=segments,
+            language="vi",
+            languages={"vi": 1.0},
         )
 
 

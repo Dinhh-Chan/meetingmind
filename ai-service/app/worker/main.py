@@ -49,10 +49,16 @@ async def handle_transcription(
                 "runId": result.run_id,
                 "model": result.model,
                 "segments": result.segments,
+                "language": result.language,
+                "languages": result.languages,
             },
         )
         routing_key = c.TRANSCRIPTION_COMPLETED
-        log.info("Phiên âm xong: %d đoạn", len(result.segments))
+        log.info("Phiên âm xong: %d đoạn, ngôn ngữ %s", len(result.segments), result.languages)
+        # Gửi ngay trong try: gửi lỗi (vd. dữ liệu không chuyển được JSON) thì
+        # báo transcription.failed, không để job của Core kẹt ở "queued".
+        await publish(channel, routing_key, out)
+        return
     except Exception as err:  # noqa: BLE001 - lỗi nào cũng phải báo về Core
         log.exception("Phiên âm lỗi")
         out = c.envelope(
@@ -83,6 +89,7 @@ async def handle_analysis(
             meeting_id=payload["meetingId"],
             transcript_version_id=payload["transcriptVersionId"],
             language=payload.get("language", "vi"),
+            segments=payload.get("segments") or [],
         )
         out = c.envelope(
             c.ANALYSIS_COMPLETED,
@@ -101,11 +108,13 @@ async def handle_analysis(
             },
         )
         routing_key = c.ANALYSIS_COMPLETED
+        await publish(channel, routing_key, out)
         log.info(
             "Phân tích xong: %d công việc, %d quyết định",
             len(result.action_items),
             len(result.decisions),
         )
+        return
     except Exception as err:  # noqa: BLE001
         log.exception("Phân tích lỗi")
         out = c.envelope(
@@ -123,6 +132,14 @@ async def handle_analysis(
     await publish(channel, routing_key, out)
 
 
+def _json_default(value):
+    """Số và cờ kiểu numpy (mốc thời gian của faster-whisper, phép so sánh trên
+    chúng) không phải kiểu JSON chuẩn."""
+    if hasattr(value, "item"):
+        return value.item()
+    raise TypeError(f"Không chuyển được {type(value).__name__} sang JSON")
+
+
 async def publish(
     channel: aio_pika.abc.AbstractChannel, routing_key: str, envelope: dict
 ) -> None:
@@ -131,7 +148,7 @@ async def publish(
     )
     await exchange.publish(
         aio_pika.Message(
-            body=json.dumps(envelope).encode(),
+            body=json.dumps(envelope, default=_json_default).encode(),
             message_id=envelope["eventId"],
             content_type="application/json",
             delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
@@ -171,7 +188,10 @@ async def main() -> None:
                     if handler is None:
                         log.warning("Bỏ qua sự kiện lạ: %s", env.get("eventType"))
                         continue
-                    await handler(message, channel)
+                    try:
+                        await handler(message, channel)
+                    except Exception:  # noqa: BLE001 - một tin lỗi không được làm sập worker
+                        log.exception("Xử lý %s lỗi", env.get("eventType"))
 
 
 if __name__ == "__main__":

@@ -25,5 +25,7 @@
     "error-note-not-found": "Note not found",
     "error-transcript-not-found": "Transcript not found",
     "error-user-not-in-workspace": "User is not a workspace member",
-    "error-role-invalid": "Invalid role"
+    "error-role-invalid": "Invalid role",
+    "error-meeting-url-required": "A Google Meet link is required to invite the bot",
+    "error-bot-session-not-found": "No active bot session for this meeting"
 }

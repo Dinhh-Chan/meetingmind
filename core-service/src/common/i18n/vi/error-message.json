@@ -32,5 +32,7 @@
     "error-note-not-found": "Không tìm thấy ghi chú",
     "error-transcript-not-found": "Cuộc họp chưa có transcript",
     "error-user-not-in-workspace": "Người này không thuộc workspace",
-    "error-role-invalid": "Vai trò không hợp lệ"
+    "error-role-invalid": "Vai trò không hợp lệ",
+    "error-meeting-url-required": "Cuộc họp cần link Google Meet để mời bot",
+    "error-bot-session-not-found": "Bot không có mặt trong cuộc họp này"
 }

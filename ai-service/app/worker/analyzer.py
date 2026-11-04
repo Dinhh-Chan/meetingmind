@@ -1,4 +1,8 @@
-"""Tóm tắt và trích xuất công việc. Stub để thông luồng; Claude khi bật AI_LLM=claude."""
+"""Tóm tắt và trích xuất công việc.
+
+AI_LLM=fpt (hoặc openai) gọi LLM thật, xem llm_analyzer.py; mặc định là stub để
+thông luồng khi chưa có API key.
+"""
 
 import logging
 import os
@@ -21,7 +25,11 @@ class AnalysisResult:
 
 class Analyzer(Protocol):
     async def analyze(
-        self, meeting_id: str, transcript_version_id: str, language: str
+        self,
+        meeting_id: str,
+        transcript_version_id: str,
+        language: str,
+        segments: list[dict[str, Any]] | None = None,
     ) -> AnalysisResult: ...
 
 
@@ -34,7 +42,11 @@ class StubAnalyzer:
     """
 
     async def analyze(
-        self, meeting_id: str, transcript_version_id: str, language: str
+        self,
+        meeting_id: str,
+        transcript_version_id: str,
+        language: str,
+        segments: list[dict[str, Any]] | None = None,
     ) -> AnalysisResult:
         log.warning("Đang dùng StubAnalyzer (AI_LLM chưa bật)")
         return AnalysisResult(
@@ -68,8 +80,12 @@ class StubAnalyzer:
 
 def get_analyzer() -> Analyzer:
     engine = os.environ.get("AI_LLM", "stub").lower()
-    if engine == "claude":
-        from app.worker.claude_analyzer import ClaudeAnalyzer
+    if engine in ("fpt", "openai"):
+        from app.worker.llm_analyzer import LlmAnalyzer, Settings
 
-        return ClaudeAnalyzer()
+        settings = Settings.from_env()
+        if settings.api_key:
+            return LlmAnalyzer(settings)
+        # Máy dev chưa có key vẫn chạy được trọn luồng, chỉ là kết quả giả.
+        log.warning("AI_LLM=%s nhưng thiếu AI_LLM_API_KEY, dùng StubAnalyzer", engine)
     return StubAnalyzer()

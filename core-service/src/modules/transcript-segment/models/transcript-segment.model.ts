@@ -48,6 +48,9 @@ export class TranscriptSegmentModel extends Model implements TranscriptSegment {
     @Column({ type: DataType.FLOAT, allowNull: true })
     confidence?: number;
 
+    @Column({ type: DataType.STRING(16), allowNull: true })
+    language?: string;
+
     @Column({ type: DataType.BOOLEAN, allowNull: true })
     isOverlapping?: boolean;
 

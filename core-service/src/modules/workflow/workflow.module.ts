@@ -1,6 +1,7 @@
 import { ActionItemCommentModule } from "@module/action-item-comment/action-item-comment.module";
 import { ActionItemModule } from "@module/action-item/action-item.module";
 import { AgendaItemModule } from "@module/agenda-item/agenda-item.module";
+import { MeetingBotModule } from "@module/meeting-bot/meeting-bot.module";
 import { MeetingAccessModule } from "@module/meeting-access/meeting-access.module";
 import { DecisionModule } from "@module/decision/decision.module";
 import { MeetingMinutesModule } from "@module/meeting-minutes/meeting-minutes.module";
@@ -38,6 +39,7 @@ import { WorkflowService } from "./services/workflow.service";
         WorkspaceMemberModule,
         UserModule,
         MeetingAccessModule,
+        MeetingBotModule,
     ],
     controllers: [WorkflowController],
     providers: [WorkflowService],

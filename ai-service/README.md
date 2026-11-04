@@ -87,3 +87,70 @@ def downgrade() -> None:
 
 ...
 ```
+
+## Phiên âm (ai-worker)
+
+`AI_STT=whisper` (mặc định trong docker-compose) dùng faster-whisper; `AI_STT=stub` trả transcript cố định
+để chạy nhanh khi không cần nội dung thật.
+
+Nhận diện ngôn ngữ **theo từng đoạn**, nên cuộc họp nói lẫn Việt – Anh vẫn đúng:
+
+1. Chọn ngôn ngữ chính cho cả bài (dưới ngưỡng tin cậy thì theo `meetings.language` Core gửi, mặc định `vi`).
+2. Phiên âm có lọc khoảng lặng.
+3. Mỗi đoạn ≥ 1,5 s được nhận diện lại; khác ngôn ngữ chính và đủ chắc thì phiên âm lại đoạn đó bằng
+   ngôn ngữ của nó. Đoạn ngắn hơn theo ngôn ngữ đoạn trước.
+
+Kết quả gửi về Core có `language` từng đoạn, ngôn ngữ chính `language` và tỷ lệ `languages`
+(ví dụ `{ "vi": 0.6, "en": 0.4 }`).
+
+### Tách người nói (họp trực tiếp, một micro)
+
+`diarizer.py`: cắt lời Whisper thành khúc ~1,5 s theo mốc từ, tính vector giọng (3D-Speaker qua sherpa-onnx,
+CPU), gộp cụm theo độ giống → "Người nói 1, 2…" theo thứ tự lên tiếng; một câu Whisper trùm hai người được cắt
+đúng chỗ đổi người. Khúc giống người thứ hai cao bất thường (so với chính bản ghi) → `isOverlapping`.
+
+Đo trên dữ liệu thử tổng hợp (3 giọng Piper, 26 s; bản sạch và bản vang + ồn SNR 12 dB):
+gán đúng người 89–94 % thời gian nói, đúng số người; nói chồng đánh dấu đúng 3/4 trường hợp, không báo nhầm
+với model `small`. **Chưa đo trên ghi âm thật** — ngưỡng chỉnh trên dữ liệu thử nên cần kiểm lại. Whisper chép
+giọng át và **bỏ mất lời người nói chồng**; cờ chỉ là gợi ý nghe lại.
+
+| Biến | Mặc định | |
+| --- | --- | --- |
+| `AI_DIARIZATION` | `1` | `0` để tắt (mọi đoạn là "Người nói 1") |
+| `AI_DIARIZATION_THRESHOLD` | `0.3` | ngưỡng gộp cụm; thấp → gộp nhiều người, cao → tách thừa |
+| `AI_DIARIZATION_MIN_SPEAKER_S` | `2.0` | "người" nói tổng ít hơn ngần này giây gộp vào người giống nhất |
+
+| Biến | Mặc định | |
+| --- | --- | --- |
+| `AI_WHISPER_MODEL` | `small` | `medium`, `large-v3` nghe tiếng Việt tốt hơn, chậm hơn nhiều trên CPU |
+| `AI_WHISPER_DEVICE` / `AI_WHISPER_COMPUTE_TYPE` | `cpu` / `int8` | có GPU thì `cuda` / `float16` |
+| `AI_WHISPER_SEGMENT_MIN_PROB` | `0.7` | ngưỡng để đổi ngôn ngữ một đoạn |
+| `AI_WHISPER_MIN_DETECT_SECONDS` | `1.5` | đoạn ngắn hơn không nhận diện riêng |
+
+Model tải từ Hugging Face lần đầu, lưu ở volume `whisper-models`. Test: `python -m pytest tests`.
+
+## Phân tích biên bản (ai-worker)
+
+Sau khi có transcript, Core gửi `analysis.requested` kèm luôn các đoạn transcript
+(AI không đọc DB của Core). Worker gọi LLM qua API kiểu OpenAI và trả về tóm tắt,
+quyết định, vấn đề còn mở, công việc; mỗi mục kèm câu trích và số thứ tự đoạn làm
+bằng chứng. Core đưa tất cả vào hàng đợi duyệt, không ghi thẳng thành dữ liệu chính thức.
+
+Mặc định dùng FPT AI Factory (Serverless Inference). Key đặt ở file `.env` ở thư
+mục gốc repo (đã gitignore, xem `.env.example`):
+
+```
+FPT_AI_API_KEY=sk-...
+```
+
+Thiếu key thì worker tự lùi về `StubAnalyzer` (kết quả giả cố định).
+
+| Biến | Mặc định | |
+| --- | --- | --- |
+| `AI_LLM` | `fpt` | `stub` để tắt LLM; `openai` cho gateway kiểu OpenAI khác |
+| `AI_LLM_BASE_URL` | `https://token-api.fpt.ai/v1` | |
+| `AI_LLM_MODEL` | `DeepSeek-V4.1-Flash` | chính xác nhất khi chấm thử, ~30–90 giây mỗi cuộc họp |
+| `AI_LLM_FALLBACK_MODEL` | `GLM-5.2` | dùng khi model chính lỗi, hết giờ hoặc trả JSON hỏng; để trống để tắt |
+| `AI_LLM_MAX_TOKENS` / `AI_LLM_TIMEOUT_S` | `32000` / `600` | model suy luận cần nhiều token cho phần nghĩ |
+
+Lý do chọn model và kết quả chấm thử: đầu file `app/worker/llm_analyzer.py`.

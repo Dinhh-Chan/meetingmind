@@ -6,6 +6,7 @@ import {
     EventType,
     TranscriptionCompletedPayload,
     AnalysisCompletedPayload,
+    AnalysisSegment,
 } from "@module/messaging/common/constant";
 import { OutboxService } from "@module/messaging/services/outbox.service";
 import { MinutesVersionStatus } from "@module/minutes-version/common/constant";
@@ -22,6 +23,7 @@ import {
     ReviewItemType,
 } from "@module/review-item/common/constant";
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
+import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
 import { SpeakerIdentityStatus } from "@module/transcript-segment/common/constant";
 import { TranscriptSegmentService } from "@module/transcript-segment/services/transcript-segment.service";
 import { TranscriptVersionSource } from "@module/transcript-version/common/constant";
@@ -54,6 +56,7 @@ export class MeetingProcessingService {
         private readonly minutesVersionService: MinutesVersionService,
         private readonly reviewBatchService: ReviewBatchService,
         private readonly reviewItemService: ReviewItemService,
+        private readonly speakerAliasService: SpeakerAliasService,
         private readonly outboxService: OutboxService,
     ) {}
 
@@ -158,6 +161,8 @@ export class MeetingProcessingService {
                 text: segment.text,
                 rawText: segment.text,
                 confidence: segment.confidence,
+                language: segment.language,
+                isOverlapping: segment.isOverlapping ?? false,
                 sequence,
             });
         }
@@ -168,9 +173,22 @@ export class MeetingProcessingService {
             {
                 status: ProcessingJobStatus.SUCCEEDED,
                 finishedAt: new Date(),
-                result: { transcriptVersionId: version._id, segments: sequence },
+                result: {
+                    transcriptVersionId: version._id,
+                    segments: sequence,
+                    languages: payload.languages,
+                },
             },
         );
+
+        // Ngôn ngữ cuộc họp mặc định "vi" lúc tạo; sau khi nghe thật thì theo
+        // ngôn ngữ nói nhiều nhất, để bước phân tích viết biên bản đúng tiếng.
+        if (payload.language && payload.language !== meeting.language) {
+            await this.meetingService.updateById(null, meeting._id, {
+                language: payload.language,
+            });
+            meeting.language = payload.language;
+        }
 
         this.logger.log(
             `Transcript v${versionNo} cho ${meeting._id}: ${sequence} đoạn`,
@@ -217,6 +235,7 @@ export class MeetingProcessingService {
                 meetingId: meeting._id,
                 transcriptVersionId,
                 language: meeting.language,
+                segments: await this.analysisSegments(transcriptVersionId),
             },
         });
 
@@ -225,6 +244,36 @@ export class MeetingProcessingService {
         });
 
         return job;
+    }
+
+    /**
+     * Transcript gửi kèm lệnh phân tích, theo đúng thứ tự nói.
+     *
+     * Nhãn người nói đã được đặt tên thì gửi tên: AI ghi người thực hiện theo
+     * tên xuất hiện trong transcript (assigneeHint).
+     */
+    private async analysisSegments(
+        transcriptVersionId: string,
+    ): Promise<AnalysisSegment[]> {
+        const [segments, aliases] = await Promise.all([
+            this.transcriptSegmentService.getMany(null, { transcriptVersionId }),
+            this.speakerAliasService.getMany(null, { transcriptVersionId }),
+        ]);
+        const names = new Map(
+            aliases
+                .filter((a) => a.displayName && a.displayName !== a.speakerLabel)
+                .map((a) => [a.speakerLabel, a.displayName]),
+        );
+        return [...segments]
+            .sort((a, b) => a.sequence - b.sequence)
+            .map((segment) => ({
+                sequence: segment.sequence,
+                speaker: names.get(segment.speakerLabel) ?? segment.speakerLabel,
+                text: segment.text,
+                startMs: segment.startMs,
+                endMs: segment.endMs,
+                language: segment.language ?? undefined,
+            }));
     }
 
     /** Bước 9: biến kết quả AI thành biên bản nháp và hàng đợi duyệt. */

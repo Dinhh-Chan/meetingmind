@@ -1,0 +1,5 @@
+# Trùng phiên bản với image mcr.microsoft.com/playwright/python (có sẵn Chromium).
+playwright==1.64.1
+aio-pika==9.5.5
+minio==7.2.15
+pytest==8.3.5

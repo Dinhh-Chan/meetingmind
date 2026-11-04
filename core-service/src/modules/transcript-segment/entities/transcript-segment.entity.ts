@@ -92,6 +92,15 @@ export class TranscriptSegment implements BaseEntity {
     confidence?: number;
 
     /**
+     * Ngôn ngữ của đoạn (ISO 639-1, ví dụ "vi", "en"). STT nhận diện theo từng
+     * đoạn nên một cuộc họp nói lẫn Việt – Anh có nhiều giá trị.
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Ngôn ngữ" })
+    language?: string;
+
+    /**
      * Nói chồng / không nghe rõ
      */
     @IsBoolean()

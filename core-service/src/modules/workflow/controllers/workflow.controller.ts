@@ -20,6 +20,7 @@ import {
     ValidateIf,
     ValidateNested,
 } from "class-validator";
+import { MeetingBotService } from "@module/meeting-bot/services/meeting-bot.service";
 import { WorkflowService } from "../services/workflow.service";
 
 /* ----------------------------------------------------------------- DTO */
@@ -169,7 +170,27 @@ export class InviteBodyDto {
 @ApiTags("workflow")
 @Authorization()
 export class WorkflowController {
-    constructor(private readonly workflowService: WorkflowService) {}
+    constructor(
+        private readonly workflowService: WorkflowService,
+        private readonly meetingBotService: MeetingBotService,
+    ) {}
+
+    /* bot ghi âm Google Meet */
+
+    @Get("meetings/:id/bot")
+    getBot(@ReqUser() user: User, @Param("id") id: string) {
+        return this.meetingBotService.getBot(user._id, id);
+    }
+
+    @Post("meetings/:id/bot")
+    inviteBot(@ReqUser() user: User, @Param("id") id: string) {
+        return this.meetingBotService.invite(user._id, id);
+    }
+
+    @Post("meetings/:id/bot/stop")
+    stopBot(@ReqUser() user: User, @Param("id") id: string) {
+        return this.meetingBotService.stop(user._id, id);
+    }
 
     @Post("meetings")
     createMeeting(@ReqUser() user: User, @Body() dto: CreateMeetingBodyDto) {
