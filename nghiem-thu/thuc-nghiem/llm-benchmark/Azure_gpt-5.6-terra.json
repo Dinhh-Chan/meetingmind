@@ -1,0 +1,9 @@
+{
+ "model": "Azure:gpt-5.6-terra",
+ "status": 402,
+ "seconds": 0.4,
+ "error": "{\"description\": \"Your organization has no remaining balance for this model. Top up your account to continue.\", \"code\": 402, \"message\": \"Payment required\", \"subcode\": \"SIP-BE-022\"}",
+ "parsed": null,
+ "score": null,
+ "cost": null
+}

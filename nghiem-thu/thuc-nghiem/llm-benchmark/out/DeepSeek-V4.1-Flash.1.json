@@ -1,0 +1,135 @@
+{
+ "model": "DeepSeek-V4.1-Flash",
+ "status": 200,
+ "seconds": 91.3,
+ "finish": "stop",
+ "content": "{\n  \"summary\": \"Cuộc họp chốt phạm vi sprint 12 cho app đặt lịch phòng khám gồm đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm đã thống nhất dùng PostgreSQL và tạm chưa tích hợp MoMo trong sprint này. Hùng phụ trách tích hợp VNPay sandbox, dự kiến xong bản đầu ngày 18/11 kèm test callback, sau đó làm phần nhắc lịch. Nam phụ trách OTP, so sánh Firebase với eSMS trước thứ Tư; Phương viết tài liệu API bằng Swagger. Các vấn đề còn mở gồm chọn nhà cung cấp OTP, kênh gửi nhắc lịch Zalo/SMS và ngân sách server cần sếp duyệt.\",\n  \"decisions\": [\n    {\n      \"title\": \"Chốt PostgreSQL cho database\",\n      \"description\": \"Nhóm thống nhất dùng PostgreSQL, không bàn lại phương án MongoDB.\",\n      \"quote\": \"Ừ, chốt PostgreSQL nhé, không bàn lại nữa.\",\n      \"transcriptSequence\": 6\n    },\n    {\n      \"title\": \"Chưa tích hợp MoMo trong sprint 12\",\n      \"description\": \"MoMo chưa được khách yêu cầu nên để sprint sau xem xét.\",\n      \"quote\": \"MoMo chưa, khách chưa yêu cầu. Để sprint sau tính.\",\n      \"transcriptSequence\": 12\n    },\n    {\n      \"title\": \"Chốt deadline bản đầu VNPay sandbox là 18/11\",\n      \"description\": \"Hùng đổi deadline từ 15/11 sang 18/11 do trùng lịch bảo vệ đồ án; Lan chốt 18/11 và nhắc viết test callback.\",\n      \"quote\": \"Ok 18/11 nhé. Nhớ viết test cho phần callback.\",\n      \"transcriptSequence\": 10\n    }\n  ],\n  \"openIssues\": [\n    \"Chọn nhà cung cấp OTP: Firebase Auth hay eSMS, đang chờ Nam so sánh giá và báo lại.\",\n    \"Kênh gửi thông báo nhắc lịch: Zalo hay SMS, Lan chưa hỏi khách.\",\n    \"Có cần nâng gói server lên 5 triệu/tháng hay không, cần sếp duyệt.\"\n  ],\n  \"actionItems\": [\n    {\n      \"title\": \"So sánh Firebase với eSMS cho OTP\",\n      \"description\": \"Nam tìm hiểu giá Firebase và eSMS rồi báo lại cho Lan trước thứ Tư; sau đó tiếp tục phụ trách OTP.\",\n      \"assigneeHint\": \"Nam\",\n      \"deadlineRawText\": \"trước thứ Tư\",\n      \"priority\": \"high\",\n      \"confidence\": 0.95,\n      \"quote\": \"Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.\",\n      \"transcriptSequence\": 4\n    },\n    {\n      \"title\": \"Tích hợp VNPay sandbox và viết test callback\",\n      \"description\": \"Hùng hoàn thành bản đầu tích hợp VNPay sandbox trước ngày 18/11 và viết test cho phần callback.\",\n      \"assigneeHint\": \"Hùng\",\n      \"deadlineRawText\": \"18/11\",\n      \"priority\": \"high\",\n      \"confidence\": 0.95,\n      \"quote\": \"Ok 18/11 nhé. Nhớ viết test cho phần callback.\",\n      \"transcriptSequence\": 10\n    },\n    {\n      \"title\": \"Làm phần thông báo nhắc lịch\",\n      \"description\": \"Hùng làm phần nhắc lịch sau khi hoàn thành phần thanh toán; cần chờ Lan xác nhận kênh gửi Zalo hay SMS.\",\n      \"assigneeHint\": \"Hùng\",\n      \"deadlineRawText\": null,\n      \"priority\": \"medium\",\n      \"confidence\": 0.9,\n      \"quote\": \"Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.\",\n      \"transcriptSequence\": 14\n    },\n    {\n      \"title\": \"Hỏi khách về kênh gửi nhắc lịch\",\n      \"description\": \"Lan hỏi bên phòng khám xem muốn gửi nhắc lịch qua Zalo hay SMS rồi báo lại cho Hùng.\",\n      \"assigneeHint\": \"Lan\",\n      \"deadlineRawText\": null,\n      \"priority\": \"medium\",\n      \"confidence\": 0.9,\n      \"quote\": \"Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.\",\n      \"transcriptSequence\": 16\n    },\n    {\n      \"title\": \"Trình anh Tuấn về ngân sách server\",\n      \"description\": \"Lan trình anh Tuấn phương án ngân sách server, trong đó có đề xuất nâng gói lên 5 triệu/tháng nếu cần.\",\n      \"assigneeHint\": \"Lan\",\n      \"deadlineRawText\": null,\n      \"priority\": \"medium\",\n      \"confidence\": 0.9,\n      \"quote\": \"Ừ, cái này chưa quyết được, để chị trình anh Tuấn.\",\n      \"transcriptSequence\": 23\n    },\n    {\n      \"title\": \"Thử tối ưu query database\",\n      \"description\": \"Nam thử tối ưu lại query để xem có tránh phải nâng gói server không, nhưng ưu tiên OTP trước.\",\n      \"assigneeHint\": \"Nam\",\n      \"deadlineRawText\": null,\n      \"priority\": \"low\",\n      \"confidence\": 0.85,\n      \"quote\": \"Tốt, Nam thử xem, nhưng ưu tiên OTP trước.\",\n      \"transcriptSequence\": 25\n    },\n    {\n      \"title\": \"Viết tài liệu API bằng Swagger\",\n      \"description\": \"Phương viết tài liệu API bằng Swagger cho cả team và gửi trong cuối tuần này.\",\n      \"assigneeHint\": \"Phương\",\n      \"deadlineRawText\": \"cuối tuần này\",\n      \"priority\": \"medium\",\n      \"confidence\": 0.95,\n      \"quote\": \"Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.\",\n      \"transcriptSequence\": 26\n    },\n    {\n      \"title\": \"Review mockups cùng team\",\n      \"description\": \"Cả nhóm review mockups mới vào chiều thứ Ba.\",\n      \"assigneeHint\": null,\n      \"deadlineRawText\": \"Tuesday afternoon\",\n      \"priority\": \"medium\",\n      \"confidence\": 0.8,\n      \"quote\": \"Great, then let's review the mockups together on Tuesday afternoon.\",\n      \"transcriptSequence\": 18\n    }\n  ]\n}",
+ "usage": {
+  "completion_tokens": 5566,
+  "completion_tokens_details": {
+   "reasoning_tokens": 3903
+  },
+  "prompt_tokens": 1657,
+  "prompt_tokens_details": {
+   "cached_tokens": 1600
+  },
+  "total_tokens": 7223
+ },
+ "parsed": {
+  "summary": "Cuộc họp chốt phạm vi sprint 12 cho app đặt lịch phòng khám gồm đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm đã thống nhất dùng PostgreSQL và tạm chưa tích hợp MoMo trong sprint này. Hùng phụ trách tích hợp VNPay sandbox, dự kiến xong bản đầu ngày 18/11 kèm test callback, sau đó làm phần nhắc lịch. Nam phụ trách OTP, so sánh Firebase với eSMS trước thứ Tư; Phương viết tài liệu API bằng Swagger. Các vấn đề còn mở gồm chọn nhà cung cấp OTP, kênh gửi nhắc lịch Zalo/SMS và ngân sách server cần sếp duyệt.",
+  "decisions": [
+   {
+    "title": "Chốt PostgreSQL cho database",
+    "description": "Nhóm thống nhất dùng PostgreSQL, không bàn lại phương án MongoDB.",
+    "quote": "Ừ, chốt PostgreSQL nhé, không bàn lại nữa.",
+    "transcriptSequence": 6
+   },
+   {
+    "title": "Chưa tích hợp MoMo trong sprint 12",
+    "description": "MoMo chưa được khách yêu cầu nên để sprint sau xem xét.",
+    "quote": "MoMo chưa, khách chưa yêu cầu. Để sprint sau tính.",
+    "transcriptSequence": 12
+   },
+   {
+    "title": "Chốt deadline bản đầu VNPay sandbox là 18/11",
+    "description": "Hùng đổi deadline từ 15/11 sang 18/11 do trùng lịch bảo vệ đồ án; Lan chốt 18/11 và nhắc viết test callback.",
+    "quote": "Ok 18/11 nhé. Nhớ viết test cho phần callback.",
+    "transcriptSequence": 10
+   }
+  ],
+  "openIssues": [
+   "Chọn nhà cung cấp OTP: Firebase Auth hay eSMS, đang chờ Nam so sánh giá và báo lại.",
+   "Kênh gửi thông báo nhắc lịch: Zalo hay SMS, Lan chưa hỏi khách.",
+   "Có cần nâng gói server lên 5 triệu/tháng hay không, cần sếp duyệt."
+  ],
+  "actionItems": [
+   {
+    "title": "So sánh Firebase với eSMS cho OTP",
+    "description": "Nam tìm hiểu giá Firebase và eSMS rồi báo lại cho Lan trước thứ Tư; sau đó tiếp tục phụ trách OTP.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": "trước thứ Tư",
+    "priority": "high",
+    "confidence": 0.95,
+    "quote": "Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.",
+    "transcriptSequence": 4
+   },
+   {
+    "title": "Tích hợp VNPay sandbox và viết test callback",
+    "description": "Hùng hoàn thành bản đầu tích hợp VNPay sandbox trước ngày 18/11 và viết test cho phần callback.",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": "18/11",
+    "priority": "high",
+    "confidence": 0.95,
+    "quote": "Ok 18/11 nhé. Nhớ viết test cho phần callback.",
+    "transcriptSequence": 10
+   },
+   {
+    "title": "Làm phần thông báo nhắc lịch",
+    "description": "Hùng làm phần nhắc lịch sau khi hoàn thành phần thanh toán; cần chờ Lan xác nhận kênh gửi Zalo hay SMS.",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.",
+    "transcriptSequence": 14
+   },
+   {
+    "title": "Hỏi khách về kênh gửi nhắc lịch",
+    "description": "Lan hỏi bên phòng khám xem muốn gửi nhắc lịch qua Zalo hay SMS rồi báo lại cho Hùng.",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.",
+    "transcriptSequence": 16
+   },
+   {
+    "title": "Trình anh Tuấn về ngân sách server",
+    "description": "Lan trình anh Tuấn phương án ngân sách server, trong đó có đề xuất nâng gói lên 5 triệu/tháng nếu cần.",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Ừ, cái này chưa quyết được, để chị trình anh Tuấn.",
+    "transcriptSequence": 23
+   },
+   {
+    "title": "Thử tối ưu query database",
+    "description": "Nam thử tối ưu lại query để xem có tránh phải nâng gói server không, nhưng ưu tiên OTP trước.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": null,
+    "priority": "low",
+    "confidence": 0.85,
+    "quote": "Tốt, Nam thử xem, nhưng ưu tiên OTP trước.",
+    "transcriptSequence": 25
+   },
+   {
+    "title": "Viết tài liệu API bằng Swagger",
+    "description": "Phương viết tài liệu API bằng Swagger cho cả team và gửi trong cuối tuần này.",
+    "assigneeHint": "Phương",
+    "deadlineRawText": "cuối tuần này",
+    "priority": "medium",
+    "confidence": 0.95,
+    "quote": "Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.",
+    "transcriptSequence": 26
+   },
+   {
+    "title": "Review mockups cùng team",
+    "description": "Cả nhóm review mockups mới vào chiều thứ Ba.",
+    "assigneeHint": null,
+    "deadlineRawText": "Tuesday afternoon",
+    "priority": "medium",
+    "confidence": 0.8,
+    "quote": "Great, then let's review the mockups together on Tuesday afternoon.",
+    "transcriptSequence": 18
+   }
+  ]
+ },
+ "score": {
+  "points": 15,
+  "max": 15,
+  "grounded": "11/11",
+  "notes": []
+ },
+ "cost": 0.00714316
+}

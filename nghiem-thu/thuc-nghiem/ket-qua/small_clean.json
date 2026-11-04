@@ -1,0 +1,602 @@
+{
+ "model": "small",
+ "variant": "clean",
+ "duration_s": 151.36,
+ "load_s": 1.8,
+ "total_s": 111.0,
+ "diarization_s": 5.3,
+ "stt_s": 105.6,
+ "rtf": 0.733,
+ "wer": 0.2664,
+ "wer_num": 0.2167,
+ "hotwords": null,
+ "cer": 0.1582,
+ "ref_words": 443,
+ "language": "vi",
+ "languages": {
+  "vi": 1.0
+ },
+ "segments": 35,
+ "speaker": {
+  "predicted_speakers": 4,
+  "true_speakers": 4,
+  "accuracy": 0.9953,
+  "mapping": {
+   "Người nói 1": "Lan",
+   "Người nói 2": "Nam",
+   "Người nói 3": "Hùng",
+   "Người nói 4": "Phương"
+  }
+ },
+ "overlap": null,
+ "noise_only": null,
+ "hyp_segments": [
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 180,
+   "endMs": 9300,
+   "text": "Ok mọi người, hôm nay mình chất phạm vizprint 12 chẳng dụng đặt lịch phòng cam nhé, có 3 việt chính, đang nhập, thanh toán và thông bỏ nhấp lịch.",
+   "confidence": 0.74,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 2",
+   "startMs": 9900,
+   "endMs": 15200,
+   "text": "Phần đang nhập em làm xong ATI đang ký rồi, còn đang nhập bằng số điện thoại với MAOTT.",
+   "confidence": 0.74,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 3",
+   "startMs": 16059,
+   "endMs": 20240,
+   "text": "Hay là mình dùng Lung Phi, base sẽ cho OTT, đỡ phải tử làm.",
+   "confidence": 0.74,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 21420,
+   "endMs": 25820,
+   "text": "PhiBase thì tiền tin nhắn ở Việt Nam hơi cao, để Nam tìm hiểu thêm giá rồi tính.",
+   "confidence": 0.74,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 2",
+   "startMs": 26300,
+   "endMs": 31100,
+   "text": "Vâng, em so sánh phai bây sơ với EAS-MS rồi báo lại trị trước thứ 4.",
+   "confidence": 0.651,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 4",
+   "startMs": 31820,
+   "endMs": 38900,
+   "text": "Về các sợi dự liệu thì tim bên thống nhất, POSTEGARER-ESQUILLER chữ, em thấy mong ODE bê hơi khó làm bào cáo.",
+   "confidence": 0.651,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 4",
+   "startMs": 39580,
+   "endMs": 40060,
+   "text": "Từ,",
+   "confidence": 0.651,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 40480,
+   "endMs": 43620,
+   "text": "cho POSTEGARER-ESQUILLER nhé, không bàn lại nữa.",
+   "confidence": 0.651,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 3",
+   "startMs": 44180,
+   "endMs": 47160,
+   "text": "OK, POSTEGARER-ESQUILLER.",
+   "confidence": 0.651,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 47940,
+   "endMs": 49220,
+   "text": "Thanh toán thì sao hùng?",
+   "confidence": 0.651,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 3",
+   "startMs": 49920,
+   "endMs": 55180,
+   "text": "Em đang tất hợp Việt Nam bay bán thử nghiệm, chắc ngày 15 tháng 11 xong bản đầu.",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 3",
+   "startMs": 55560,
+   "endMs": 60300,
+   "text": "À không, ngày 18 bí trị, vì hôm 15 em phải đi bảo vệ đồ án.",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 60920,
+   "endMs": 65180,
+   "text": "Ok, ngày 18 tháng 11 nhé, nhớ vết kiểm thử cho phần cô Bách.",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 4",
+   "startMs": 65720,
+   "endMs": 67560,
+   "text": "Có cơ hội trở vì mô mô lua không chị?",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 68000,
+   "endMs": 70100,
+   "text": "Mô mô chưa? Khách chưa yêu cầu?",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 70680,
+   "endMs": 71820,
+   "text": "Để spring sau tính.",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 2",
+   "startMs": 72380,
+   "endMs": 74240,
+   "text": "Có phần thông báo nhắc lịch thì ai làm ạ?",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 75260,
+   "endMs": 78520,
+   "text": "Ban đầu chỉ định do Nam, nhưng Nam đang ôm phần đang nhập rồi.",
+   "confidence": 0.815,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 78520,
+   "endMs": 81400,
+   "text": "Thôi để Hùng làm vật nhắc lịch sau khi xong thanh toán.",
+   "confidence": 0.838,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 3",
+   "startMs": 81960,
+   "endMs": 85880,
+   "text": "Dạ được, nhưng em cần biết gửi qua giá lô hay tin nhắn SNS.",
+   "confidence": 0.838,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 86580,
+   "endMs": 89780,
+   "text": "Cái đó chị chưa hỏi khách, chị sẽ hỏi bên phòng khám rồi đó lại.",
+   "confidence": 0.838,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 2",
+   "startMs": 90700,
+   "endMs": 94080,
+   "text": "Nhân tiện, bên thiết kế báo giao diện mới sẽ xong vào thứ 2 tới.",
+   "confidence": 0.838,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 95380,
+   "endMs": 98480,
+   "text": "Tốt, vậy chiều thứ 3 cả nhóm cùng xem lại giao diện nhé.",
+   "confidence": 0.838,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 3",
+   "startMs": 99300,
+   "endMs": 102780,
+   "text": "Hùng qua mọi người xem bóng đá không, việc Nam thắng hay không đấy.",
+   "confidence": 0.838,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 2",
+   "startMs": 103840,
+   "endMs": 107260,
+   "text": "Có, đá hay quá, chắc phải đi ăn mừng.",
+   "confidence": 0.838,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 108140,
+   "endMs": 115580,
+   "text": "Thôi, quay lại việc. Một vấn đề nữa là ngân sách máy chủ. Hiện đang dùng gói 2 triệu 1 tháng, chắc không đủ khi có thanh toán.",
+   "confidence": 0.746,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 4",
+   "startMs": 116140,
+   "endMs": 119040,
+   "text": "Em nghĩ phải lên gói 5 triệu, nhưng cần siệt duyệt.",
+   "confidence": 0.746,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 4",
+   "startMs": 119740,
+   "endMs": 120000,
+   "text": "Đừ,",
+   "confidence": 0.746,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 120460,
+   "endMs": 122440,
+   "text": "cái này chưa quyết được để chỉ trình anh Tuấn.",
+   "confidence": 0.746,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 2",
+   "startMs": 122960,
+   "endMs": 126780,
+   "text": "Em có thể tối yêu lại câu truy vấn trước, biết đâu không cần nâng gói.",
+   "confidence": 0.746,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 127520,
+   "endMs": 130940,
+   "text": "Tốt, nam thử xem. Nhưng ưu tiên ô tê tê trước.",
+   "confidence": 0.746,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 4",
+   "startMs": 131700,
+   "endMs": 136020,
+   "text": "Em việc tai liệu API bằng so gơ cho cả tin nhé, cuối tôm nay em gửi.",
+   "confidence": 0.746,
+   "language": "vi",
+   "isOverlapping": true
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 136620,
+   "endMs": 143540,
+   "text": "Ok, cảm ơn em. Vậy tổng kết, Nam lo OTP, Hùng lo Thanh Toán rồi nhắc lịch, phương lo Tài liệu RPI.",
+   "confidence": 0.676,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 4",
+   "startMs": 144480,
+   "endMs": 144920,
+   "text": "Dạ.",
+   "confidence": 0.676,
+   "language": "vi",
+   "isOverlapping": false
+  },
+  {
+   "speakerLabel": "Người nói 1",
+   "startMs": 145680,
+   "endMs": 149180,
+   "text": "Cuộc hợp sau vào thứ hai tuần sau, 9 giờ sáng, thết.",
+   "confidence": 0.676,
+   "language": "vi",
+   "isOverlapping": false
+  }
+ ],
+ "llm": {
+  "generic": {
+   "model": "DeepSeek-V4.1-Flash",
+   "seconds": 44.6,
+   "points": 10,
+   "max": 15,
+   "notes": [
+    "thiếu A1 Nam so sánh Firebase/eSMS, trước thứ Tư",
+    "thiếu A5 Lan hỏi phòng khám Zalo/SMS",
+    "thiếu A6 Lan trình anh Tuấn ngân sách",
+    "thiếu A8 Phương viết Swagger, cuối tuần",
+    "thiếu D2 MoMo để sprint sau"
+   ],
+   "result": {
+    "summary": "Cuộc họp kickoff sprint 12 của nhóm tập trung vào ba hạng mục chính của tính năng đặt lịch phòng khám: đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm đã chốt dùng PostgreSQL cho cơ sở dữ liệu và thống nhất lùi mốc hoàn thành bản thử nghiệm thanh toán sang ngày 18/11 theo đề nghị của Hùng. Việc phân công được thống nhất: Nam phụ trách OTP và tối ưu truy vấn, Hùng làm thanh toán rồi đến phần nhắc lịch, Phương viết tài liệu API. Một số điểm còn treo gồm việc chọn Firebase hay ESMS cho OTP, kênh gửi thông báo nhắc lịch (Zalo hay SMS), khả năng làm thanh toán Momo và việc có nâng gói máy chủ lên 5 triệu hay không. Cuộc họp sau dự kiến vào 9 giờ sáng thứ Hai tuần sau.",
+    "decisions": [
+     {
+      "title": "Chốt dùng PostgreSQL cho cơ sở dữ liệu",
+      "description": "Sau khi cân nhắc giữa PostgreSQL và MongoDB, nhóm chốt dùng PostgreSQL và không bàn lại vấn đề này nữa.",
+      "quote": "cho POSTEGARER-ESQUILLER nhé, không bàn lại nữa.",
+      "transcriptSequence": 7
+     },
+     {
+      "title": "Lùi mốc hoàn thành thanh toán sang ngày 18/11",
+      "description": "Hùng đề nghị dời mốc bàn giao bản thử nghiệm thanh toán từ 15/11 sang 18/11 vì 15/11 phải đi bảo vệ đồ án; người chủ trì đã đồng ý và nhắc viết kiểm thử.",
+      "quote": "Ok, ngày 18 tháng 11 nhé, nhớ vết kiểm thử cho phần cô Bách.",
+      "transcriptSequence": 12
+     }
+    ],
+    "openIssues": [
+     "Chọn Firebase hay ESMS để làm đăng nhập/OTP — đang chờ Nam so sánh giá và báo lại.",
+     "Thông báo nhắc lịch sẽ gửi qua Zalo hay SMS — người chủ trì chưa hỏi được khách/phòng khám.",
+     "Có làm thanh toán Momo hay không — khách chưa yêu cầu, dự kiến để sprint sau.",
+     "Có nâng gói máy chủ từ 2 triệu lên 5 triệu/tháng hay không — chưa quyết, còn chờ trình anh Tuấn và kết quả tối ưu truy vấn."
+    ],
+    "actionItems": [
+     {
+      "title": "So sánh giá Firebase và ESMS cho OTP",
+      "description": "Nam so sánh chi phí Firebase với ESMS rồi báo lại cho người chủ trì trước thứ 4.",
+      "assigneeHint": "Nam",
+      "deadlineRawText": "thứ 4",
+      "priority": "high",
+      "confidence": 0.95,
+      "quote": "Vâng, em so sánh phai bây sơ với EAS-MS rồi báo lại trị trước thứ 4.",
+      "transcriptSequence": 4
+     },
+     {
+      "title": "Hoàn thành tích hợp thanh toán VNPay bản thử nghiệm",
+      "description": "Hùng tích hợp thanh toán VNPay, hoàn thành bản đầu và viết kiểm thử; mốc cuối cùng được chốt là ngày 18/11.",
+      "assigneeHint": "Hùng",
+      "deadlineRawText": "ngày 18 tháng 11",
+      "priority": "high",
+      "confidence": 0.95,
+      "quote": "Ok, ngày 18 tháng 11 nhé, nhớ vết kiểm thử cho phần cô Bách.",
+      "transcriptSequence": 12
+     },
+     {
+      "title": "Làm phần thông báo nhắc lịch",
+      "description": "Hùng nhận làm phần thông báo nhắc lịch sau khi hoàn thành phần thanh toán.",
+      "assigneeHint": "Hùng",
+      "deadlineRawText": null,
+      "priority": "medium",
+      "confidence": 0.9,
+      "quote": "Thôi để Hùng làm vật nhắc lịch sau khi xong thanh toán.",
+      "transcriptSequence": 18
+     },
+     {
+      "title": "Hỏi khách về kênh gửi thông báo nhắc lịch",
+      "description": "Người chủ trì sẽ hỏi bên phòng khám xem muốn gửi nhắc lịch qua Zalo hay SMS rồi trả lời lại cho Hùng.",
+      "assigneeHint": null,
+      "deadlineRawText": null,
+      "priority": "medium",
+      "confidence": 0.85,
+      "quote": "Cái đó chị chưa hỏi khách, chị sẽ hỏi bên phòng khám rồi đó lại.",
+      "transcriptSequence": 20
+     },
+     {
+      "title": "Trình anh Tuấn về ngân sách máy chủ",
+      "description": "Người chủ trì trình anh Tuấn phương án nâng gói máy chủ lên 5 triệu/tháng để xin duyệt.",
+      "assigneeHint": null,
+      "deadlineRawText": null,
+      "priority": "medium",
+      "confidence": 0.85,
+      "quote": "cái này chưa quyết được để chỉ trình anh Tuấn.",
+      "transcriptSequence": 28
+     },
+     {
+      "title": "Tối ưu lại câu truy vấn",
+      "description": "Nam thử tối ưu câu truy vấn để xem có tránh được việc nâng gói máy chủ không, nhưng phải ưu tiên phần OTP trước.",
+      "assigneeHint": "Nam",
+      "deadlineRawText": null,
+      "priority": "low",
+      "confidence": 0.85,
+      "quote": "Tốt, nam thử xem. Nhưng ưu tiên ô tê tê trước.",
+      "transcriptSequence": 30
+     },
+     {
+      "title": "Viết tài liệu API bằng Swagger",
+      "description": "Phương viết tài liệu API bằng Swagger cho cả nhóm và gửi trong cuối ngày hôm nay.",
+      "assigneeHint": "Phương",
+      "deadlineRawText": "cuối tôm nay",
+      "priority": "medium",
+      "confidence": 0.9,
+      "quote": "Em việc tai liệu API bằng so gơ cho cả tin nhé, cuối tôm nay em gửi.",
+      "transcriptSequence": 31
+     },
+     {
+      "title": "Cả nhóm xem lại giao diện mới",
+      "description": "Sau khi bên thiết kế giao diện mới vào thứ 2, cả nhóm cùng xem lại giao diện vào chiều thứ 3.",
+      "assigneeHint": null,
+      "deadlineRawText": "chiều thứ 3",
+      "priority": "medium",
+      "confidence": 0.8,
+      "quote": "Tốt, vậy chiều thứ 3 cả nhóm cùng xem lại giao diện nhé.",
+      "transcriptSequence": 22
+     }
+    ]
+   }
+  },
+  "named": {
+   "model": "DeepSeek-V4.1-Flash",
+   "seconds": 40.9,
+   "points": 12,
+   "max": 15,
+   "notes": [
+    "thiếu A1 Nam so sánh Firebase/eSMS, trước thứ Tư",
+    "thiếu A8 Phương viết Swagger, cuối tuần",
+    "thiếu D2 MoMo để sprint sau"
+   ],
+   "result": {
+    "summary": "Cuộc họp bàn về tiến độ dự án VizPrint 12 với ba hạng mục chính: đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm chốt dùng PostgreSQL cho cơ sở dữ liệu và thống nhất mốc 18/11 cho bản thanh toán VNPay thử nghiệm thay vì 15/11. Nam được giao so sánh giá Firebase với ESMS trước thứ 4, Hùng làm thanh toán rồi tiếp phần nhắc lịch, Phương viết tài liệu API bằng Swagger gửi trong cuối ngày. Các vấn đề chưa ngã ngũ gồm kênh gửi nhắc lịch (Zalo hay SMS), việc có làm thanh toán Momo hay không, và ngân sách máy chủ cần trình anh Tuấn duyệt. Cuộc họp sau dự kiến vào 9 giờ sáng thứ hai tuần sau.",
+    "decisions": [
+     {
+      "title": "Chốt dùng PostgreSQL cho cơ sở dữ liệu",
+      "description": "Sau khi Phương nêu MongoDB khó làm báo cáo, nhóm thống nhất chọn PostgreSQL và không bàn lại nữa.",
+      "quote": "cho POSTEGARER-ESQUILLER nhé, không bàn lại nữa.",
+      "transcriptSequence": 7
+     },
+     {
+      "title": "Lùi mốc hoàn thành thanh toán VNPay sang 18/11",
+      "description": "Hùng đính chính bản thử nghiệm thanh toán VNPay sẽ xong ngày 18/11 thay vì 15/11 vì 15/11 phải đi bảo vệ đồ án; Lan xác nhận lại mốc này.",
+      "quote": "Ok, ngày 18 tháng 11 nhé, nhớ vết kiểm thử cho phần cô Bách.",
+      "transcriptSequence": 12
+     },
+     {
+      "title": "Giao Hùng làm phần thông báo nhắc lịch",
+      "description": "Do Nam đã nhận phần đăng nhập, nhóm chuyển phần nhắc lịch cho Hùng làm sau khi hoàn thành thanh toán; Hùng đồng ý.",
+      "quote": "Thôi để Hùng làm vật nhắc lịch sau khi xong thanh toán.",
+      "transcriptSequence": 18
+     }
+    ],
+    "openIssues": [
+     "Nên dùng Firebase hay ESMS cho việc gửi OTP, đang chờ Nam so sánh giá.",
+     "Thông báo nhắc lịch sẽ gửi qua Zalo hay tin nhắn SMS — chưa hỏi khách.",
+     "Có làm thanh toán Momo hay không — khách chưa yêu cầu, để sprint sau tính.",
+     "Có cần nâng gói máy chủ từ 2 triệu lên 5 triệu/tháng hay không — chưa quyết, cần anh Tuấn duyệt."
+    ],
+    "actionItems": [
+     {
+      "title": "So sánh giá Firebase và ESMS cho OTP",
+      "description": "Nam tìm hiểu và so sánh chi phí Firebase với ESMS rồi báo lại cho Lan.",
+      "assigneeHint": "Nam",
+      "deadlineRawText": "thứ 4",
+      "priority": "high",
+      "confidence": 0.9,
+      "quote": "Vâng, em so sánh phai bây sơ với EAS-MS rồi báo lại trị trước thứ 4.",
+      "transcriptSequence": 4
+     },
+     {
+      "title": "Hoàn thành tích hợp thanh toán VNPay bản thử nghiệm",
+      "description": "Hùng tích hợp thanh toán VNPay bản thử nghiệm, kèm kiểm thử, hoàn thành ngày 18/11.",
+      "assigneeHint": "Hùng",
+      "deadlineRawText": "ngày 18 tháng 11",
+      "priority": "high",
+      "confidence": 0.9,
+      "quote": "Ok, ngày 18 tháng 11 nhé, nhớ vết kiểm thử cho phần cô Bách.",
+      "transcriptSequence": 12
+     },
+     {
+      "title": "Làm phần thông báo nhắc lịch",
+      "description": "Hùng làm phần nhắc lịch sau khi xong phần thanh toán.",
+      "assigneeHint": "Hùng",
+      "deadlineRawText": null,
+      "priority": "medium",
+      "confidence": 0.85,
+      "quote": "Thôi để Hùng làm vật nhắc lịch sau khi xong thanh toán.",
+      "transcriptSequence": 18
+     },
+     {
+      "title": "Hỏi khách về kênh gửi thông báo nhắc lịch",
+      "description": "Lan hỏi bên phòng khám xem muốn nhận nhắc lịch qua Zalo hay SMS rồi trả lời lại cho Hùng.",
+      "assigneeHint": "Lan",
+      "deadlineRawText": null,
+      "priority": "medium",
+      "confidence": 0.85,
+      "quote": "Cái đó chị chưa hỏi khách, chị sẽ hỏi bên phòng khám rồi đó lại.",
+      "transcriptSequence": 20
+     },
+     {
+      "title": "Trình anh Tuấn về ngân sách máy chủ",
+      "description": "Lan trình anh Tuấn phương án nâng gói máy chủ lên 5 triệu/tháng để xin duyệt.",
+      "assigneeHint": "Lan",
+      "deadlineRawText": null,
+      "priority": "medium",
+      "confidence": 0.8,
+      "quote": "cái này chưa quyết được để chỉ trình anh Tuấn.",
+      "transcriptSequence": 28
+     },
+     {
+      "title": "Tối ưu lại câu truy vấn",
+      "description": "Nam thử tối ưu câu truy vấn để xem có tránh được việc nâng gói máy chủ không, nhưng ưu tiên phần OTP trước.",
+      "assigneeHint": "Nam",
+      "deadlineRawText": null,
+      "priority": "low",
+      "confidence": 0.75,
+      "quote": "Tốt, nam thử xem. Nhưng ưu tiên ô tê tê trước.",
+      "transcriptSequence": 30
+     },
+     {
+      "title": "Viết tài liệu API bằng Swagger",
+      "description": "Phương viết tài liệu API bằng Swagger cho cả nhóm và gửi trong cuối ngày hôm nay.",
+      "assigneeHint": "Phương",
+      "deadlineRawText": "cuối tôm nay",
+      "priority": "medium",
+      "confidence": 0.9,
+      "quote": "Em việc tai liệu API bằng so gơ cho cả tin nhé, cuối tôm nay em gửi.",
+      "transcriptSequence": 31
+     },
+     {
+      "title": "Cả nhóm xem lại giao diện mới",
+      "description": "Sau khi bên thiết kế giao diện mới xong vào thứ 2, cả nhóm cùng xem lại giao diện vào chiều thứ 3.",
+      "assigneeHint": null,
+      "deadlineRawText": "chiều thứ 3",
+      "priority": "medium",
+      "confidence": 0.75,
+      "quote": "Tốt, vậy chiều thứ 3 cả nhóm cùng xem lại giao diện nhé.",
+      "transcriptSequence": 22
+     },
+     {
+      "title": "Hoàn thiện đăng nhập bằng số điện thoại và OTP",
+      "description": "Nam tiếp tục hoàn thiện phần đăng nhập bằng số điện thoại và OTP sau khi đã xong API đăng ký.",
+      "assigneeHint": "Nam",
+      "deadlineRawText": null,
+      "priority": "high",
+      "confidence": 0.7,
+      "quote": "Phần đang nhập em làm xong ATI đang ký rồi, còn đang nhập bằng số điện thoại với MAOTT.",
+      "transcriptSequence": 1
+     }
+    ]
+   }
+  }
+ }
+}

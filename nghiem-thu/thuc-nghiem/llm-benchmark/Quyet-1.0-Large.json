@@ -1,0 +1,85 @@
+{
+ "model": "Quyet-1.0-Large",
+ "status": 200,
+ "seconds": 15.3,
+ "finish": "stop",
+ "content": "```_11_ {\n  \"summary\": \"Cuộc họp chốt phạm vi sprint 12 cho ứng dụng đặt lịch phòng khám, tập trung vào các tính năng đăng nhập, thanh toán và thông báo. Team thống nhất sử dụng PostgreSQL làm cơ sở dữ liệu và phân chia công việc cho Nam, Hùng và Phương. Các vấn đề về chi phí OTP, ngân sách server và phương thức thông báo sẽ được giải quyết sau khi có thêm thông tin từ khách hàng và sếp.\",\n  \"decisions\": [\n    {\n      \"title\": \"1. Sử dụng PostgreSQL\",\n      \"description\": \"Thống nhất sử dụng PostgreSQL làm cơ sở dữ {//11_} database cho dự án.\",\n      \"quote\": \"//6_ Lan: Ừ, chốt PostgreSQL nhé, không bàn lại nữa.\",\n      \"transcriptSequence\": 6\n    }\n  ],\n  \"openIssues\": [\n    \"1. Phương thức gửi thông báo nhắc lịch (Zalo hay SMS) chưa được xác định vì cần hỏi khách hàng.\",\n    \"2. Việc nâng cấp gói ngân sách server lên 5 triệu cần được sếp (anh Tuấn) duyệt.\"\n  ],\n  \"actionItems\": [\n    {\n      \"title\": \"So sánh giá Firebase và eSMS\",\n      \"description\": \"Tìm hiểu và báo cáo chi phí SMS của Firebase so với eSMS.\",\n      \"assigneeHint\": \"Nam\",\n      \"deadlineRawText\": \"thứ Tư\",\n      \"priority\": \"high\",\n      \"confidence\": 1.0,\n      \"_11_ {//11_ quote\": \"//4_ Nam: Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.\",\n      \"//11_ {//11_ transcriptSequence\": 4\n    },\n    {\n      \"title\": \"Hoàn thành bản đầu tích hợp VNPay sandbox\",\n      \"description\": \"Tích hợp VNPay sandbox và viết test cho phần callback.\",\n      \"assigneeHint\": \"Hùng\",\n      \"deadlineRawText\": \"18/11\",\n      \"priority\": \"high\",\n      \"_11_ {//11_ confidence\": 1.0,\n      \"//11_ {//11_ quote\": \"//10_ Lan: Ok 18/11 nhé. Nhớ viết test cho phần callback.\",\n      \"//11_ {//11_ transcriptSequence\": 10\n    },\n    {\n      \"title\": \"Hỏi khách hàng về phương thức thông báo\",\n      \"description\": \"Xác định xem khách hàng muốn nhận thông báo qua Zalo hay SMS.\",\n      \"assigneeHint\": \"Lan\",\n      \"deadlineRawText\": null,\n      \"priority\": \"medium\",\n      \"_11_ {//11_ confidence\": 1.0,\n      \"//11_ {//11_ quote\": \"//16_ Lan: Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.\",\n      \"//11_ {//11_ transcriptSequence\": 16\n    },\n    {\n      \"title\": \"Viết tài liệu API bằng Swagger\",\n      \"description\": \"Hoàn thành tài liệu API và gửi cho cả team.\",\n      \"assigneeHint\": \"Phương\",\n      \"deadlineRawText\": \"cuối tuần này\",\n      \"priority\": \"medium\",\n      \"_11_ {//11_ confidence\": 1.0,\n      \"//11_ {//11_ quote\": \"//26_ Người nói 4: Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.\",\n      \"//11_ {//11_ transcriptSequence\": 26\n    }\n  ]\n}\n```",
+ "usage": {
+  "completion_tokens": 850,
+  "completion_tokens_details": null,
+  "prompt_tokens": 1280,
+  "prompt_tokens_details": null,
+  "total_tokens": 2130
+ },
+ "parsed": {
+  "summary": "Cuộc họp chốt phạm vi sprint 12 cho ứng dụng đặt lịch phòng khám, tập trung vào các tính năng đăng nhập, thanh toán và thông báo. Team thống nhất sử dụng PostgreSQL làm cơ sở dữ liệu và phân chia công việc cho Nam, Hùng và Phương. Các vấn đề về chi phí OTP, ngân sách server và phương thức thông báo sẽ được giải quyết sau khi có thêm thông tin từ khách hàng và sếp.",
+  "decisions": [
+   {
+    "title": "1. Sử dụng PostgreSQL",
+    "description": "Thống nhất sử dụng PostgreSQL làm cơ sở dữ {//11_} database cho dự án.",
+    "quote": "//6_ Lan: Ừ, chốt PostgreSQL nhé, không bàn lại nữa.",
+    "transcriptSequence": 6
+   }
+  ],
+  "openIssues": [
+   "1. Phương thức gửi thông báo nhắc lịch (Zalo hay SMS) chưa được xác định vì cần hỏi khách hàng.",
+   "2. Việc nâng cấp gói ngân sách server lên 5 triệu cần được sếp (anh Tuấn) duyệt."
+  ],
+  "actionItems": [
+   {
+    "title": "So sánh giá Firebase và eSMS",
+    "description": "Tìm hiểu và báo cáo chi phí SMS của Firebase so với eSMS.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": "thứ Tư",
+    "priority": "high",
+    "confidence": 1.0,
+    "_11_ {//11_ quote": "//4_ Nam: Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.",
+    "//11_ {//11_ transcriptSequence": 4
+   },
+   {
+    "title": "Hoàn thành bản đầu tích hợp VNPay sandbox",
+    "description": "Tích hợp VNPay sandbox và viết test cho phần callback.",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": "18/11",
+    "priority": "high",
+    "_11_ {//11_ confidence": 1.0,
+    "//11_ {//11_ quote": "//10_ Lan: Ok 18/11 nhé. Nhớ viết test cho phần callback.",
+    "//11_ {//11_ transcriptSequence": 10
+   },
+   {
+    "title": "Hỏi khách hàng về phương thức thông báo",
+    "description": "Xác định xem khách hàng muốn nhận thông báo qua Zalo hay SMS.",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "_11_ {//11_ confidence": 1.0,
+    "//11_ {//11_ quote": "//16_ Lan: Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.",
+    "//11_ {//11_ transcriptSequence": 16
+   },
+   {
+    "title": "Viết tài liệu API bằng Swagger",
+    "description": "Hoàn thành tài liệu API và gửi cho cả team.",
+    "assigneeHint": "Phương",
+    "deadlineRawText": "cuối tuần này",
+    "priority": "medium",
+    "_11_ {//11_ confidence": 1.0,
+    "//11_ {//11_ quote": "//26_ Người nói 4: Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.",
+    "//11_ {//11_ transcriptSequence": 26
+   }
+  ]
+ },
+ "score": {
+  "points": 9,
+  "max": 15,
+  "grounded": "0/5",
+  "notes": [
+   "thiếu A2 Nam làm OTP",
+   "thiếu A4 Hùng làm nhắc lịch",
+   "thiếu A6 Lan trình anh Tuấn ngân sách",
+   "thiếu A7 Nam tối ưu query",
+   "thiếu D2 MoMo để sprint sau",
+   "thiếu O1 Firebase/eSMS còn mở"
+  ]
+ },
+ "cost": 0.0001024
+}

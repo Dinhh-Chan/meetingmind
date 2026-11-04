@@ -1,0 +1,113 @@
+{
+ "model": "Llama-3.3-70B-Instruct",
+ "status": 200,
+ "seconds": 22.5,
+ "finish": "stop",
+ "content": "{\n  \"summary\": \"Cuộc họp nhằm chốt phạm vi sprint 12 cho app đặt lịch phòng khám. Các việc chính bao gồm đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm đã thống nhất sử dụng PostgreSQL làm cơ sở dữ liệu và giao nhiệm vụ cho từng thành viên.\",\n  \"decisions\": [\n    {\"title\": \"Sử dụng PostgreSQL\", \"description\": \"Thống nhất sử dụng PostgreSQL làm cơ sở dữ liệu\", \"quote\": \"Ừ, chốt PostgreSQL nhé, không bàn lại nữa.\", \"transcriptSequence\": 6},\n    {\"title\": \"Giao nhiệm vụ\", \"description\": \"Giao nhiệm vụ cho từng thành viên: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API\", \"quote\": \"Vậy tổng kết: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API.\", \"transcriptSequence\": 27}\n  ],\n  \"openIssues\": [\n    \"Ngân sách server\",\n    \"Gửi thông báo nhắc lịch qua Zalo hay SMS\"\n  ],\n  \"actionItems\": [\n    {\"title\": \"Tìm hiểu giá Firebase Auth\", \"description\": \"Nam tìm hiểu giá Firebase Auth và so sánh với eSMS\", \"assigneeHint\": \"Nam\", \"deadlineRawText\": \"trước thứ Tư\", \"priority\": \"medium\", \"confidence\": 0.9, \"quote\": \"Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.\", \"transcriptSequence\": 4},\n    {\"title\": \"Tích hợp VNPay sandbox\", \"description\": \"Hùng tích hợp VNPay sandbox\", \"assigneeHint\": \"Hùng\", \"deadlineRawText\": \"18/11\", \"priority\": \"high\", \"confidence\": 0.9, \"quote\": \"À không, ngày 18 đi chị, vì hôm 15 em phải đi bảo vệ đồ án.\", \"transcriptSequence\": 9},\n    {\"title\": \"Viết test cho phần callback\", \"description\": \"Hùng viết test cho phần callback\", \"assigneeHint\": \"Hùng\", \"deadlineRawText\": null, \"priority\": \"medium\", \"confidence\": 0.8, \"quote\": \"Ok 18/11 nhé. Nhớ viết test cho phần callback.\", \"transcriptSequence\": 10},\n    {\"title\": \"Tìm hiểu cách gửi thông báo nhắc lịch\", \"description\": \"Lan tìm hiểu cách gửi thông báo nhắc lịch\", \"assigneeHint\": \"Lan\", \"deadlineRawText\": null, \"priority\": \"low\", \"confidence\": 0.7, \"quote\": \"Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.\", \"transcriptSequence\": 16},\n    {\"title\": \"Tối ưu lại query\", \"description\": \"Nam tối ưu lại query\", \"assigneeHint\": \"Nam\", \"deadlineRawText\": null, \"priority\": \"medium\", \"confidence\": 0.8, \"quote\": \"Em có thể tối ưu lại query trước, biết đâu không cần nâng gói.\", \"transcriptSequence\": 24},\n    {\"title\": \"Viết tài liệu API\", \"description\": \"Phương viết tài liệu API bằng Swagger\", \"assigneeHint\": \"Phương\", \"deadlineRawText\": \"cuối tuần này\", \"priority\": \"low\", \"confidence\": 0.8, \"quote\": \"Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.\", \"transcriptSequence\": 26}\n  ]\n}",
+ "usage": {
+  "completion_tokens": 758,
+  "prompt_tokens": 1230,
+  "prompt_tokens_details": {
+   "audio_tokens": null,
+   "cached_tokens": 16
+  },
+  "total_tokens": 1988
+ },
+ "parsed": {
+  "summary": "Cuộc họp nhằm chốt phạm vi sprint 12 cho app đặt lịch phòng khám. Các việc chính bao gồm đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm đã thống nhất sử dụng PostgreSQL làm cơ sở dữ liệu và giao nhiệm vụ cho từng thành viên.",
+  "decisions": [
+   {
+    "title": "Sử dụng PostgreSQL",
+    "description": "Thống nhất sử dụng PostgreSQL làm cơ sở dữ liệu",
+    "quote": "Ừ, chốt PostgreSQL nhé, không bàn lại nữa.",
+    "transcriptSequence": 6
+   },
+   {
+    "title": "Giao nhiệm vụ",
+    "description": "Giao nhiệm vụ cho từng thành viên: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API",
+    "quote": "Vậy tổng kết: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API.",
+    "transcriptSequence": 27
+   }
+  ],
+  "openIssues": [
+   "Ngân sách server",
+   "Gửi thông báo nhắc lịch qua Zalo hay SMS"
+  ],
+  "actionItems": [
+   {
+    "title": "Tìm hiểu giá Firebase Auth",
+    "description": "Nam tìm hiểu giá Firebase Auth và so sánh với eSMS",
+    "assigneeHint": "Nam",
+    "deadlineRawText": "trước thứ Tư",
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.",
+    "transcriptSequence": 4
+   },
+   {
+    "title": "Tích hợp VNPay sandbox",
+    "description": "Hùng tích hợp VNPay sandbox",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": "18/11",
+    "priority": "high",
+    "confidence": 0.9,
+    "quote": "À không, ngày 18 đi chị, vì hôm 15 em phải đi bảo vệ đồ án.",
+    "transcriptSequence": 9
+   },
+   {
+    "title": "Viết test cho phần callback",
+    "description": "Hùng viết test cho phần callback",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.8,
+    "quote": "Ok 18/11 nhé. Nhớ viết test cho phần callback.",
+    "transcriptSequence": 10
+   },
+   {
+    "title": "Tìm hiểu cách gửi thông báo nhắc lịch",
+    "description": "Lan tìm hiểu cách gửi thông báo nhắc lịch",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "low",
+    "confidence": 0.7,
+    "quote": "Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.",
+    "transcriptSequence": 16
+   },
+   {
+    "title": "Tối ưu lại query",
+    "description": "Nam tối ưu lại query",
+    "assigneeHint": "Nam",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.8,
+    "quote": "Em có thể tối ưu lại query trước, biết đâu không cần nâng gói.",
+    "transcriptSequence": 24
+   },
+   {
+    "title": "Viết tài liệu API",
+    "description": "Phương viết tài liệu API bằng Swagger",
+    "assigneeHint": "Phương",
+    "deadlineRawText": "cuối tuần này",
+    "priority": "low",
+    "confidence": 0.8,
+    "quote": "Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.",
+    "transcriptSequence": 26
+   }
+  ]
+ },
+ "score": {
+  "points": 9,
+  "max": 15,
+  "grounded": "8/8",
+  "notes": [
+   "thiếu A2 Nam làm OTP",
+   "thiếu A4 Hùng làm nhắc lịch",
+   "thiếu A5 Lan hỏi phòng khám Zalo/SMS",
+   "thiếu A6 Lan trình anh Tuấn ngân sách",
+   "thiếu D2 MoMo để sprint sau",
+   "thiếu O1 Firebase/eSMS còn mở"
+  ]
+ },
+ "cost": 0.0005993999999999999
+}

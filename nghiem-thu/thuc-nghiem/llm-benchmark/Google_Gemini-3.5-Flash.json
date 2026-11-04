@@ -1,0 +1,9 @@
+{
+ "model": "Google:Gemini-3.5-Flash",
+ "status": 402,
+ "seconds": 0.3,
+ "error": "{\"description\": \"Your organization has no remaining balance for this model. Top up your account to continue.\", \"subcode\": \"SIP-BE-022\", \"code\": 402, \"message\": \"Payment required\"}",
+ "parsed": null,
+ "score": null,
+ "cost": null
+}

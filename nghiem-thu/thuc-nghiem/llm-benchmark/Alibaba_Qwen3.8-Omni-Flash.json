@@ -1,0 +1,9 @@
+{
+ "model": "Alibaba:Qwen3.8-Omni-Flash",
+ "status": 402,
+ "seconds": 0.5,
+ "error": "{\"subcode\": \"SIP-BE-022\", \"message\": \"Payment required\", \"description\": \"Your organization has no remaining balance for this model. Top up your account to continue.\", \"code\": 402}",
+ "parsed": null,
+ "score": null,
+ "cost": null
+}

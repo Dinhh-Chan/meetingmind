@@ -1,0 +1,21 @@
+{
+ "model": "DeepSeek-V4.1-Flash",
+ "status": 200,
+ "seconds": 16.0,
+ "finish": "stop",
+ "content": null,
+ "usage": {
+  "completion_tokens": 1533,
+  "completion_tokens_details": {
+   "reasoning_tokens": 1528
+  },
+  "prompt_tokens": 1657,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "total_tokens": 3190
+ },
+ "parsed": null,
+ "score": null,
+ "cost": 0.0023035599999999996
+}

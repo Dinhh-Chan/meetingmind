@@ -1,0 +1,117 @@
+{
+ "model": "Qwen3.8-27B",
+ "status": 200,
+ "seconds": 28.7,
+ "finish": "stop",
+ "content": "{\"summary\": \"Cuộc họp chốt phạm vi Sprint 12 cho ứng dụng đặt lịch phòng khám, bao gồm ba tính năng chính: đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm thống nhất sử dụng PostgreSQL làm hệ quản trị cơ sở dữ liệu. Về thanh toán, Hùng sẽ hoàn thành tích hợp VNPay vào ngày 18/11 và sau đó thực hiện phần nhắc lịch. Lan sẽ hỏi khách hàng về kênh gửi thông báo (Zalo hay SMS) và trình sếp về việc nâng cấp ngân sách server. Nhóm cũng thống nhất họp xem mockup mới vào thứ Ba chiều.\", \"decisions\": [{\"title\": \"Sử dụng PostgreSQL làm database\", \"description\": \"Nhóm thống nhất sử dụng PostgreSQL thay vì MongoDB do dễ làm báo cáo hơn và không bàn lại nữa.\", \"quote\": \"chốt PostgreSQL nhé, không bàn lại nữa\", \"transcriptSequence\": 6}, {\"title\": \"Hùng thực hiện phần nhắc lịch sau thanh toán\", \"description\": \"Lan quyết định giao phần thông báo nhắc lịch cho Hùng thực hiện sau khi hoàn thành phần thanh toán.\", \"quote\": \"Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán\", \"transcriptSequence\": 14}, {\"title\": \"Họp xem mockup mới vào thứ Ba chiều\", \"description\": \"Nhóm thống nhất cùng xem xét các mockup mới từ design team vào thứ Ba chiều.\", \"quote\": \"let's review the mockups together on Tuesday afternoon\", \"transcriptSequence\": 18}], \"openIssues\": [\"Chưa xác định kênh gửi thông báo nhắc lịch là Zalo hay SMS, Lan sẽ hỏi khách hàng.\", \"Ngân sách server hiện tại (2 triệu/tháng) có thể không đủ, cần sếp duyệt nâng lên gói 5 triệu.\", \"Chưa quyết định có hỗ trợ MoMo hay không, để tính cho sprint sau.\"], \"actionItems\": [{\"title\": \"So sánh giá Firebase và eSMS cho OTP\", \"description\": \"Nam sẽ tìm hiểu và so sánh chi phí SMS của Firebase và eSMS tại Việt Nam để báo lại cho Lan.\", \"assigneeHint\": \"Nam\", \"deadlineRawText\": \"trước thứ Tư\", \"priority\": \"high\", \"confidence\": 0.95, \"quote\": \"em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư\", \"transcriptSequence\": 4}, {\"title\": \"Hoàn thành tích hợp VNPay sandbox\", \"description\": \"Hùng hoàn thành bản đầu tích hợp VNPay sandbox và viết test cho phần callback.\", \"assigneeHint\": \"Hùng\", \"deadlineRawText\": \"18/11\", \"priority\": \"high\", \"confidence\": 0.95, \"quote\": \"Ok 18/11 nhé. Nhớ viết test cho phần callback\", \"transcriptSequence\": 10}, {\"title\": \"Hỏi khách hàng về kênh gửi thông báo\", \"description\": \"Lan sẽ liên hệ phòng khám để xác nhận kênh gửi thông báo nhắc lịch (Zalo hay SMS) và báo lại cho team.\", \"assigneeHint\": \"Lan\", \"deadlineRawText\": null, \"priority\": \"medium\", \"confidence\": 0.9, \"quote\": \"Chị sẽ hỏi bên phòng khám rồi báo lại\", \"transcriptSequence\": 16}, {\"title\": \"Trình sếp về nâng cấp ngân sách server\", \"description\": \"Lan sẽ trình anh Tuấn về việc nâng cấp gói server từ 2 triệu lên 5 triệu một tháng.\", \"assigneeHint\": \"Lan\", \"deadlineRawText\": null, \"priority\": \"medium\", \"confidence\": 0.85, \"quote\": \"để chị trình anh Tuấn\", \"transcriptSequence\": 23}, {\"title\": \"Tối ưu lại query database\", \"description\": \"Nam thử tối ưu lại các query để xem có cần nâng cấp gói server hay không, nhưng ưu tiên xử lý OTP trước.\", \"assigneeHint\": \"Nam\", \"deadlineRawText\": null, \"priority\": \"low\", \"confidence\": 0.8, \"quote\": \"Nam thử xem, nhưng ưu tiên OTP trước\", \"transcriptSequence\": 25}, {\"title\": \"Viết tài liệu API bằng Swagger\", \"description\": \"Người nói 4 (Phương) sẽ viết tài liệu API bằng Swagger cho cả team và gửi vào cuối tuần.\", \"assigneeHint\": \"Phương\", \"deadlineRawText\": \"cuối tuần này\", \"priority\": \"medium\", \"confidence\": 0.95, \"quote\": \"Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi\", \"transcriptSequence\": 26}]}",
+ "usage": {
+  "completion_tokens": 993,
+  "prompt_tokens": 1283,
+  "prompt_tokens_details": {
+   "audio_tokens": null,
+   "cached_tokens": 0
+  },
+  "total_tokens": 2276
+ },
+ "parsed": {
+  "summary": "Cuộc họp chốt phạm vi Sprint 12 cho ứng dụng đặt lịch phòng khám, bao gồm ba tính năng chính: đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm thống nhất sử dụng PostgreSQL làm hệ quản trị cơ sở dữ liệu. Về thanh toán, Hùng sẽ hoàn thành tích hợp VNPay vào ngày 18/11 và sau đó thực hiện phần nhắc lịch. Lan sẽ hỏi khách hàng về kênh gửi thông báo (Zalo hay SMS) và trình sếp về việc nâng cấp ngân sách server. Nhóm cũng thống nhất họp xem mockup mới vào thứ Ba chiều.",
+  "decisions": [
+   {
+    "title": "Sử dụng PostgreSQL làm database",
+    "description": "Nhóm thống nhất sử dụng PostgreSQL thay vì MongoDB do dễ làm báo cáo hơn và không bàn lại nữa.",
+    "quote": "chốt PostgreSQL nhé, không bàn lại nữa",
+    "transcriptSequence": 6
+   },
+   {
+    "title": "Hùng thực hiện phần nhắc lịch sau thanh toán",
+    "description": "Lan quyết định giao phần thông báo nhắc lịch cho Hùng thực hiện sau khi hoàn thành phần thanh toán.",
+    "quote": "Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán",
+    "transcriptSequence": 14
+   },
+   {
+    "title": "Họp xem mockup mới vào thứ Ba chiều",
+    "description": "Nhóm thống nhất cùng xem xét các mockup mới từ design team vào thứ Ba chiều.",
+    "quote": "let's review the mockups together on Tuesday afternoon",
+    "transcriptSequence": 18
+   }
+  ],
+  "openIssues": [
+   "Chưa xác định kênh gửi thông báo nhắc lịch là Zalo hay SMS, Lan sẽ hỏi khách hàng.",
+   "Ngân sách server hiện tại (2 triệu/tháng) có thể không đủ, cần sếp duyệt nâng lên gói 5 triệu.",
+   "Chưa quyết định có hỗ trợ MoMo hay không, để tính cho sprint sau."
+  ],
+  "actionItems": [
+   {
+    "title": "So sánh giá Firebase và eSMS cho OTP",
+    "description": "Nam sẽ tìm hiểu và so sánh chi phí SMS của Firebase và eSMS tại Việt Nam để báo lại cho Lan.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": "trước thứ Tư",
+    "priority": "high",
+    "confidence": 0.95,
+    "quote": "em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư",
+    "transcriptSequence": 4
+   },
+   {
+    "title": "Hoàn thành tích hợp VNPay sandbox",
+    "description": "Hùng hoàn thành bản đầu tích hợp VNPay sandbox và viết test cho phần callback.",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": "18/11",
+    "priority": "high",
+    "confidence": 0.95,
+    "quote": "Ok 18/11 nhé. Nhớ viết test cho phần callback",
+    "transcriptSequence": 10
+   },
+   {
+    "title": "Hỏi khách hàng về kênh gửi thông báo",
+    "description": "Lan sẽ liên hệ phòng khám để xác nhận kênh gửi thông báo nhắc lịch (Zalo hay SMS) và báo lại cho team.",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Chị sẽ hỏi bên phòng khám rồi báo lại",
+    "transcriptSequence": 16
+   },
+   {
+    "title": "Trình sếp về nâng cấp ngân sách server",
+    "description": "Lan sẽ trình anh Tuấn về việc nâng cấp gói server từ 2 triệu lên 5 triệu một tháng.",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.85,
+    "quote": "để chị trình anh Tuấn",
+    "transcriptSequence": 23
+   },
+   {
+    "title": "Tối ưu lại query database",
+    "description": "Nam thử tối ưu lại các query để xem có cần nâng cấp gói server hay không, nhưng ưu tiên xử lý OTP trước.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": null,
+    "priority": "low",
+    "confidence": 0.8,
+    "quote": "Nam thử xem, nhưng ưu tiên OTP trước",
+    "transcriptSequence": 25
+   },
+   {
+    "title": "Viết tài liệu API bằng Swagger",
+    "description": "Người nói 4 (Phương) sẽ viết tài liệu API bằng Swagger cho cả team và gửi vào cuối tuần.",
+    "assigneeHint": "Phương",
+    "deadlineRawText": "cuối tuần này",
+    "priority": "medium",
+    "confidence": 0.95,
+    "quote": "Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi",
+    "transcriptSequence": 26
+   }
+  ]
+ },
+ "score": {
+  "points": 12,
+  "max": 15,
+  "grounded": "9/9",
+  "notes": [
+   "thiếu A4 Hùng làm nhắc lịch",
+   "thiếu D2 MoMo để sprint sau",
+   "thiếu O1 Firebase/eSMS còn mở"
+  ]
+ },
+ "cost": 0.00375495
+}

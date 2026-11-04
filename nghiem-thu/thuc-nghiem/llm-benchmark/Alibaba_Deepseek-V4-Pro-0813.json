@@ -1,0 +1,9 @@
+{
+ "model": "Alibaba:Deepseek-V4-Pro-0813",
+ "status": 402,
+ "seconds": 0.6,
+ "error": "{\"message\": \"Payment required\", \"description\": \"Your organization has no remaining balance for this model. Top up your account to continue.\", \"subcode\": \"SIP-BE-022\", \"code\": 402}",
+ "parsed": null,
+ "score": null,
+ "cost": null
+}

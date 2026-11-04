@@ -1,0 +1,97 @@
+{
+ "model": "gpt-oss-120b",
+ "status": 200,
+ "seconds": 4.2,
+ "finish": "stop",
+ "content": "{\n  \"summary\": \"Cuộc họp xác định phạm vi sprint 12 cho app đặt lịch phòng khám, quyết định dùng PostgreSQL, phân công công việc: Nam chịu trách nhiệm OTP đăng nhập, Hùng chịu thanh toán và nhắc lịch, Phương chịu viết tài liệu API. Các thời hạn quan trọng được đưa ra cho việc so sánh Firebase, hoàn thành VN‑Pay và review mockup.\",\n  \"decisions\": [\n    {\n      \"title\": \"Chọn PostgreSQL làm database\",\n      \"description\": \"Team thống nhất sử dụng PostgreSQL cho dự án, không thay đổi lại.\",\n      \"quote\": \"Lan: Ừ, chốt PostgreSQL nhé, không bàn lại nữa.\",\n      \"transcriptSequence\": 6\n    },\n    {\n      \"title\": \"Phân công công việc trong sprint 12\",\n      \"description\": \"Nam phụ trách OTP đăng ký, Hùng phụ trách tích hợp VNPay và phần nhắc lịch, Phương phụ trách viết tài liệu API bằng Swagger.\",\n      \"quote\": \"Lan: Ok cảm ơn em. Vậy tổng kết: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API.\",\n      \"transcriptSequence\": 27\n    },\n    {\n      \"title\": \"Thời gian hoàn thành VNPay sandbox\",\n      \"description\": \"Hoàn thành bản đầu tích hợp VNPay vào ngày 18/11.\",\n      \"quote\": \"Hùng: Em đang tích hợp VNPay sandbox. ... ngày 18 đi chị, vì hôm 15 em phải đi bảo vệ đồ án.\",\n      \"transcriptSequence\": 9\n    },\n    {\n      \"title\": \"Thời gian review mockup\",\n      \"description\": \"Review mockup mới vào chiều thứ Ba tới.\",\n      \"quote\": \"Lan: Great, then let's review the mockups together on Tuesday afternoon.\",\n      \"transcriptSequence\": 18\n    }\n  ],\n  \"openIssues\": [\n    \"So sánh chi phí SMS giữa Firebase và eSMS và báo cáo lại trước thứ Tư (chưa có kết quả).\",\n    \"Xác định cách gửi thông báo nhắc lịch (Zalo hay SMS) sau khi khách yêu cầu.\",\n    \"Nâng gói server lên 5 triệu, cần sự duyệt của sếp.\"\n  ],\n  \"actionItems\": [\n    {\n      \"title\": \"So sánh chi phí SMS Firebase vs eSMS\",\n      \"description\": \"Nam sẽ so sánh chi phí SMS giữa Firebase và eSMS và báo cáo lại cho Lan trước thứ Tư.\",\n      \"assigneeHint\": \"Nam\",\n      \"deadlineRawText\": \"trước thứ Tư\",\n      \"priority\": \"high\",\n      \"confidence\": 0.95,\n      \"quote\": \"Nam: Vâng, em so sánh Firebase với eSMS rồi báo cáo lại chị trước thứ Tư.\",\n      \"transcriptSequence\": 4\n    },\n    {\n      \"title\": \"Tích hợp VNPay sandbox\",\n      \"description\": \"Hoàn thành tích hợp VNPay sandbox (bản đầu) vào ngày 18/11.\",\n      \"assigneeHint\": \"Hùng\",\n      \"deadlineRawText\": \"18/11\",\n      \"priority\": \"high\",\n      \"confidence\": 0.98,\n      \"quote\": \"Hùng: Em ... ngày 9  ...  ...  ...  ... ... ngày 18 ... cảm ... ...\",\n      \"transcriptSequence\": 9\n    },\n    {\n      \"title\": \"Viết test        ...  ...  ... \",\n      \"description\": \"Write     ...  ...\" ,\n      \"assignee\": null,\n      \"assigneeHint\": null,\n      \"deadlineRaw?\": \"...\"\n\n\n\n}\n]}",
+ "usage": {
+  "completion_tokens": 818,
+  "completion_tokens_details": {
+   "reasoning_tokens": 0
+  },
+  "prompt_tokens": 1311,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "total_tokens": 2129
+ },
+ "parsed": {
+  "summary": "Cuộc họp xác định phạm vi sprint 12 cho app đặt lịch phòng khám, quyết định dùng PostgreSQL, phân công công việc: Nam chịu trách nhiệm OTP đăng nhập, Hùng chịu thanh toán và nhắc lịch, Phương chịu viết tài liệu API. Các thời hạn quan trọng được đưa ra cho việc so sánh Firebase, hoàn thành VN‑Pay và review mockup.",
+  "decisions": [
+   {
+    "title": "Chọn PostgreSQL làm database",
+    "description": "Team thống nhất sử dụng PostgreSQL cho dự án, không thay đổi lại.",
+    "quote": "Lan: Ừ, chốt PostgreSQL nhé, không bàn lại nữa.",
+    "transcriptSequence": 6
+   },
+   {
+    "title": "Phân công công việc trong sprint 12",
+    "description": "Nam phụ trách OTP đăng ký, Hùng phụ trách tích hợp VNPay và phần nhắc lịch, Phương phụ trách viết tài liệu API bằng Swagger.",
+    "quote": "Lan: Ok cảm ơn em. Vậy tổng kết: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API.",
+    "transcriptSequence": 27
+   },
+   {
+    "title": "Thời gian hoàn thành VNPay sandbox",
+    "description": "Hoàn thành bản đầu tích hợp VNPay vào ngày 18/11.",
+    "quote": "Hùng: Em đang tích hợp VNPay sandbox. ... ngày 18 đi chị, vì hôm 15 em phải đi bảo vệ đồ án.",
+    "transcriptSequence": 9
+   },
+   {
+    "title": "Thời gian review mockup",
+    "description": "Review mockup mới vào chiều thứ Ba tới.",
+    "quote": "Lan: Great, then let's review the mockups together on Tuesday afternoon.",
+    "transcriptSequence": 18
+   }
+  ],
+  "openIssues": [
+   "So sánh chi phí SMS giữa Firebase và eSMS và báo cáo lại trước thứ Tư (chưa có kết quả).",
+   "Xác định cách gửi thông báo nhắc lịch (Zalo hay SMS) sau khi khách yêu cầu.",
+   "Nâng gói server lên 5 triệu, cần sự duyệt của sếp."
+  ],
+  "actionItems": [
+   {
+    "title": "So sánh chi phí SMS Firebase vs eSMS",
+    "description": "Nam sẽ so sánh chi phí SMS giữa Firebase và eSMS và báo cáo lại cho Lan trước thứ Tư.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": "trước thứ Tư",
+    "priority": "high",
+    "confidence": 0.95,
+    "quote": "Nam: Vâng, em so sánh Firebase với eSMS rồi báo cáo lại chị trước thứ Tư.",
+    "transcriptSequence": 4
+   },
+   {
+    "title": "Tích hợp VNPay sandbox",
+    "description": "Hoàn thành tích hợp VNPay sandbox (bản đầu) vào ngày 18/11.",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": "18/11",
+    "priority": "high",
+    "confidence": 0.98,
+    "quote": "Hùng: Em ... ngày 9  ...  ...  ...  ... ... ngày 18 ... cảm ... ...",
+    "transcriptSequence": 9
+   },
+   {
+    "title": "Viết test        ...  ...  ... ",
+    "description": "Write     ...  ...",
+    "assignee": null,
+    "assigneeHint": null,
+    "deadlineRaw?": "..."
+   }
+  ]
+ },
+ "score": {
+  "points": 7,
+  "max": 15,
+  "grounded": "0/7",
+  "notes": [
+   "thiếu A2 Nam làm OTP",
+   "thiếu A4 Hùng làm nhắc lịch",
+   "thiếu A5 Lan hỏi phòng khám Zalo/SMS",
+   "thiếu A6 Lan trình anh Tuấn ngân sách",
+   "thiếu A7 Nam tối ưu query",
+   "thiếu A8 Phương viết Swagger, cuối tuần",
+   "thiếu A8+ gán đúng tên Phương",
+   "thiếu D2 MoMo để sprint sau"
+  ]
+ },
+ "cost": 0.00068252
+}

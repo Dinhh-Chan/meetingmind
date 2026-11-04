@@ -1,0 +1,47 @@
+{
+ "model": "DeepSeek-V4-Flash",
+ "status": 200,
+ "seconds": 3.7,
+ "finish": "stop",
+ "content": "{\"name\": \"extract_minutes\", \"arguments\": {\"transcript\": \"[0] Lan: Ok mọi người, hôm nay mình chốt phạm vi sprint 12 cho app đặt lịch phòng khám nhé. Có ba việc chính: đăng nhập, thanh toán, và thông báo nhắc lịch.\\n[1] Nam: Phần đăng nhập em làm xong API đăng ký rồi, còn đăng nhập bằng số điện thoại với OTP.\\n[2] Hùng: Hay là mình dùng luôn Firebase Auth cho OTP, đỡ phải tự làm?\\n[3] Lan: Firebase thì tiền SMS ở Việt Nam hơi cao, để Nam tìm hiểu thêm giá rồi tính.\\n[4] Nam: Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.\\n[5] Người nói 4: Về database thì team mình thống nhất PostgreSQL chứ? Em thấy MongoDB hơi khó làm báo cáo.\\n[6] Lan: Ừ, chốt PostgreSQL nhé, không bàn lại nữa.\\n[7] Hùng: Ok, PostgreSQL.\\n[8] Lan: Thanh toán thì sao Hùng?\\n[9] Hùng: Em đang tích hợp VNPay sandbox. Chắc ngày 15 tháng 11 xong bản đầu. À không, ngày 18 đi chị, vì hôm 15 em phải đi bảo vệ đồ án.\\n[10] Lan: Ok 18/11 nhé. Nhớ viết test cho phần callback.\\n[11] Người nói 4: Có cần hỗ trợ MoMo luôn không chị?\\n[12] Lan: MoMo chưa, khách chưa yêu cầu. Để sprint sau tính.\\n[13] Nam: Còn phần thông báo nhắc lịch thì ai làm ạ?\\n[14] Lan: Ban đầu chị định giao Nam, nhưng Nam đang ôm đăng nhập rồi. Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.\\n[15] Hùng: Dạ được, nhưng em cần biết gửi qua Zalo hay SMS.\\n[16] Lan: Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.\\n[17] Nam: By the way, the design team said the new mockups will be ready next Monday.\\n[18] Lan: Great, then let's review the mockups together on Tuesday afternoon.\\n[19] Hùng: Hôm qua mọi người xem bóng đá không, Việt Nam thắng 2-0 đấy.\\n[20] Nam: Có, đá hay quá, chắc phải đi ăn mừng.\\n[21] Lan: Thôi quay lại việc. Một vấn đề nữa là ngân sách server. Hiện đang dùng gói 2 triệu một tháng, chắc không đủ khi có thanh toán.\\n[22] Người nói 4: Em nghĩ phải lên gói 5 triệu, nhưng cần sếp duyệt.\\n[23] Lan: Ừ, cái này chưa quyết được, để chị trình anh Tuấn.\\n[24] Nam: Em có thể tối ưu lại query trước, biết đâu không cần nâng gói.\\n[25] Lan: Tốt, Nam thử xem, nhưng ưu tiên OTP trước.\\n[26] Người nói 4: Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.\\n[27] Lan: Ok cảm ơn em. Vậy tổng kết: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API.\\n[28] Người nói 4: Dạ.\\n[29] Lan: Cuộc họp sau vào thứ Hai tuần sau, 9 giờ sáng. Hết.\"}}",
+ "usage": {
+  "completion_tokens": 1016,
+  "completion_tokens_details": {
+   "reasoning_tokens": 0
+  },
+  "prompt_tokens": 1732,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "total_tokens": 2748
+ },
+ "parsed": {
+  "name": "extract_minutes",
+  "arguments": {
+   "transcript": "[0] Lan: Ok mọi người, hôm nay mình chốt phạm vi sprint 12 cho app đặt lịch phòng khám nhé. Có ba việc chính: đăng nhập, thanh toán, và thông báo nhắc lịch.\n[1] Nam: Phần đăng nhập em làm xong API đăng ký rồi, còn đăng nhập bằng số điện thoại với OTP.\n[2] Hùng: Hay là mình dùng luôn Firebase Auth cho OTP, đỡ phải tự làm?\n[3] Lan: Firebase thì tiền SMS ở Việt Nam hơi cao, để Nam tìm hiểu thêm giá rồi tính.\n[4] Nam: Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.\n[5] Người nói 4: Về database thì team mình thống nhất PostgreSQL chứ? Em thấy MongoDB hơi khó làm báo cáo.\n[6] Lan: Ừ, chốt PostgreSQL nhé, không bàn lại nữa.\n[7] Hùng: Ok, PostgreSQL.\n[8] Lan: Thanh toán thì sao Hùng?\n[9] Hùng: Em đang tích hợp VNPay sandbox. Chắc ngày 15 tháng 11 xong bản đầu. À không, ngày 18 đi chị, vì hôm 15 em phải đi bảo vệ đồ án.\n[10] Lan: Ok 18/11 nhé. Nhớ viết test cho phần callback.\n[11] Người nói 4: Có cần hỗ trợ MoMo luôn không chị?\n[12] Lan: MoMo chưa, khách chưa yêu cầu. Để sprint sau tính.\n[13] Nam: Còn phần thông báo nhắc lịch thì ai làm ạ?\n[14] Lan: Ban đầu chị định giao Nam, nhưng Nam đang ôm đăng nhập rồi. Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.\n[15] Hùng: Dạ được, nhưng em cần biết gửi qua Zalo hay SMS.\n[16] Lan: Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.\n[17] Nam: By the way, the design team said the new mockups will be ready next Monday.\n[18] Lan: Great, then let's review the mockups together on Tuesday afternoon.\n[19] Hùng: Hôm qua mọi người xem bóng đá không, Việt Nam thắng 2-0 đấy.\n[20] Nam: Có, đá hay quá, chắc phải đi ăn mừng.\n[21] Lan: Thôi quay lại việc. Một vấn đề nữa là ngân sách server. Hiện đang dùng gói 2 triệu một tháng, chắc không đủ khi có thanh toán.\n[22] Người nói 4: Em nghĩ phải lên gói 5 triệu, nhưng cần sếp duyệt.\n[23] Lan: Ừ, cái này chưa quyết được, để chị trình anh Tuấn.\n[24] Nam: Em có thể tối ưu lại query trước, biết đâu không cần nâng gói.\n[25] Lan: Tốt, Nam thử xem, nhưng ưu tiên OTP trước.\n[26] Người nói 4: Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.\n[27] Lan: Ok cảm ơn em. Vậy tổng kết: Nam lo OTP, Hùng lo thanh toán rồi nhắc lịch, Phương lo tài liệu API.\n[28] Người nói 4: Dạ.\n[29] Lan: Cuộc họp sau vào thứ Hai tuần sau, 9 giờ sáng. Hết."
+  }
+ },
+ "score": {
+  "points": 0,
+  "max": 15,
+  "grounded": "0/0",
+  "notes": [
+   "thiếu A1 Nam so sánh Firebase/eSMS, trước thứ Tư",
+   "thiếu A2 Nam làm OTP",
+   "thiếu A3 Hùng VNPay hạn 18/11",
+   "thiếu A4 Hùng làm nhắc lịch",
+   "thiếu A5 Lan hỏi phòng khám Zalo/SMS",
+   "thiếu A6 Lan trình anh Tuấn ngân sách",
+   "thiếu A7 Nam tối ưu query",
+   "thiếu A8 Phương viết Swagger, cuối tuần",
+   "thiếu A8+ gán đúng tên Phương",
+   "thiếu D1 chốt PostgreSQL",
+   "thiếu D2 MoMo để sprint sau",
+   "thiếu O1 Firebase/eSMS còn mở",
+   "thiếu O2 Zalo hay SMS còn mở",
+   "thiếu O3 ngân sách server còn mở",
+   "thiếu Tóm tắt bằng tiếng Việt"
+  ]
+ },
+ "cost": 0.00052696
+}

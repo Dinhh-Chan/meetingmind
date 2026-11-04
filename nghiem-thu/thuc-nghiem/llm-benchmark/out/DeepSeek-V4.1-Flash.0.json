@@ -1,0 +1,147 @@
+{
+ "model": "DeepSeek-V4.1-Flash",
+ "status": 200,
+ "seconds": 63.2,
+ "finish": "stop",
+ "content": "{\n  \"summary\": \"Cuộc họp chốt phạm vi sprint 12 của app đặt lịch phòng khám với ba hạng mục: đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm thống nhất dùng PostgreSQL cho database và tạm gác MoMo sang sprint sau vì khách chưa yêu cầu. Nam phụ trách đăng nhập/OTP và sẽ so sánh giá Firebase với eSMS để báo lại; Hùng làm thanh toán VNPay (bản đầu dời sang 18/11) rồi sau đó làm phần nhắc lịch. Còn hai điểm chưa ngã ngũ: kênh gửi nhắc lịch (Zalo hay SMS) do Lan hỏi khách, và việc nâng gói server lên 5 triệu cần sếp duyệt. Phương nhận viết tài liệu API bằng Swagger, cuộc họp sau họp vào thứ Hai tuần sau lúc 9 giờ sáng.\",\n  \"decisions\": [\n    {\n      \"title\": \"Chốt phạm vi sprint 12\",\n      \"description\": \"Sprint 12 gồm ba hạng mục chính: đăng nhập, thanh toán và thông báo nhắc lịch.\",\n      \"quote\": \"hôm nay mình chốt phạm vi sprint 12 cho app đặt lịch phòng khám nhé. Có ba việc chính: đăng nhập, thanh toán, và thông báo nhắc lịch.\",\n      \"transcriptSequence\": 0\n    },\n    {\n      \"title\": \"Dùng PostgreSQL cho database\",\n      \"description\": \"Nhóm chốt dùng PostgreSQL, không bàn lại phương án MongoDB.\",\n      \"quote\": \"Ừ, chốt PostgreSQL nhé, không bàn lại nữa.\",\n      \"transcriptSequence\": 6\n    },\n    {\n      \"title\": \"Dời deadline bản thanh toán VNPay sang 18/11\",\n      \"description\": \"Bản tích hợp VNPay sandbox đầu tiên chuyển từ 15/11 sang 18/11 do Hùng phải đi bảo vệ đồ án, kèm yêu cầu viết test cho phần callback.\",\n      \"quote\": \"Ok 18/11 nhé. Nhớ viết test cho phần callback.\",\n      \"transcriptSequence\": 10\n    },\n    {\n      \"title\": \"Chưa làm MoMo trong sprint này\",\n      \"description\": \"MoMo để sprint sau vì khách chưa yêu cầu.\",\n      \"quote\": \"MoMo chưa, khách chưa yêu cầu. Để sprint sau tính.\",\n      \"transcriptSequence\": 12\n    },\n    {\n      \"title\": \"Giao Hùng làm phần thông báo nhắc lịch\",\n      \"description\": \"Hùng nhận phần nhắc lịch, làm sau khi hoàn thành phần thanh toán.\",\n      \"quote\": \"Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.\",\n      \"transcriptSequence\": 14\n    }\n  ],\n  \"openIssues\": [\n    \"Dùng Firebase Auth hay eSMS cho OTP — chờ Nam so sánh giá rồi mới quyết.\",\n    \"Thông báo nhắc lịch gửi qua Zalo hay SMS — Lan chưa hỏi được khách.\",\n    \"Có cần nâng gói server từ 2 triệu lên 5 triệu một tháng không — cần sếp duyệt, chưa quyết trong cuộc họp.\"\n  ],\n  \"actionItems\": [\n    {\n      \"title\": \"So sánh giá Firebase và eSMS cho OTP\",\n      \"description\": \"Nam tìm hiểu giá Firebase so với eSMS rồi báo lại cho Lan để chọn giải pháp OTP.\",\n      \"assigneeHint\": \"Nam\",\n      \"deadlineRawText\": \"thứ Tư\",\n      \"priority\": \"high\",\n      \"confidence\": 0.95,\n      \"quote\": \"Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.\",\n      \"transcriptSequence\": 4\n    },\n    {\n      \"title\": \"Hoàn thành tích hợp VNPay sandbox và viết test callback\",\n      \"description\": \"Hùng hoàn thành bản tích hợp VNPay sandbox đầu tiên và viết test cho phần callback.\",\n      \"assigneeHint\": \"Hùng\",\n      \"deadlineRawText\": \"18/11\",\n      \"priority\": \"high\",\n      \"confidence\": 0.95,\n      \"quote\": \"Ok 18/11 nhé. Nhớ viết test cho phần callback.\",\n      \"transcriptSequence\": 10\n    },\n    {\n      \"title\": \"Làm phần thông báo nhắc lịch\",\n      \"description\": \"Hùng làm phần thông báo nhắc lịch sau khi xong phần thanh toán; kênh gửi (Zalo/SMS) chờ Lan xác nhận với khách.\",\n      \"assigneeHint\": \"Hùng\",\n      \"deadlineRawText\": null,\n      \"priority\": \"medium\",\n      \"confidence\": 0.9,\n      \"quote\": \"Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.\",\n      \"transcriptSequence\": 14\n    },\n    {\n      \"title\": \"Hỏi khách về kênh gửi nhắc lịch\",\n      \"description\": \"Lan hỏi bên phòng khám xem muốn gửi nhắc lịch qua Zalo hay SMS rồi báo lại cho Hùng.\",\n      \"assigneeHint\": \"Lan\",\n      \"deadlineRawText\": null,\n      \"priority\": \"medium\",\n      \"confidence\": 0.9,\n      \"quote\": \"Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.\",\n      \"transcriptSequence\": 16\n    },\n    {\n      \"title\": \"Trình sếp về ngân sách server\",\n      \"description\": \"Lan trình anh Tuấn phương án nâng gói server lên 5 triệu một tháng.\",\n      \"assigneeHint\": \"Lan\",\n      \"deadlineRawText\": null,\n      \"priority\": \"medium\",\n      \"confidence\": 0.85,\n      \"quote\": \"Ừ, cái này chưa quyết được, để chị trình anh Tuấn.\",\n      \"transcriptSequence\": 23\n    },\n    {\n      \"title\": \"Tối ưu query database\",\n      \"description\": \"Nam thử tối ưu lại query để xem có cần nâng gói server không, nhưng ưu tiên OTP trước.\",\n      \"assigneeHint\": \"Nam\",\n      \"deadlineRawText\": null,\n      \"priority\": \"low\",\n      \"confidence\": 0.8,\n      \"quote\": \"Tốt, Nam thử xem, nhưng ưu tiên OTP trước.\",\n      \"transcriptSequence\": 25\n    },\n    {\n      \"title\": \"Viết tài liệu API bằng Swagger\",\n      \"description\": \"Phương viết tài liệu API bằng Swagger cho cả team và gửi trong cuối tuần này.\",\n      \"assigneeHint\": \"Phương\",\n      \"deadlineRawText\": \"cuối tuần này\",\n      \"priority\": \"medium\",\n      \"confidence\": 0.9,\n      \"quote\": \"Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.\",\n      \"transcriptSequence\": 26\n    },\n    {\n      \"title\": \"Review mockups cùng nhau\",\n      \"description\": \"Cả nhóm review bộ mockups mới của design team vào chiều thứ Ba.\",\n      \"assigneeHint\": null,\n      \"deadlineRawText\": \"Tuesday afternoon\",\n      \"priority\": \"medium\",\n      \"confidence\": 0.6,\n      \"quote\": \"Great, then let's review the mockups together on Tuesday afternoon.\",\n      \"transcriptSequence\": 18\n    }\n  ]\n}",
+ "usage": {
+  "completion_tokens": 2894,
+  "completion_tokens_details": {
+   "reasoning_tokens": 990
+  },
+  "prompt_tokens": 1657,
+  "prompt_tokens_details": {
+   "cached_tokens": 1600
+  },
+  "total_tokens": 4551
+ },
+ "parsed": {
+  "summary": "Cuộc họp chốt phạm vi sprint 12 của app đặt lịch phòng khám với ba hạng mục: đăng nhập, thanh toán và thông báo nhắc lịch. Nhóm thống nhất dùng PostgreSQL cho database và tạm gác MoMo sang sprint sau vì khách chưa yêu cầu. Nam phụ trách đăng nhập/OTP và sẽ so sánh giá Firebase với eSMS để báo lại; Hùng làm thanh toán VNPay (bản đầu dời sang 18/11) rồi sau đó làm phần nhắc lịch. Còn hai điểm chưa ngã ngũ: kênh gửi nhắc lịch (Zalo hay SMS) do Lan hỏi khách, và việc nâng gói server lên 5 triệu cần sếp duyệt. Phương nhận viết tài liệu API bằng Swagger, cuộc họp sau họp vào thứ Hai tuần sau lúc 9 giờ sáng.",
+  "decisions": [
+   {
+    "title": "Chốt phạm vi sprint 12",
+    "description": "Sprint 12 gồm ba hạng mục chính: đăng nhập, thanh toán và thông báo nhắc lịch.",
+    "quote": "hôm nay mình chốt phạm vi sprint 12 cho app đặt lịch phòng khám nhé. Có ba việc chính: đăng nhập, thanh toán, và thông báo nhắc lịch.",
+    "transcriptSequence": 0
+   },
+   {
+    "title": "Dùng PostgreSQL cho database",
+    "description": "Nhóm chốt dùng PostgreSQL, không bàn lại phương án MongoDB.",
+    "quote": "Ừ, chốt PostgreSQL nhé, không bàn lại nữa.",
+    "transcriptSequence": 6
+   },
+   {
+    "title": "Dời deadline bản thanh toán VNPay sang 18/11",
+    "description": "Bản tích hợp VNPay sandbox đầu tiên chuyển từ 15/11 sang 18/11 do Hùng phải đi bảo vệ đồ án, kèm yêu cầu viết test cho phần callback.",
+    "quote": "Ok 18/11 nhé. Nhớ viết test cho phần callback.",
+    "transcriptSequence": 10
+   },
+   {
+    "title": "Chưa làm MoMo trong sprint này",
+    "description": "MoMo để sprint sau vì khách chưa yêu cầu.",
+    "quote": "MoMo chưa, khách chưa yêu cầu. Để sprint sau tính.",
+    "transcriptSequence": 12
+   },
+   {
+    "title": "Giao Hùng làm phần thông báo nhắc lịch",
+    "description": "Hùng nhận phần nhắc lịch, làm sau khi hoàn thành phần thanh toán.",
+    "quote": "Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.",
+    "transcriptSequence": 14
+   }
+  ],
+  "openIssues": [
+   "Dùng Firebase Auth hay eSMS cho OTP — chờ Nam so sánh giá rồi mới quyết.",
+   "Thông báo nhắc lịch gửi qua Zalo hay SMS — Lan chưa hỏi được khách.",
+   "Có cần nâng gói server từ 2 triệu lên 5 triệu một tháng không — cần sếp duyệt, chưa quyết trong cuộc họp."
+  ],
+  "actionItems": [
+   {
+    "title": "So sánh giá Firebase và eSMS cho OTP",
+    "description": "Nam tìm hiểu giá Firebase so với eSMS rồi báo lại cho Lan để chọn giải pháp OTP.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": "thứ Tư",
+    "priority": "high",
+    "confidence": 0.95,
+    "quote": "Vâng, em so sánh Firebase với eSMS rồi báo lại chị trước thứ Tư.",
+    "transcriptSequence": 4
+   },
+   {
+    "title": "Hoàn thành tích hợp VNPay sandbox và viết test callback",
+    "description": "Hùng hoàn thành bản tích hợp VNPay sandbox đầu tiên và viết test cho phần callback.",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": "18/11",
+    "priority": "high",
+    "confidence": 0.95,
+    "quote": "Ok 18/11 nhé. Nhớ viết test cho phần callback.",
+    "transcriptSequence": 10
+   },
+   {
+    "title": "Làm phần thông báo nhắc lịch",
+    "description": "Hùng làm phần thông báo nhắc lịch sau khi xong phần thanh toán; kênh gửi (Zalo/SMS) chờ Lan xác nhận với khách.",
+    "assigneeHint": "Hùng",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Thôi để Hùng làm phần nhắc lịch sau khi xong thanh toán.",
+    "transcriptSequence": 14
+   },
+   {
+    "title": "Hỏi khách về kênh gửi nhắc lịch",
+    "description": "Lan hỏi bên phòng khám xem muốn gửi nhắc lịch qua Zalo hay SMS rồi báo lại cho Hùng.",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Cái đó chị chưa hỏi khách. Chị sẽ hỏi bên phòng khám rồi báo lại.",
+    "transcriptSequence": 16
+   },
+   {
+    "title": "Trình sếp về ngân sách server",
+    "description": "Lan trình anh Tuấn phương án nâng gói server lên 5 triệu một tháng.",
+    "assigneeHint": "Lan",
+    "deadlineRawText": null,
+    "priority": "medium",
+    "confidence": 0.85,
+    "quote": "Ừ, cái này chưa quyết được, để chị trình anh Tuấn.",
+    "transcriptSequence": 23
+   },
+   {
+    "title": "Tối ưu query database",
+    "description": "Nam thử tối ưu lại query để xem có cần nâng gói server không, nhưng ưu tiên OTP trước.",
+    "assigneeHint": "Nam",
+    "deadlineRawText": null,
+    "priority": "low",
+    "confidence": 0.8,
+    "quote": "Tốt, Nam thử xem, nhưng ưu tiên OTP trước.",
+    "transcriptSequence": 25
+   },
+   {
+    "title": "Viết tài liệu API bằng Swagger",
+    "description": "Phương viết tài liệu API bằng Swagger cho cả team và gửi trong cuối tuần này.",
+    "assigneeHint": "Phương",
+    "deadlineRawText": "cuối tuần này",
+    "priority": "medium",
+    "confidence": 0.9,
+    "quote": "Em viết tài liệu API bằng Swagger cho cả team nhé, cuối tuần này em gửi.",
+    "transcriptSequence": 26
+   },
+   {
+    "title": "Review mockups cùng nhau",
+    "description": "Cả nhóm review bộ mockups mới của design team vào chiều thứ Ba.",
+    "assigneeHint": null,
+    "deadlineRawText": "Tuesday afternoon",
+    "priority": "medium",
+    "confidence": 0.6,
+    "quote": "Great, then let's review the mockups together on Tuesday afternoon.",
+    "transcriptSequence": 18
+   }
+  ]
+ },
+ "score": {
+  "points": 15,
+  "max": 15,
+  "grounded": "13/13",
+  "notes": []
+ },
+ "cost": 0.00393676
+}

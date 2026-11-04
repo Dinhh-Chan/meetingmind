@@ -1,0 +1,21 @@
+{
+ "model": "DeepSeek-V4-Flash",
+ "status": 200,
+ "seconds": 34.4,
+ "finish": "length",
+ "content": "{\n  \"summary\": \"Cuộc họp chốt phạm vi sprint 12 cho app đặt lịch phòng khám gồm đăng nhập, than",
+ "usage": {
+  "completion_tokens": 8000,
+  "completion_tokens_details": {
+   "reasoning_tokens": 7961
+  },
+  "prompt_tokens": 1710,
+  "prompt_tokens_details": {
+   "cached_tokens": 1536
+  },
+  "total_tokens": 9710
+ },
+ "parsed": null,
+ "score": null,
+ "cost": 0.0024794
+}
