@@ -13,6 +13,7 @@ import os
 import aio_pika
 
 from app.worker import contracts as c
+from app.worker import knowledge_indexer, knowledge_store
 from app.worker.analyzer import get_analyzer
 from app.worker.transcriber import get_transcriber
 
@@ -132,6 +133,40 @@ async def handle_analysis(
     await publish(channel, routing_key, out)
 
 
+async def handle_knowledge_index(
+    message: aio_pika.IncomingMessage, channel: aio_pika.abc.AbstractChannel
+) -> None:
+    env = json.loads(message.body)
+    payload = env.get("payload") or {}
+    what = f"{payload.get('sourceType')}/{payload.get('sourceId')} meeting={payload.get('meetingId')}"
+    log.info("Nhận lệnh lập chỉ mục %s", what)
+    # Không có sự kiện kết quả: lỗi chỉ ghi log rồi ack. Core gửi lại lệnh
+    # khi nguồn đổi lần sau; requeue mãi một tin hỏng chỉ chặn hàng đợi.
+    try:
+        result = await knowledge_indexer.index_source(env.get("workspaceId") or "", payload)
+        log.info("Lập chỉ mục xong %s: %d đoạn mới, xoá %d đoạn cũ", what, result.chunks, result.deleted)
+    except Exception:  # noqa: BLE001
+        log.exception("Lập chỉ mục lỗi %s", what)
+
+
+async def handle_knowledge_delete(
+    message: aio_pika.IncomingMessage, channel: aio_pika.abc.AbstractChannel
+) -> None:
+    env = json.loads(message.body)
+    payload = env.get("payload") or {}
+    try:
+        deleted = await knowledge_indexer.delete_source(env.get("workspaceId") or "", payload)
+        log.info(
+            "Xoá chỉ mục meeting=%s source=%s/%s: %d đoạn",
+            payload.get("meetingId"),
+            payload.get("sourceType"),
+            payload.get("sourceId"),
+            deleted,
+        )
+    except Exception:  # noqa: BLE001
+        log.exception("Xoá chỉ mục lỗi: %s", payload)
+
+
 def _json_default(value):
     """Số và cờ kiểu numpy (mốc thời gian của faster-whisper, phép so sánh trên
     chúng) không phải kiểu JSON chuẩn."""
@@ -160,10 +195,17 @@ async def publish(
 HANDLERS = {
     c.TRANSCRIPTION_REQUESTED: handle_transcription,
     c.ANALYSIS_REQUESTED: handle_analysis,
+    c.KNOWLEDGE_INDEX_REQUESTED: handle_knowledge_index,
+    c.KNOWLEDGE_DELETE_REQUESTED: handle_knowledge_delete,
 }
 
 
 async def main() -> None:
+    try:
+        await asyncio.to_thread(knowledge_store.ensure_schema)
+    except Exception as err:  # noqa: BLE001 - phiên âm/phân tích không cần bảng này
+        # Postgres chưa sẵn sàng thì vẫn nhận việc; lần lập chỉ mục đầu tiên tạo lại bảng.
+        log.warning("Chưa tạo được bảng chỉ mục hỏi đáp: %s", err)
     log.info("Kết nối RabbitMQ: %s", c.RABBITMQ_URL)
     connection = await aio_pika.connect_robust(c.RABBITMQ_URL)
 

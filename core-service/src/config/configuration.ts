@@ -119,6 +119,12 @@ export interface Configuration {
         bucket: string;
         multipartPartSize: number;
     };
+    ai: {
+        /** ai-service phục vụ HTTP (hỏi đáp tri thức), trong mạng Docker. */
+        serviceUrl: string;
+        /** Khoá dùng chung Core ↔ ai-service cho route /internal. Không ghi log. */
+        internalToken: string;
+    };
 }
 
 export default (): Configuration => {
@@ -254,6 +260,11 @@ export default (): Configuration => {
         ),
     };
 
+    const ai: Configuration["ai"] = {
+        serviceUrl: getEnv("AI_SERVICE_URL", "http://ai-service:8000").replace(/\/+$/, ""),
+        internalToken: getEnv("AI_INTERNAL_TOKEN", ""),
+    };
+
     return {
         server,
         microservice,
@@ -265,5 +276,6 @@ export default (): Configuration => {
         sso,
         sentry,
         minio,
+        ai,
     };
 };

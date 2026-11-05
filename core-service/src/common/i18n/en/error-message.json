@@ -27,5 +27,10 @@
     "error-user-not-in-workspace": "User is not a workspace member",
     "error-role-invalid": "Invalid role",
     "error-meeting-url-required": "A Google Meet link is required to invite the bot",
-    "error-bot-session-not-found": "No active bot session for this meeting"
+    "error-bot-session-not-found": "No active bot session for this meeting",
+    "error-knowledge-unavailable": "Knowledge Q&A service is not available",
+    "error-question-empty": "Question is empty",
+    "error-document-invalid": "Only .pdf, .docx, .txt, .md documents are accepted",
+    "error-document-too-large": "Document exceeds 20 MB",
+    "error-document-not-found": "Document not found"
 }

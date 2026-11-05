@@ -18,6 +18,9 @@ TRANSCRIPTION_FAILED = "transcription.failed"
 ANALYSIS_REQUESTED = "analysis.requested"
 ANALYSIS_COMPLETED = "analysis.completed"
 ANALYSIS_FAILED = "analysis.failed"
+# Lập chỉ mục hỏi đáp: không có sự kiện kết quả, lỗi chỉ ghi log.
+KNOWLEDGE_INDEX_REQUESTED = "knowledge.index.requested"
+KNOWLEDGE_DELETE_REQUESTED = "knowledge.delete.requested"
 
 RABBITMQ_URL = os.environ.get(
     "MICROSERVICE_RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672"

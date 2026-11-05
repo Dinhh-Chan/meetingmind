@@ -57,6 +57,13 @@ export class ApiError extends Error {
         return new ApiError(code, HttpStatus.UNSUPPORTED_MEDIA_TYPE, args);
     }
 
+    static ServiceUnavailable(
+        code: ErrorCode,
+        args?: { [field: string]: unknown },
+    ) {
+        return new ApiError(code, HttpStatus.SERVICE_UNAVAILABLE, args);
+    }
+
     static HttpStatusOk(code: ErrorCode, args?: { [field: string]: unknown }) {
         return new ApiError(code, HttpStatus.OK, args);
     }

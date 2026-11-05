@@ -34,6 +34,9 @@ export class MediaFileModel extends Model implements MediaFile {
     @Column({ type: DataType.TEXT, allowNull: false })
     objectKey: string;
 
+    @Column({ type: DataType.TEXT, allowNull: true })
+    originalName?: string;
+
     @Column({ type: DataType.STRING, allowNull: false })
     mimetype: string;
 

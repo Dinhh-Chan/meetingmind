@@ -12,6 +12,10 @@ import { MeetingAccessRole } from "@module/meeting-access/common/constant";
 import { MeetingAccessService } from "@module/meeting-access/services/meeting-access.service";
 import { DecisionSource, DecisionStatus } from "@module/decision/common/constant";
 import { DecisionService } from "@module/decision/services/decision.service";
+import {
+    KnowledgeIndexService,
+    reviewExtraOf,
+} from "@module/knowledge/services/knowledge-index.service";
 import { MeetingMinutesService } from "@module/meeting-minutes/services/meeting-minutes.service";
 import { MeetingParticipantRole } from "@module/meeting-participant/common/constant";
 import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
@@ -109,6 +113,7 @@ export class WorkflowService {
         private readonly workspaceMemberService: WorkspaceMemberService,
         private readonly userService: UserService,
         private readonly meetingAccessService: MeetingAccessService,
+        private readonly knowledgeIndexService: KnowledgeIndexService,
     ) {}
 
     /* ------------------------------------------------------- tiện ích */
@@ -125,6 +130,19 @@ export class WorkflowService {
         if (!meeting) throw ApiError.NotFound("error-meeting-not-found");
         await this.permissionService.assertOnMeeting(userId, meeting, permission);
         return meeting;
+    }
+
+    /**
+     * Lập chỉ mục tri thức là việc phụ của thao tác nghiệp vụ: bản ghi chính
+     * thức đã lưu thì không được trả lỗi cho người dùng chỉ vì bước này. Thiếu
+     * thì bù bằng POST /workflow/knowledge/reindex.
+     */
+    private async indexQuietly(what: string, run: () => Promise<unknown>) {
+        try {
+            await run();
+        } catch (err) {
+            this.logger.warn(`Không xin lập chỉ mục ${what}: ${err.message}`);
+        }
     }
 
     private async taskFor(
@@ -292,7 +310,7 @@ export class WorkflowService {
 
     /** Chờ duyệt → đã duyệt. Chỉ người có quyền duyệt. */
     async approveMinutes(userId: string, meetingId: string) {
-        await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
         const { minutes, version } = await this.currentMinutes(meetingId);
         this.expectStatus(version.status, MinutesVersionStatus.PENDING_APPROVAL);
         const approved = await this.minutesVersionService.updateById(
@@ -307,6 +325,11 @@ export class WorkflowService {
         await this.meetingMinutesService.updateById(null, minutes._id, {
             approvedVersionId: version._id,
         });
+        // Chỉ bản đã duyệt vào kho hỏi đáp; ai-worker bỏ bản duyệt trước của
+        // cùng cuộc họp.
+        await this.indexQuietly(`biên bản ${version._id}`, () =>
+            this.knowledgeIndexService.indexMinutes(meeting, approved),
+        );
         return approved;
     }
 
@@ -377,6 +400,8 @@ export class WorkflowService {
             editedById: userId,
             editedAt: new Date(),
         };
+        // Mô tả và câu gốc chỉ nằm trong đề xuất; đưa kèm vào kho hỏi đáp.
+        const extra = reviewExtraOf(payload);
         if (item.type === ReviewItemType.ACTION_ITEM) {
             const task = await this.actionItemService.create(null, {
                 workspaceId: meeting.workspaceId,
@@ -400,6 +425,9 @@ export class WorkflowService {
             });
             patch.actionItemId = task._id;
             await this.requestTaskSync(task, meeting, payload);
+            await this.indexQuietly(`công việc ${task._id}`, () =>
+                this.knowledgeIndexService.indexActionItem(meeting, task, extra),
+            );
         } else if (item.type === ReviewItemType.DECISION) {
             const decision = await this.decisionService.create(null, {
                 workspaceId: meeting.workspaceId,
@@ -411,6 +439,9 @@ export class WorkflowService {
                 reviewItemId: item._id,
             });
             patch.decisionId = decision._id;
+            await this.indexQuietly(`quyết định ${decision._id}`, () =>
+                this.knowledgeIndexService.indexDecision(meeting, decision, extra),
+            );
         }
         return this.reviewItemService.updateById(null, item._id, patch);
     }
@@ -480,7 +511,26 @@ export class WorkflowService {
         if (patch.status === ActionItemStatus.BLOCKED && patch.blockedReason) {
             update.description = patch.blockedReason;
         }
-        return this.actionItemService.updateById(null, task._id, update);
+        const updated = await this.actionItemService.updateById(null, task._id, update);
+        // Người làm, hạn, trạng thái đổi thì câu trả lời "ai làm gì" phải đổi theo.
+        if (updated?.meetingId) {
+            await this.indexQuietly(`công việc ${task._id}`, async () => {
+                const meeting = await this.meetingService.getOne(null, {
+                    _id: updated.meetingId,
+                    deletedAt: null,
+                });
+                if (!meeting) return;
+                const review = updated.reviewItemId
+                    ? await this.reviewItemService.getById(null, updated.reviewItemId)
+                    : null;
+                await this.knowledgeIndexService.indexActionItem(
+                    meeting,
+                    updated,
+                    reviewExtraOf(review?.payload),
+                );
+            });
+        }
+        return updated;
     }
 
     async getTaskComments(userId: string, taskId: string) {
@@ -633,6 +683,8 @@ export class WorkflowService {
                 needsReviewReason: "speaker_changed",
             });
         }
+        // Tên người nói đổi: lập lại chỉ mục để câu "ai nói gì" dùng tên mới.
+        await this.meetingProcessingService.indexTranscript(meeting, version._id);
         return { updatedSegments: segments.length };
     }
 

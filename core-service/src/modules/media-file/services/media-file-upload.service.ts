@@ -18,6 +18,22 @@ const AUDIO_MIME = [
     "video/webm",
 ];
 
+/**
+ * Tài liệu cho kho tri thức, theo đuôi tệp. Trình duyệt gửi MIME của .md rất
+ * lộn xộn (text/markdown, text/x-markdown, application/octet-stream, rỗng) nên
+ * xét đuôi rồi ghi MIME chuẩn, để ai-worker chọn đúng cách tách chữ.
+ */
+export const DOCUMENT_MIME_BY_EXT: Record<string, string> = {
+    ".pdf": "application/pdf",
+    ".docx":
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+};
+
+/** Tài liệu tri thức tối đa 20 MB: đủ cho đặc tả, biên bản dài; PDF scan lớn hơn thì tách. */
+export const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
+
 export interface UploadInput {
     workspaceId: string;
     meetingId?: string;
@@ -28,6 +44,16 @@ export interface UploadInput {
     uploadedById?: string;
     durationMs?: number;
     botSessionId?: string;
+}
+
+/**
+ * Multer giải tên tệp multipart theo latin1 nên tên tiếng Việt bị vỡ dấu.
+ * Đọc lại các byte đó theo UTF-8; tên đã có ký tự ngoài latin1 thì để nguyên.
+ */
+export function decodeUploadName(name: string): string {
+    if (!name || /[^\u0000-\u00ff]/.test(name)) return name;
+    const decoded = Buffer.from(name, "latin1").toString("utf8");
+    return decoded.includes("\uFFFD") ? name : decoded;
 }
 
 /**
@@ -50,6 +76,15 @@ export class MediaFileUploadService {
         if (kind === MediaFileKind.AUDIO && !AUDIO_MIME.includes(input.mimetype)) {
             throw ApiError.BadRequest("error-mimetype-invalid");
         }
+        if (kind === MediaFileKind.DOCUMENT) {
+            const mime =
+                DOCUMENT_MIME_BY_EXT[extname(input.originalName).toLowerCase()];
+            if (!mime) throw ApiError.BadRequest("error-document-invalid");
+            if (input.buffer.length > DOCUMENT_MAX_BYTES) {
+                throw ApiError.BadRequest("error-document-too-large");
+            }
+            input = { ...input, mimetype: mime };
+        }
 
         const bucket = this.minioService.getBucket();
         const checksum = createHash("sha256").update(input.buffer).digest("hex");
@@ -60,6 +95,7 @@ export class MediaFileUploadService {
         const existing = await this.mediaFileService.getOne(null, {
             workspaceId: input.workspaceId,
             meetingId: input.meetingId ?? null,
+            kind,
             checksum,
             status: MediaFileStatus.READY,
         });
@@ -82,6 +118,7 @@ export class MediaFileUploadService {
             kind,
             bucket,
             objectKey,
+            originalName: input.originalName,
             mimetype: input.mimetype,
             sizeBytes: input.buffer.length,
             durationMs: input.durationMs,

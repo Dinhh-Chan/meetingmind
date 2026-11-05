@@ -34,6 +34,8 @@ export enum EventType {
     RECORDING_COMPLETED = "recording.completed",
     TASK_SYNC_REQUESTED = "task.sync.requested",
     TASK_SYNC_COMPLETED = "task.sync.completed",
+    KNOWLEDGE_INDEX_REQUESTED = "knowledge.index.requested",
+    KNOWLEDGE_DELETE_REQUESTED = "knowledge.delete.requested",
 }
 
 export interface EventEnvelope<T = Record<string, any>> {
@@ -208,4 +210,54 @@ export interface TaskSyncResult {
 export interface TaskSyncCompletedPayload {
     actionItemId: string;
     results: TaskSyncResult[];
+}
+
+/* ------------------------------------------------------------- tri thức */
+
+export type KnowledgeSourceType =
+    | "transcript"
+    | "minutes"
+    | "decision"
+    | "action_item"
+    | "document";
+
+/** Một đoạn nội dung có sẵn để ai-worker cắt và nhúng vector. */
+export interface KnowledgeItem {
+    text: string;
+    /** Transcript: tên đã gán cho nhãn người nói, không thì chính nhãn. */
+    speaker?: string;
+    startMs?: number;
+    endMs?: number;
+    /** Tiêu đề mục, ví dụ "Tóm tắt", tên quyết định. */
+    title?: string;
+}
+
+/**
+ * Xin ai-worker (lập) chỉ mục một nguồn. AI không đọc DB của Core nên nội dung
+ * đi kèm; riêng tài liệu tải lên thì gửi object key để worker tự tải và tách chữ.
+ */
+export interface KnowledgeIndexRequestedPayload {
+    meetingId: string;
+    projectId?: string;
+    meetingTitle: string;
+    /** ISO 8601. */
+    meetingDate?: string;
+    sourceType: KnowledgeSourceType;
+    /** transcriptVersionId / minutesVersionId / decisionId / actionItemId / fileId. */
+    sourceId: string;
+    sourceVersion?: string;
+    items?: KnowledgeItem[];
+    document?: {
+        bucket: string;
+        objectKey: string;
+        fileName: string;
+        mimetype: string;
+    };
+}
+
+/** Xoá các đoạn khớp mọi trường được gửi (ít nhất một trường). */
+export interface KnowledgeDeleteRequestedPayload {
+    meetingId?: string;
+    sourceType?: KnowledgeSourceType;
+    sourceId?: string;
 }

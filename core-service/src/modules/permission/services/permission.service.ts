@@ -195,6 +195,15 @@ export class PermissionService {
             meetingId: meeting._id,
             projectId: meeting.projectId,
         });
+        return this.grantedOnMeeting(userId, meeting, granted, permission);
+    }
+
+    private grantedOnMeeting(
+        userId: string,
+        meeting: Pick<Meeting, "createdById">,
+        granted: Set<Permission>,
+        permission: Permission,
+    ): boolean {
         if (granted.has(permission)) {
             return true;
         }
@@ -203,6 +212,32 @@ export class PermissionService {
             granted.has(Permission.MEETING_VIEW) &&
             OWN_MEETING_PERMISSIONS.includes(permission)
         );
+    }
+
+    /**
+     * Các cuộc họp mà người này có **đủ mọi** quyền đã cho, cùng luật với
+     * `canOnMeeting`. Danh sách cuộc họp và hỏi đáp tri thức cùng lọc qua đây
+     * để không bao giờ lệch nhau; mỗi cuộc họp chỉ resolve một lần dù xét
+     * nhiều quyền.
+     */
+    async filterMeetings<
+        M extends Pick<Meeting, "_id" | "workspaceId" | "projectId" | "createdById">,
+    >(userId: string, meetings: M[], permissions: Permission[]): Promise<M[]> {
+        const allowed: M[] = [];
+        for (const meeting of meetings) {
+            const granted = await this.resolve(userId, meeting.workspaceId, {
+                meetingId: meeting._id,
+                projectId: meeting.projectId,
+            });
+            if (
+                permissions.every((p) =>
+                    this.grantedOnMeeting(userId, meeting, granted, p),
+                )
+            ) {
+                allowed.push(meeting);
+            }
+        }
+        return allowed;
     }
 
     async assertOnMeeting(

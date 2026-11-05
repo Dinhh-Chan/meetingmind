@@ -4,6 +4,8 @@ import { AgendaItemModule } from "@module/agenda-item/agenda-item.module";
 import { MeetingBotModule } from "@module/meeting-bot/meeting-bot.module";
 import { MeetingAccessModule } from "@module/meeting-access/meeting-access.module";
 import { DecisionModule } from "@module/decision/decision.module";
+import { KnowledgeModule } from "@module/knowledge/knowledge.module";
+import { MediaFileModule } from "@module/media-file/media-file.module";
 import { MeetingMinutesModule } from "@module/meeting-minutes/meeting-minutes.module";
 import { MeetingParticipantModule } from "@module/meeting-participant/meeting-participant.module";
 import { MeetingModule } from "@module/meeting/meeting.module";
@@ -19,7 +21,9 @@ import { WorkspaceMemberModule } from "@module/workspace-member/workspace-member
 import { Module } from "@nestjs/common";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
 import { TaskSyncConsumer } from "./consumers/task-sync.consumer";
+import { KnowledgeController } from "./controllers/knowledge.controller";
 import { WorkflowController } from "./controllers/workflow.controller";
+import { KnowledgeService } from "./services/knowledge.service";
 import { WorkflowService } from "./services/workflow.service";
 
 @Module({
@@ -43,8 +47,10 @@ import { WorkflowService } from "./services/workflow.service";
         MeetingAccessModule,
         MeetingBotModule,
         MeetingProcessingModule,
+        KnowledgeModule,
+        MediaFileModule,
     ],
-    controllers: [WorkflowController],
-    providers: [WorkflowService, TaskSyncConsumer],
+    controllers: [WorkflowController, KnowledgeController],
+    providers: [WorkflowService, KnowledgeService, TaskSyncConsumer],
 })
 export class WorkflowModule {}

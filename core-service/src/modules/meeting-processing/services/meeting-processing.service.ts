@@ -1,4 +1,8 @@
 import { ApiError } from "@config/exception/api-error";
+import {
+    KnowledgeIndexService,
+    KnowledgeMeeting,
+} from "@module/knowledge/services/knowledge-index.service";
 import { MeetingMinutesService } from "@module/meeting-minutes/services/meeting-minutes.service";
 import { MeetingService } from "@module/meeting/services/meeting.service";
 import {
@@ -61,6 +65,7 @@ export class MeetingProcessingService {
         private readonly reviewItemService: ReviewItemService,
         private readonly speakerAliasService: SpeakerAliasService,
         private readonly outboxService: OutboxService,
+        private readonly knowledgeIndexService: KnowledgeIndexService,
     ) {}
 
     /** Bước 5 của luồng: tạo job phiên âm và phát lệnh cho AI. */
@@ -207,7 +212,34 @@ export class MeetingProcessingService {
         );
 
         await this.requestAnalysis(meeting, version._id);
+        await this.indexTranscript(meeting, version._id);
         return version;
+    }
+
+    /**
+     * Xin ai-worker lập chỉ mục transcript hiện tại cho hỏi đáp, cùng cách
+     * dựng đoạn với lệnh phân tích (tên người nói đã gán thay cho nhãn).
+     *
+     * Là việc phụ: lỗi chỉ ghi log, không làm hỏng luồng phiên âm/duyệt đang
+     * chạy — thiếu thì bù bằng POST /workflow/knowledge/reindex.
+     */
+    async indexTranscript(meeting: KnowledgeMeeting, transcriptVersionId: string) {
+        try {
+            const version = await this.transcriptVersionService.getById(
+                null,
+                transcriptVersionId,
+            );
+            return await this.knowledgeIndexService.indexTranscript(
+                meeting,
+                { _id: transcriptVersionId, versionNo: version?.versionNo },
+                await this.analysisSegments(transcriptVersionId),
+            );
+        } catch (err) {
+            this.logger.warn(
+                `Không xin lập chỉ mục transcript ${transcriptVersionId}: ${err.message}`,
+            );
+            return false;
+        }
     }
 
     /**

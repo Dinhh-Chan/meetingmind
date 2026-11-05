@@ -108,6 +108,34 @@
         "actionItemId": "string",
         "results": "array · [{ provider: trello|telegram, status: synced|failed|skipped, externalId?, externalUrl?, error? }]"
       }
+    },
+    "knowledge.index.requested": {
+      "publisher": "core-service",
+      "consumer": "ai-service (ai-worker)",
+      "queue": "ai.jobs",
+      "payload": {
+        "meetingId": "string",
+        "projectId": "string?",
+        "meetingTitle": "string",
+        "meetingDate": "string? · ISO",
+        "sourceType": "transcript | minutes | decision | action_item | document",
+        "sourceId": "string · transcriptVersionId / minutesVersionId / decisionId / actionItemId / fileId",
+        "sourceVersion": "string?",
+        "items": "array? · [{ text, speaker?, startMs?, endMs?, title? }] · nội dung đã có sẵn (transcript, biên bản, quyết định, công việc)",
+        "document": "object? · { bucket, objectKey, fileName, mimetype } · với tài liệu tải lên, ai-worker tự tải từ MinIO và tách chữ",
+        "_rule": "Thay toàn bộ đoạn cũ của cùng (workspaceId, sourceType, sourceId); với transcript và minutes còn xoá đoạn của phiên bản cũ cùng cuộc họp — chỉ phiên bản hiện tại được tìm."
+      }
+    },
+    "knowledge.delete.requested": {
+      "publisher": "core-service",
+      "consumer": "ai-service (ai-worker)",
+      "queue": "ai.jobs",
+      "payload": {
+        "meetingId": "string?",
+        "sourceType": "string?",
+        "sourceId": "string?",
+        "_rule": "Xoá các đoạn khớp mọi trường được gửi (ít nhất một trường)."
+      }
     }
   },
   "rules": [
@@ -116,5 +144,31 @@
     "AI không ghi thẳng bảng nghiệp vụ. Nó trả kết quả, Core quyết định có ghi thành dữ liệu chính thức hay không.",
     "assigneeHint là tên người nói trong transcript, KHÔNG phải userId. Core không tự map sang tài khoản.",
     "Thiếu người thực hiện hoặc deadline thì để trống, không bịa."
-  ]
+  ],
+  "http": {
+    "POST ai-service /internal/knowledge/ask": {
+      "header": "X-Internal-Token: <AI_INTERNAL_TOKEN> (chỉ Core gọi, trong mạng Docker)",
+      "request": {
+        "workspaceId": "string",
+        "question": "string",
+        "meetingIds": "string[] · Core đã lọc theo quyền người hỏi; rỗng thì trả insufficient, không gọi model",
+        "history": "array? · [{ role: user|assistant, content }] tối đa 6 lượt gần nhất"
+      },
+      "response": {
+        "answer": "string · có dấu [n] trỏ tới citations",
+        "list": "string[]?",
+        "insufficient": "boolean",
+        "model": "string",
+        "citations": "array · [{ n, meetingId, meetingTitle, sourceType, sourceId, startMs?, speaker?, quote }]"
+      }
+    },
+    "POST ai-service /internal/knowledge/sources": {
+      "header": "X-Internal-Token",
+      "request": {
+        "workspaceId": "string",
+        "meetingIds": "string[]"
+      },
+      "response": "array · [{ meetingId, meetingTitle, sourceType, sourceId, title, chunks, indexedAt }]"
+    }
+  }
 }

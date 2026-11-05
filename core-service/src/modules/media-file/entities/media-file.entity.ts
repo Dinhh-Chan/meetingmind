@@ -56,6 +56,14 @@ export class MediaFile implements BaseEntity {
     objectKey: string;
 
     /**
+     * Tên tệp gốc lúc tải lên; object key là UUID nên không còn tên này.
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Tên tệp gốc" })
+    originalName?: string;
+
+    /**
      * MIME type
      */
     @IsString()

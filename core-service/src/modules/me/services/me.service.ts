@@ -197,18 +197,11 @@ export class MeService {
             ...(projectId ? { projectId } : {}),
         });
 
-        const visible: Meeting[] = [];
-        for (const meeting of candidates) {
-            if (
-                await this.permissionService.canOnMeeting(
-                    userId,
-                    meeting,
-                    Permission.MEETING_VIEW,
-                )
-            ) {
-                visible.push(meeting);
-            }
-        }
+        const visible = await this.permissionService.filterMeetings(
+            userId,
+            candidates,
+            [Permission.MEETING_VIEW],
+        );
         if (!visible.length) return [];
 
         const ids = visible.map((m) => m._id);

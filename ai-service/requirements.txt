@@ -109,3 +109,7 @@ faster-whisper==1.2.1
 av==18.1.0
 # Tách người nói (diarization) trên CPU: mô hình pyannote dạng ONNX, không cần token Hugging Face.
 sherpa-onnx==2.0.1
+# Tách chữ tài liệu tải lên để hỏi đáp (RAG): PDF và Word.
+pypdf==6.21.4
+python-docx==1.2.0
+lxml==6.1.3

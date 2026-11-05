@@ -290,39 +290,47 @@ class LlmAnalyzer:
         return await asyncio.wait_for(self._stream(client, body), timeout=self.settings.timeout_s)
 
     async def _stream(self, client: httpx.AsyncClient, body: dict[str, Any]) -> str:
-        parts: list[str] = []
-        finish = None
-        async with client.stream("POST", "/chat/completions", json=body) as response:
-            if response.status_code != 200:
-                # Thân lỗi của gateway (402 hết tiền, 404 sai tên model…) giúp biết sửa gì.
-                text = (await response.aread()).decode("utf-8", "replace")
-                raise LlmError(f"HTTP {response.status_code}: {text[:300]}")
-            if "json" in response.headers.get("content-type", ""):
-                # Gateway bỏ qua stream và trả một cục JSON như gọi thường.
-                choice = (json.loads(await response.aread()).get("choices") or [{}])[0]
-                parts.append((choice.get("message") or {}).get("content") or "")
-                finish = choice.get("finish_reason")
-            else:
-                async for line in response.aiter_lines():
-                    line = line.strip()
-                    if not line.startswith("data:"):
-                        continue
-                    data = line[len("data:") :].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                    except ValueError:
-                        continue
-                    if chunk.get("error"):
-                        raise LlmError(f"lỗi giữa luồng: {str(chunk['error'])[:300]}")
-                    for choice in chunk.get("choices") or []:
-                        # Bỏ reasoning_content: chỉ phần nội dung mới là JSON kết quả.
-                        content = (choice.get("delta") or {}).get("content")
-                        if content:
-                            parts.append(content)
-                        if choice.get("finish_reason"):
-                            finish = choice["finish_reason"]
-        if finish == "length":
-            raise LlmError("hết max_tokens trước khi trả xong JSON")
-        return "".join(parts)
+        return await stream_completion(client, body)
+
+
+async def stream_completion(client: httpx.AsyncClient, body: dict[str, Any]) -> str:
+    """Gọi /chat/completions theo luồng, ghép phần nội dung (bỏ phần suy luận).
+
+    Dùng chung cho phân tích biên bản và hỏi đáp (knowledge_qa.py).
+    """
+    parts: list[str] = []
+    finish = None
+    async with client.stream("POST", "/chat/completions", json=body) as response:
+        if response.status_code != 200:
+            # Thân lỗi của gateway (402 hết tiền, 404 sai tên model…) giúp biết sửa gì.
+            text = (await response.aread()).decode("utf-8", "replace")
+            raise LlmError(f"HTTP {response.status_code}: {text[:300]}")
+        if "json" in response.headers.get("content-type", ""):
+            # Gateway bỏ qua stream và trả một cục JSON như gọi thường.
+            choice = (json.loads(await response.aread()).get("choices") or [{}])[0]
+            parts.append((choice.get("message") or {}).get("content") or "")
+            finish = choice.get("finish_reason")
+        else:
+            async for line in response.aiter_lines():
+                line = line.strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[len("data:") :].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                except ValueError:
+                    continue
+                if chunk.get("error"):
+                    raise LlmError(f"lỗi giữa luồng: {str(chunk['error'])[:300]}")
+                for choice in chunk.get("choices") or []:
+                    # Bỏ reasoning_content: chỉ phần nội dung mới là JSON kết quả.
+                    content = (choice.get("delta") or {}).get("content")
+                    if content:
+                        parts.append(content)
+                    if choice.get("finish_reason"):
+                        finish = choice["finish_reason"]
+    if finish == "length":
+        raise LlmError("hết max_tokens trước khi trả xong JSON")
+    return "".join(parts)

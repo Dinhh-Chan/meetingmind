@@ -34,5 +34,10 @@
     "error-user-not-in-workspace": "Người này không thuộc workspace",
     "error-role-invalid": "Vai trò không hợp lệ",
     "error-meeting-url-required": "Cuộc họp cần link Google Meet để mời bot",
-    "error-bot-session-not-found": "Bot không có mặt trong cuộc họp này"
+    "error-bot-session-not-found": "Bot không có mặt trong cuộc họp này",
+    "error-knowledge-unavailable": "Dịch vụ hỏi đáp chưa sẵn sàng",
+    "error-question-empty": "Câu hỏi trống",
+    "error-document-invalid": "Chỉ nhận tài liệu .pdf, .docx, .txt, .md",
+    "error-document-too-large": "Tài liệu vượt quá 20 MB",
+    "error-document-not-found": "Không tìm thấy tài liệu"
 }

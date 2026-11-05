@@ -1,3 +1,4 @@
+import { KnowledgeModule } from "@module/knowledge/knowledge.module";
 import { MeetingMinutesModule } from "@module/meeting-minutes/meeting-minutes.module";
 import { MeetingModule } from "@module/meeting/meeting.module";
 import { MessagingModule } from "@module/messaging/messaging.module";
@@ -26,6 +27,7 @@ import { MeetingProcessingService } from "./services/meeting-processing.service"
         TranscriptSegmentModule,
         TranscriptVersionModule,
         MessagingModule,
+        KnowledgeModule,
     ],
     controllers: [MeetingProcessingController],
     providers: [

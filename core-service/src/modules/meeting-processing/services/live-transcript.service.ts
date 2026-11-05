@@ -171,6 +171,8 @@ export class LiveTranscriptService {
             meeting,
             version._id,
         );
+        // Transcript phụ đề đã chốt: đưa vào kho hỏi đáp như bản phiên âm.
+        await this.meetingProcessingService.indexTranscript(meeting, version._id);
 
         this.logger.log(
             `Chốt transcript trực tiếp cho ${meeting._id}, phiên bản ${version._id}`,
