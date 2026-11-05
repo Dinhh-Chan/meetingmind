@@ -4,7 +4,8 @@ import { DecisionService } from "@module/decision/services/decision.service";
 import {
     KnowledgeAiClient,
     KnowledgeAskResponse,
-    KnowledgeHistoryTurn,
+    KnowledgeCitation,
+    KnowledgeThreadMessage,
 } from "@module/knowledge/services/knowledge-ai.client";
 import {
     KnowledgeIndexService,
@@ -53,16 +54,21 @@ const KNOWLEDGE_READ_PERMISSIONS = [
  */
 const DOCUMENT_EDIT_PERMISSION = Permission.MINUTES_UPDATE_DRAFT;
 
-const MAX_HISTORY_TURNS = 6;
-
 /** Cùng câu với giao diện bản demo (lib/data/knowledge.ts). */
 const INSUFFICIENT_ANSWER =
     "Chưa đủ thông tin trong các cuộc họp bạn có quyền xem.";
 
+/** Thay nội dung câu trả lời cũ khi người đọc đã mất quyền một nguồn của nó. */
+const REDACTED_ANSWER =
+    "Nội dung này trích từ cuộc họp bạn không còn quyền xem.";
+
+export const THREAD_TITLE_MAX = 200;
+
 export interface AskInput {
     workspaceId: string;
     question: string;
-    history?: KnowledgeHistoryTurn[];
+    /** Hỏi tiếp trong hội thoại cũ; thiếu thì AI mở hội thoại mới. */
+    threadId?: string;
 }
 
 /**
@@ -116,32 +122,29 @@ export class KnowledgeService {
         );
     }
 
+    /**
+     * Hỏi trong một hội thoại. Lịch sử do AI đọc từ DB theo threadId, không
+     * nhận từ client: client sửa được lịch sử thì cũng nhét được nội dung tuỳ ý
+     * vào ngữ cảnh. Không có cuộc họp nào vẫn gọi AI để lượt hỏi được lưu — AI
+     * tự trả "chưa đủ thông tin" mà không gọi mô hình.
+     */
     async ask(userId: string, input: AskInput) {
         const question = input.question?.trim();
         if (!question) throw ApiError.BadRequest("error-question-empty");
 
         const meetings = await this.readableMeetings(userId, input.workspaceId);
-        // Không có cuộc họp nào để tìm: khỏi gọi AI, trả lời ngay.
-        if (!meetings.length) {
-            return {
-                answer: INSUFFICIENT_ANSWER,
-                insufficient: true,
-                model: "",
-                citations: [],
-            };
-        }
-
-        const history = (input.history ?? [])
-            .filter((t) => t?.content?.trim())
-            .slice(-MAX_HISTORY_TURNS)
-            .map((t) => ({ role: t.role, content: t.content.trim() }));
         const res = await this.knowledgeAiClient.ask({
             workspaceId: input.workspaceId,
+            userId,
+            threadId: input.threadId || undefined,
             question,
             meetingIds: meetings.map((m) => m._id),
-            history,
         });
-        return this.checkCitations(userId, res, meetings);
+        return {
+            threadId: res.threadId ?? null,
+            messageId: res.messageId ?? null,
+            ...this.checkCitations(userId, res, meetings),
+        };
     }
 
     /**
@@ -174,17 +177,107 @@ export class KnowledgeService {
             list: res.list?.length ? res.list : undefined,
             insufficient: res.insufficient,
             model: res.model,
-            citations: res.citations.map((c) => {
-                const meeting = meetingOf.get(c.meetingId);
-                return {
-                    ...c,
-                    // Tên hiện tại trong Core: cuộc họp có thể đã đổi tên sau khi lập chỉ mục.
-                    meetingTitle: meeting.title,
-                    meetingDate: meetingDateOf(meeting),
-                    projectId: meeting.projectId ?? null,
-                };
-            }),
+            citations: enrichCitations(res.citations, meetingOf),
         };
+    }
+
+    /* ------------------------------------------------------- hội thoại */
+
+    async listThreads(userId: string, workspaceId: string) {
+        await this.permissionService.assert(
+            userId,
+            workspaceId,
+            Permission.CHAT_QUERY,
+        );
+        return this.knowledgeAiClient.listThreads({ workspaceId, userId });
+    }
+
+    /**
+     * Đọc lại hội thoại. Quyền có thể đã đổi từ lúc hỏi (bị rút khỏi dự án,
+     * cuộc họp chuyển riêng tư, bị xoá), nên xét lại từng câu trả lời theo quyền
+     * hiện tại: chỉ cần một nguồn ngoài quyền là che cả câu, vì nội dung câu
+     * trả lời đã tổng hợp từ nguồn đó.
+     */
+    async getThread(userId: string, workspaceId: string, threadId: string) {
+        const meetings = await this.readableMeetings(userId, workspaceId);
+        const thread = await this.knowledgeAiClient.getThread({
+            workspaceId,
+            userId,
+            threadId,
+        });
+        const meetingOf = new Map(meetings.map((m) => [m._id, m]));
+        return {
+            threadId: thread.threadId,
+            title: thread.title,
+            messages: thread.messages.map((m) =>
+                this.recheckMessage(m, meetingOf),
+            ),
+        };
+    }
+
+    private recheckMessage(
+        message: KnowledgeThreadMessage,
+        meetingOf: Map<string, Meeting>,
+    ) {
+        const citations = Array.isArray(message.citations)
+            ? message.citations
+            : [];
+        const base = {
+            messageId: message.messageId,
+            role: message.role,
+            insufficient: Boolean(message.insufficient),
+            model: message.model,
+            createdAt: message.createdAt,
+        };
+        if (message.role !== "assistant") {
+            return { ...base, content: message.content, citations: [] };
+        }
+        if (citations.some((c) => !meetingOf.has(c?.meetingId))) {
+            return {
+                ...base,
+                content: REDACTED_ANSWER,
+                citations: [],
+                redacted: true,
+            };
+        }
+        return {
+            ...base,
+            content: message.content,
+            list: message.list?.length ? message.list : undefined,
+            citations: enrichCitations(citations, meetingOf),
+        };
+    }
+
+    async renameThread(
+        userId: string,
+        input: { workspaceId: string; threadId: string; title: string },
+    ) {
+        const title = input.title?.trim().slice(0, THREAD_TITLE_MAX);
+        if (!title) throw ApiError.BadRequest("error-thread-title-empty");
+        await this.permissionService.assert(
+            userId,
+            input.workspaceId,
+            Permission.CHAT_QUERY,
+        );
+        return this.knowledgeAiClient.renameThread({
+            workspaceId: input.workspaceId,
+            userId,
+            threadId: input.threadId,
+            title,
+        });
+    }
+
+    async deleteThread(userId: string, workspaceId: string, threadId: string) {
+        await this.permissionService.assert(
+            userId,
+            workspaceId,
+            Permission.CHAT_QUERY,
+        );
+        return this.knowledgeAiClient.deleteThread({
+            workspaceId,
+            userId,
+            threadId,
+        });
     }
 
     /** Nguồn đã lập chỉ mục của các cuộc họp người này được hỏi. */
@@ -452,6 +545,22 @@ export class KnowledgeService {
         }
         return { deleted: true, fileId: file._id };
     }
+}
+
+/** Tên, ngày hiện tại trong Core: cuộc họp có thể đã đổi tên sau khi lập chỉ mục. */
+function enrichCitations(
+    citations: KnowledgeCitation[],
+    meetingOf: Map<string, Meeting>,
+) {
+    return citations.map((c) => {
+        const meeting = meetingOf.get(c.meetingId);
+        return {
+            ...c,
+            meetingTitle: meeting.title,
+            meetingDate: meetingDateOf(meeting),
+            projectId: meeting.projectId ?? null,
+        };
+    });
 }
 
 function toDocument(file: MediaFile) {

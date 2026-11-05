@@ -13,7 +13,7 @@ from app.core.router import router
 from app.models import Base
 from app.core.database import engine
 from app.core.config import settings
-from app.worker import knowledge_store
+from app.worker import knowledge_store, knowledge_threads
 from app.utils.exception_handler import (
     CustomException,
     fastapi_error_handler,
@@ -29,8 +29,10 @@ Base.metadata.create_all(bind=engine)
 async def lifespan(_: FastAPI):
     try:
         await asyncio.to_thread(knowledge_store.ensure_schema)
+        # Lịch sử hội thoại chỉ ai-service dùng nên tạo ở đây, ai-worker không cần.
+        await asyncio.to_thread(knowledge_threads.ensure_schema)
     except Exception as err:  # noqa: BLE001 - lần hỏi đầu tiên sẽ thử tạo lại
-        logging.getLogger("app.knowledge").warning("Chưa tạo được bảng chỉ mục hỏi đáp: %s", err)
+        logging.getLogger("app.knowledge").warning("Chưa tạo được bảng hỏi đáp: %s", err)
     yield
 
 

@@ -150,17 +150,21 @@
       "header": "X-Internal-Token: <AI_INTERNAL_TOKEN> (chỉ Core gọi, trong mạng Docker)",
       "request": {
         "workspaceId": "string",
+        "userId": "string · người hỏi (Core lấy từ token)",
+        "threadId": "string? · thiếu thì tạo hội thoại mới, tiêu đề lấy từ câu hỏi",
         "question": "string",
-        "meetingIds": "string[] · Core đã lọc theo quyền người hỏi; rỗng thì trả insufficient, không gọi model",
-        "history": "array? · [{ role: user|assistant, content }] tối đa 6 lượt gần nhất"
+        "meetingIds": "string[] · Core đã lọc theo quyền; rỗng thì trả insufficient, không gọi model (vẫn lưu lượt hỏi)"
       },
       "response": {
-        "answer": "string · có dấu [n] trỏ tới citations",
+        "threadId": "string",
+        "messageId": "string",
+        "answer": "string",
         "list": "string[]?",
         "insufficient": "boolean",
         "model": "string",
         "citations": "array · [{ n, meetingId, meetingTitle, sourceType, sourceId, startMs?, speaker?, quote }]"
-      }
+      },
+      "_rule": "Ngữ cảnh lượt trước (tối đa 6 tin) đọc từ DB theo threadId, không nhận từ client. threadId không thuộc (workspaceId, userId) → 404."
     },
     "POST ai-service /internal/knowledge/sources": {
       "header": "X-Internal-Token",
@@ -169,6 +173,43 @@
         "meetingIds": "string[]"
       },
       "response": "array · [{ meetingId, meetingTitle, sourceType, sourceId, title, chunks, indexedAt }]"
-    }
+    },
+    "POST ai-service /internal/knowledge/threads/list": {
+      "header": "X-Internal-Token",
+      "request": {
+        "workspaceId": "string",
+        "userId": "string"
+      },
+      "response": "array · [{ threadId, title, messageCount, createdAt, updatedAt }] mới nhất trước, bỏ hội thoại đã xoá"
+    },
+    "POST ai-service /internal/knowledge/threads/get": {
+      "header": "X-Internal-Token",
+      "request": {
+        "workspaceId": "string",
+        "userId": "string",
+        "threadId": "string"
+      },
+      "response": "{ threadId, title, messages: [{ messageId, role: user|assistant, content, list?, citations, insufficient, model?, createdAt }] } · 404 nếu không thuộc người dùng"
+    },
+    "POST ai-service /internal/knowledge/threads/rename": {
+      "header": "X-Internal-Token",
+      "request": {
+        "workspaceId": "string",
+        "userId": "string",
+        "threadId": "string",
+        "title": "string"
+      },
+      "response": "{ threadId, title }"
+    },
+    "POST ai-service /internal/knowledge/threads/delete": {
+      "header": "X-Internal-Token",
+      "request": {
+        "workspaceId": "string",
+        "userId": "string",
+        "threadId": "string"
+      },
+      "response": "{ deleted: true } · xoá mềm (deletedAt)"
+    },
+    "_storage": "ai.chat_threads, ai.chat_messages theo DATABASE_DESIGN.md; Core là bên kiểm quyền: khi đọc lại hội thoại, Core che nội dung tin trả lời có trích dẫn tới cuộc họp người dùng không còn được xem."
   }
 }

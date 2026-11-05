@@ -21,7 +21,8 @@ const AUDIO_MIME = [
 /**
  * Tài liệu cho kho tri thức, theo đuôi tệp. Trình duyệt gửi MIME của .md rất
  * lộn xộn (text/markdown, text/x-markdown, application/octet-stream, rỗng) nên
- * xét đuôi rồi ghi MIME chuẩn, để ai-worker chọn đúng cách tách chữ.
+ * xét đuôi rồi ghi MIME chuẩn, để ai-worker chọn đúng cách tách chữ. Ảnh (chụp
+ * bảng trắng, slide) thì ai-worker đọc bằng OCR.
  */
 export const DOCUMENT_MIME_BY_EXT: Record<string, string> = {
     ".pdf": "application/pdf",
@@ -29,9 +30,13 @@ export const DOCUMENT_MIME_BY_EXT: Record<string, string> = {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".txt": "text/plain",
     ".md": "text/markdown",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
 };
 
-/** Tài liệu tri thức tối đa 20 MB: đủ cho đặc tả, biên bản dài; PDF scan lớn hơn thì tách. */
+/** Tài liệu tri thức (cả ảnh) tối đa 20 MB: đủ cho đặc tả, biên bản dài; PDF scan lớn hơn thì tách. */
 export const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
 
 export interface UploadInput {

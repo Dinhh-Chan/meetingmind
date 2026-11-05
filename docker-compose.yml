@@ -291,6 +291,9 @@ services:
       # Nhúng vector khi lập chỉ mục hỏi đáp (knowledge.index.requested); dùng
       # chung key FPT ở trên. Phải trùng AI_EMBEDDING_MODEL của ai-service.
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-Vietnamese_Embedding}
+      # Số trang PDF scan tối đa được OCR mỗi tài liệu (Tesseract trong
+      # container, vài giây/trang); trang vượt quá chỉ dùng lớp chữ sẵn có.
+      AI_OCR_MAX_PAGES: ${AI_OCR_MAX_PAGES:-50}
       SECRET_KEY: meetingmind_ai_secret
       POSTGRES_DB: meetingmind
       POSTGRES_USER: mm_ai

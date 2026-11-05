@@ -1,3 +1,4 @@
+import { KnowledgeModule } from "@module/knowledge/knowledge.module";
 import { MeetingAccessModule } from "@module/meeting-access/meeting-access.module";
 import { Entity } from "@module/repository";
 import { RepositoryProvider } from "@module/repository/common/repository";
@@ -9,7 +10,8 @@ import { MeetingSqlRepository } from "./repositories/meeting-sql.repository";
 import { MeetingService } from "./services/meeting.service";
 
 @Module({
-    imports: [MeetingAccessModule],
+    // KnowledgeModule: xoá cuộc họp thì xin AI xoá chỉ mục của nó.
+    imports: [MeetingAccessModule, KnowledgeModule],
     controllers: [MeetingController],
     providers: [
         MeetingService,

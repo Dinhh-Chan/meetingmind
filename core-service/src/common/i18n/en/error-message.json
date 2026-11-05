@@ -30,7 +30,9 @@
     "error-bot-session-not-found": "No active bot session for this meeting",
     "error-knowledge-unavailable": "Knowledge Q&A service is not available",
     "error-question-empty": "Question is empty",
-    "error-document-invalid": "Only .pdf, .docx, .txt, .md documents are accepted",
+    "error-document-invalid": "Only .pdf, .docx, .txt, .md documents or .png, .jpg, .jpeg, .webp images are accepted",
     "error-document-too-large": "Document exceeds 20 MB",
-    "error-document-not-found": "Document not found"
+    "error-document-not-found": "Document not found",
+    "error-thread-not-found": "Conversation not found",
+    "error-thread-title-empty": "Conversation title is empty"
 }

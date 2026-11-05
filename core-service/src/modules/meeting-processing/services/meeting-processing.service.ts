@@ -37,6 +37,17 @@ import { TranscriptVersionSource } from "@module/transcript-version/common/const
 import { TranscriptVersionService } from "@module/transcript-version/services/transcript-version.service";
 import { Injectable, Logger } from "@nestjs/common";
 
+/**
+ * Phụ đề Google Meet ghi chính người đang xem là "You"/"Bạn" (theo ngôn ngữ
+ * giao diện Meet); extension gửi nguyên văn nhãn đó. Cùng tập với
+ * `SELF_LABELS` ở giao diện (lib/api/adapters.ts).
+ */
+const SELF_SPEAKER_LABELS = new Set(["you", "bạn"]);
+
+const isSelfLabel = (label?: string | null) =>
+    !!label &&
+    SELF_SPEAKER_LABELS.has(label.normalize("NFC").trim().toLowerCase());
+
 export interface StartTranscriptionDto {
     meetingId: string;
     bucket: string;
@@ -305,7 +316,9 @@ export class MeetingProcessingService {
      * Transcript gửi kèm lệnh phân tích, theo đúng thứ tự nói.
      *
      * Nhãn người nói đã được đặt tên thì gửi tên: AI ghi người thực hiện theo
-     * tên xuất hiện trong transcript (assigneeHint).
+     * tên xuất hiện trong transcript (assigneeHint). Nhãn "You"/"Bạn" của phụ
+     * đề Meet chưa ai đặt tên thì là người tạo cuộc họp (người cài extension) —
+     * để nguyên thì AI giao việc cho "You" và hỏi đáp trả lời "Bạn nói…".
      */
     private async analysisSegments(
         transcriptVersionId: string,
@@ -319,16 +332,38 @@ export class MeetingProcessingService {
                 .filter((a) => a.displayName && a.displayName !== a.speakerLabel)
                 .map((a) => [a.speakerLabel, a.displayName]),
         );
+        const self = segments.find(
+            (s) => isSelfLabel(s.speakerLabel) && !names.has(s.speakerLabel),
+        );
+        const selfName = self
+            ? await this.creatorName(self.meetingId)
+            : undefined;
         return [...segments]
             .sort((a, b) => a.sequence - b.sequence)
             .map((segment) => ({
                 sequence: segment.sequence,
-                speaker: names.get(segment.speakerLabel) ?? segment.speakerLabel,
+                speaker:
+                    names.get(segment.speakerLabel) ??
+                    (selfName && isSelfLabel(segment.speakerLabel)
+                        ? selfName
+                        : segment.speakerLabel),
                 text: segment.text,
                 startMs: segment.startMs,
                 endMs: segment.endMs,
                 language: segment.language ?? undefined,
             }));
+    }
+
+    /** Tên hiển thị của người tạo cuộc họp (fullname, không có thì username). */
+    private async creatorName(meetingId: string) {
+        const meeting = await this.meetingService.getOne(null, {
+            _id: meetingId,
+        });
+        if (!meeting?.createdById) return undefined;
+        const names = await this.knowledgeIndexService.userNames([
+            meeting.createdById,
+        ]);
+        return names.get(meeting.createdById);
     }
 
     /** Bước 9: biến kết quả AI thành biên bản nháp và hàng đợi duyệt. */

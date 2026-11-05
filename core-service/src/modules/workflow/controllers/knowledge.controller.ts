@@ -7,6 +7,7 @@ import {
     Delete,
     Get,
     Param,
+    Patch,
     Post,
     Query,
     UploadedFile,
@@ -14,29 +15,14 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBody, ApiConsumes, ApiTags } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { IsOptional, IsString, MaxLength } from "class-validator";
 import {
-    ArrayMaxSize,
-    IsArray,
-    IsIn,
-    IsOptional,
-    IsString,
-    MaxLength,
-    ValidateNested,
-} from "class-validator";
-import { KnowledgeService } from "../services/knowledge.service";
+    KnowledgeService,
+    THREAD_TITLE_MAX,
+} from "../services/knowledge.service";
 
 /* ----------------------------------------------------------------- DTO */
 // Khai trước controller: decorator đọc các lớp này ngay lúc định nghĩa class.
-
-class HistoryTurnDto {
-    @IsIn(["user", "assistant"])
-    role: "user" | "assistant";
-
-    @IsString()
-    @MaxLength(4000)
-    content: string;
-}
 
 export class KnowledgeAskBodyDto {
     @IsString()
@@ -46,18 +32,28 @@ export class KnowledgeAskBodyDto {
     @MaxLength(2000)
     question: string;
 
-    /** Vài lượt hỏi đáp gần nhất để hiểu câu hỏi nối tiếp; Core chỉ giữ 6 lượt cuối. */
+    /**
+     * Hỏi tiếp trong hội thoại này; AI tự đọc các lượt trước từ DB. Client cũ
+     * còn gửi `history` thì bị whitelist bỏ đi, không lọt vào ngữ cảnh.
+     */
     @IsOptional()
-    @IsArray()
-    @ArrayMaxSize(20)
-    @ValidateNested({ each: true })
-    @Type(() => HistoryTurnDto)
-    history?: HistoryTurnDto[];
+    @IsString()
+    @MaxLength(64)
+    threadId?: string;
 }
 
 export class WorkspaceBodyDto {
     @IsString()
     workspaceId: string;
+}
+
+export class RenameThreadBodyDto {
+    @IsString()
+    workspaceId: string;
+
+    @IsString()
+    @MaxLength(THREAD_TITLE_MAX)
+    title: string;
 }
 
 /* ---------------------------------------------------------- controller */
@@ -76,6 +72,47 @@ export class KnowledgeController {
     @Post("knowledge/ask")
     ask(@ReqUser() user: User, @Body() dto: KnowledgeAskBodyDto) {
         return this.knowledgeService.ask(user._id, dto);
+    }
+
+    /* hội thoại: người dùng lấy từ token, client không chọn được hội thoại của người khác */
+
+    @Get("knowledge/threads")
+    listThreads(
+        @ReqUser() user: User,
+        @Query("workspaceId") workspaceId: string,
+    ) {
+        return this.knowledgeService.listThreads(user._id, workspaceId);
+    }
+
+    @Get("knowledge/threads/:id")
+    getThread(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Query("workspaceId") workspaceId: string,
+    ) {
+        return this.knowledgeService.getThread(user._id, workspaceId, id);
+    }
+
+    @Patch("knowledge/threads/:id")
+    renameThread(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Body() dto: RenameThreadBodyDto,
+    ) {
+        return this.knowledgeService.renameThread(user._id, {
+            workspaceId: dto.workspaceId,
+            threadId: id,
+            title: dto.title,
+        });
+    }
+
+    @Delete("knowledge/threads/:id")
+    deleteThread(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Query("workspaceId") workspaceId: string,
+    ) {
+        return this.knowledgeService.deleteThread(user._id, workspaceId, id);
     }
 
     @Get("knowledge/sources")

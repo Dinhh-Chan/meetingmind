@@ -20,6 +20,8 @@ export type ErrorCode =
     | "error-document-invalid"
     | "error-document-too-large"
     | "error-document-not-found"
+    | "error-thread-not-found"
+    | "error-thread-title-empty"
     | "error-user-not-in-workspace"
     | "error-role-invalid"
     | "error-user-exist"

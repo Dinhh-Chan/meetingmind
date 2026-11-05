@@ -17,6 +17,8 @@ from app.worker.knowledge_qa import (
     KnowledgeQA,
     QaSettings,
     best_quote,
+    _quote_candidates,
+    terms,
     build_qa_messages,
     finalize,
     renumber,
@@ -129,6 +131,12 @@ def test_finalize_list_and_fallback_citations():
     assert result["answer"] == "Chốt PostgreSQL. [1]" and len(result["citations"]) == 1
 
 
+def test_marker_after_period_still_guides_quote():
+    row = {"source_type": "action_item", "source_id": "ai9", "meeting_id": "m1", "content": "Hoàn thành bản thử nghiệm\nNgười thực hiện: Hùng\nHạn: 18/11/2026", "metadata": {}}
+    result = finalize({"answer": "Hạn của Hùng là ngày 18/11/2026. [1]"}, [row], "Hạn của Hùng là khi nào?", "m")
+    assert result["citations"][0]["quote"] == "Hạn: 18/11/2026"
+
+
 def test_best_quote_clips_long_sentence():
     row = {"source_type": "document", "content": ("chữ " * 100) + "VNPay hạn 18/11 " + ("đuôi " * 100), "metadata": {}}
     quote, start_ms, speaker = best_quote(row, {"vnpay"})
@@ -179,7 +187,7 @@ class Gateway:
         return httpx.Response(404)
 
 
-def make_qa(gateway: Gateway, rows=ROWS, searched: list | None = None) -> KnowledgeQA:
+def make_qa(gateway: Gateway, rows=ROWS, searched: list | None = None, threads=None) -> KnowledgeQA:
     transport = httpx.MockTransport(gateway)
 
     def search(workspace_id, meeting_ids, vector, limit):
@@ -189,7 +197,7 @@ def make_qa(gateway: Gateway, rows=ROWS, searched: list | None = None) -> Knowle
 
     settings = QaSettings(base_url="https://gw.test/v1", api_key="k", model="main", fallback_model="backup")
     embedder = EmbeddingClient(EmbeddingSettings(base_url="https://gw.test/v1", api_key="k", retry_delay_s=0), transport=transport)
-    return KnowledgeQA(settings=settings, search=search, list_sources=lambda *_: [], embedder=embedder, transport=transport)
+    return KnowledgeQA(settings=settings, search=search, list_sources=lambda *_: [], embedder=embedder, transport=transport, threads=threads)
 
 
 def test_empty_meeting_ids_short_circuits_without_any_call():
@@ -290,3 +298,24 @@ def test_embeddings_errors():
 
     with pytest.raises(EmbeddingError, match="AI_LLM_API_KEY"):
         asyncio.run(EmbeddingClient(EmbeddingSettings(api_key="")).embed(["a"]))
+
+
+def test_best_quote_prefers_corrected_figure():
+    """Câu trả lời nói "18/11" thì không được trích câu "15 tháng 11" trước khi đính chính."""
+    row = {
+        "source_type": "transcript",
+        "content": "[00:49] Hùng: Em đang tích hợp VNPay. Chắc ngày 15 tháng 11 xong bản đầu. À không, ngày 18 đi chị, vì hôm 15 em bận.",
+        "metadata": {},
+        "start_ms": 49000,
+    }
+    question = terms("Hạn bản đầu tích hợp VNPay là ngày nào?")
+    answer = terms("Hạn bản đầu tích hợp VNPay là ngày 18 tháng 11.")
+    quote, start_ms, speaker = best_quote(row, question, answer)
+    assert "18" in quote
+    assert speaker == "Hùng"
+
+
+def test_quote_candidates_pair_correction():
+    candidates = _quote_candidates("Chắc ngày 15 xong. À không, ngày 18 đi chị.")
+    assert "Chắc ngày 15 xong. À không, ngày 18 đi chị." in candidates
+    assert _quote_candidates("Ok. Chốt PostgreSQL.") == ["Ok.", "Chốt PostgreSQL."]

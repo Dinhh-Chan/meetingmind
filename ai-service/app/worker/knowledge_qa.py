@@ -17,6 +17,13 @@ Các bước, đều qua FPT AI Factory (dữ liệu không ra ngoài FPT):
 Model hay đánh số trích dẫn lộn xộn ([3] rồi [1], trích nguồn không có), nên
 phía này tự đánh lại 1..k theo thứ tự xuất hiện và tự chọn câu trích từ đoạn
 nguồn, không tin câu trích model chép lại.
+
+Hội thoại (chat): ngữ cảnh lượt trước đọc từ ai.chat_messages theo threadId
+(knowledge_threads.py), không nhận từ client; hỏi xong lưu cả câu hỏi lẫn câu
+trả lời đã đánh lại số, kể cả khi trả "chưa đủ thông tin". Câu hỏi nối tiếp
+("hạn của người đó?") được viết lại thành câu đủ nghĩa ("hạn của Hùng?")
+trước khi tìm và trả lời: đại từ không tìm ra đoạn nào, còn model trả lời
+thì bám chữ, hỏi mơ hồ là từ chối.
 """
 
 import asyncio
@@ -26,6 +33,7 @@ import re
 import time
 import unicodedata
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 import httpx
@@ -38,6 +46,13 @@ from app.worker.knowledge_chunker import (
     embed_text,
     fmt_ts,
     parse_line,
+)
+from app.worker.knowledge_threads import (
+    HISTORY_MESSAGES,
+    ThreadNotFound,
+    ThreadStore,
+    new_id,
+    thread_title,
 )
 from app.worker.llm_analyzer import LlmError, parse_json, stream_completion
 
@@ -60,6 +75,15 @@ Quy tắc:
 
 Chỉ trả về một object JSON, không kèm giải thích:
 {{"answer": "câu trả lời có [n]", "list": ["mục có [n]"], "citations": [1], "insufficient": false}}"""
+
+REWRITE_PROMPT = """Bạn chuẩn bị câu hỏi để tra cứu nội dung các cuộc họp. Cho đoạn HỘI THOẠI trước và CÂU HỎI MỚI, hãy viết lại CÂU HỎI MỚI thành câu hỏi đủ nghĩa khi đứng một mình:
+- Đại từ, từ chỉ trỏ ("người đó", "anh ấy", "việc đó", "hôm đó"…) thì thay bằng đúng tên người, tên việc, thời điểm mà nó trỏ tới trong hội thoại. Chỉ thay đúng chỗ đó, không thêm chi tiết nào khác vào câu hỏi.
+- Câu hỏi mới bị lược ý ("còn thanh toán thì sao?") thì bổ sung phần bị lược theo hội thoại.
+- Không trả lời câu hỏi, không thêm thông tin mà hội thoại không có.
+- Câu hỏi mới đã đủ nghĩa hoặc chuyển sang chủ đề khác thì giữ nguyên.
+- Giữ ngôn ngữ của câu hỏi mới.
+
+Chỉ trả về một object JSON: {"question": "câu hỏi đã viết lại"}"""
 
 # Từ chức năng hay gặp: không giúp chọn câu trích nào sát câu hỏi hơn.
 STOPWORDS = frozenset(
@@ -98,6 +122,10 @@ class QaSettings:
     temperature: float = 0.1
     timeout_s: float = 60.0
     rerank_timeout_s: float = 20.0
+    # Viết lại câu hỏi nối tiếp: việc nhỏ, dùng model nhanh; để trống thì tắt
+    # (lùi về ghép lượt hỏi đáp trước vào câu tìm kiếm).
+    rewrite_model: str = "GLM-5.2"
+    rewrite_timeout_s: float = 15.0
 
     @classmethod
     def from_env(cls) -> "QaSettings":
@@ -108,6 +136,7 @@ class QaSettings:
             rerank_model=env("AI_RERANK_MODEL", cls.rerank_model),
             model=env("AI_QA_MODEL", cls.model),
             fallback_model=env("AI_QA_FALLBACK_MODEL", cls.fallback_model),
+            rewrite_model=env("AI_QA_REWRITE_MODEL", env("AI_QA_MODEL", cls.rewrite_model)),
             relevance_floor=float(env("AI_QA_RELEVANCE_FLOOR", str(cls.relevance_floor))),
             timeout_s=float(env("AI_QA_TIMEOUT_S", str(cls.timeout_s))),
         )
@@ -128,12 +157,44 @@ def insufficient(model: str) -> dict[str, Any]:
     return {"answer": INSUFFICIENT_ANSWER, "insufficient": True, "model": model, "citations": []}
 
 
+def history_turns(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Tin đã lưu → lượt hội thoại cho model.
+
+    Câu trả lời dạng danh sách có câu dẫn rất ngắn, nội dung nằm ở "list"; bỏ
+    list đi thì câu hỏi nối tiếp ("hạn của việc thứ hai?") mất chỗ dựa.
+    """
+    turns = []
+    for message in messages:
+        content = str(message.get("content") or "")
+        items = message.get("list") or []
+        if items:
+            content = "\n".join([content, *(f"- {item}" for item in items)])
+        turns.append({"role": message.get("role"), "content": content})
+    return turns
+
+
 def retrieval_query(question: str, history: list[dict[str, str]] | None) -> str:
-    """Câu hỏi nối tiếp ("ai làm việc đó?") thiếu chủ ngữ; ghép câu hỏi trước để tìm đúng chủ đề."""
-    previous = [h.get("content", "") for h in history or [] if h.get("role") == "user" and str(h.get("content", "")).strip()]
-    if previous:
-        return f"{previous[-1][:500]}\n{question}"
-    return question
+    """Câu hỏi nối tiếp ("ai làm việc đó?") thiếu chủ ngữ; ghép lượt hỏi đáp trước để tìm đúng chủ đề.
+
+    Ghép cả câu trả lời trước: đại từ ("hạn của người đó?") trỏ tới thứ câu
+    TRẢ LỜI nêu ra (Hùng), câu hỏi trước không có tên đó nên tìm không ra.
+    """
+    previous_question = previous_answer = ""
+    for turn in history or []:
+        content = str(turn.get("content") or "").strip()
+        if not content:
+            continue
+        if turn.get("role") == "user":
+            previous_question, previous_answer = content, ""
+        elif turn.get("role") == "assistant" and previous_question:
+            previous_answer = content
+    if not previous_question:
+        return question
+    parts = [previous_question[:500]]
+    # Câu từ chối không chứa thông tin gì, ghép vào chỉ làm lệch kết quả tìm.
+    if previous_answer and not _norm(previous_answer).startswith(_norm(INSUFFICIENT_ANSWER)[:30]):
+        parts.append(_CITE_WITH_SPACE_RE.sub("", previous_answer)[:500])
+    return "\n".join([*parts, question])
 
 
 def select_sources(
@@ -199,6 +260,28 @@ def build_qa_messages(
     return messages
 
 
+def build_rewrite_messages(question: str, history: list[dict[str, str]]) -> list[dict[str, str]]:
+    lines = []
+    for turn in history:
+        # Bỏ [n]: số trích dẫn vô nghĩa với bước viết lại, model dễ chép theo.
+        content = _CITE_WITH_SPACE_RE.sub("", str(turn.get("content") or "")).strip()[:500]
+        if turn.get("role") in ("user", "assistant") and content:
+            lines.append(f"{'Người hỏi' if turn['role'] == 'user' else 'Trợ lý'}: {content}")
+    conversation = "\n".join(lines)
+    return [
+        {"role": "system", "content": REWRITE_PROMPT},
+        {"role": "user", "content": f"HỘI THOẠI:\n{conversation}\n\nCÂU HỎI MỚI: {question}"},
+    ]
+
+
+def parse_rewrite(raw: dict[str, Any], question: str) -> str | None:
+    value = " ".join(_string(raw.get("question")).split())
+    # Dài bất thường thường là model trả lời luôn thay vì viết lại câu hỏi.
+    if not value or len(value) > max(300, 3 * len(question)):
+        return None
+    return value
+
+
 def _numbers(group: str) -> list[int]:
     return [int(x) for x in re.findall(r"\d{1,2}", group)]
 
@@ -234,6 +317,39 @@ def renumber(answer: str, items: list[str], k: int) -> tuple[str, list[str], lis
 
 def _sentences(text: str) -> list[str]:
     return [s.strip() for s in re.split(r"(?<=[.!?…])\s+", text) if s.strip()]
+
+
+# Câu mở đầu bằng các cụm này đang sửa lại câu ngay trước nó.
+CORRECTION_RE = re.compile(r"^(à|á|ơ|ờ)?\s*(không|nhầm|à nhầm|sửa lại|thôi|ý (em|anh|chị|tôi) là)\b", re.IGNORECASE)
+
+
+def _quote_candidates(text: str) -> list[str]:
+    """Các câu của một dòng, cộng thêm cặp "câu + câu đính chính ngay sau".
+
+    "Chắc ngày 15 xong. À không, ngày 18 đi chị." — trích riêng câu đầu thì
+    sai ý, trích riêng câu sau thì thiếu ngữ cảnh; trích cả cặp mới trung thực.
+    """
+    sentences = _sentences(text) or [text]
+    out = list(sentences)
+    for first, second in zip(sentences, sentences[1:]):
+        if CORRECTION_RE.match(unicodedata.normalize("NFC", second).strip()):
+            out.append(first + " " + second)
+    return out
+
+
+def _claims(text: str) -> list[str]:
+    """Câu của câu trả lời, dấu [n] đứng sau dấu chấm ("… 18/11. [1]") gộp về câu trước nó.
+
+    Không gộp thì [1] thành "câu" rỗng chữ, câu trích không được chấm theo
+    nội dung câu trả lời nữa.
+    """
+    claims: list[str] = []
+    for sentence in _sentences(text):
+        if claims and not CITE_RE.sub("", sentence).strip():
+            claims[-1] += " " + sentence
+        else:
+            claims.append(sentence)
+    return claims
 
 
 def _clip(text: str, wanted: set[str], limit: int = QUOTE_MAX_CHARS) -> str:
@@ -278,9 +394,16 @@ def best_quote(
             parsed_start, speaker, text = parse_line(line)
             exact = line_starts[index] if index < len(line_starts) else None
             start_ms = exact if exact is not None else parsed_start
-        for sentence in _sentences(text) or [text]:
+        for sentence in _quote_candidates(text):
             found = terms(sentence)
             score = 2 * len(found & question_terms) + len(found & answer_terms)
+            # Con số quyết định đúng sai ("ngày 18" hay "ngày 15"): số có trong câu
+            # trả lời được cộng nặng, số lạ bị trừ, để không trích câu trước khi
+            # người nói đính chính.
+            numbers = {t for t in found if t.isdigit()}
+            answer_numbers = {t for t in answer_terms if t.isdigit()}
+            if answer_numbers:
+                score += 3 * len(numbers & answer_numbers) - 2 * len(numbers - answer_numbers)
             # Điểm bằng nhau thì giữ câu đứng trước.
             if best is None or score > best[0]:
                 best = (score, sentence, start_ms, speaker)
@@ -333,7 +456,7 @@ def finalize(raw: dict[str, Any], sources: list[dict[str, Any]], question: str, 
             log.warning("Câu trả lời không có trích dẫn nào (model %s)", model)
 
     question_terms = terms(question)
-    sentences = _sentences(answer) + items
+    sentences = _claims(answer) + items
     citations = []
     for new_n, old_n in enumerate(order, 1):
         row = sources[old_n - 1]
@@ -394,12 +517,71 @@ class KnowledgeQA:
         list_sources: Callable[..., list[dict[str, Any]]] | None = None,
         embedder: EmbeddingClient | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
+        threads: ThreadStore | None = None,
     ) -> None:
         self.settings = settings or QaSettings.from_env()
         self._search = search or knowledge_store.search
         self._list_sources = list_sources or knowledge_store.list_sources
         self._transport = transport
         self._embedder = embedder or EmbeddingClient(transport=transport)
+        self._threads = threads or ThreadStore()
+
+    async def chat(
+        self,
+        workspace_id: str,
+        user_id: str,
+        question: str,
+        meeting_ids: list[str] | None,
+        thread_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Hỏi trong một hội thoại: kiểm chủ → đọc ngữ cảnh từ DB → trả lời → lưu lượt hỏi đáp.
+
+        Hội thoại mới chỉ được ghi cùng lúc với câu trả lời: model lỗi thì
+        không để lại hội thoại rỗng trong danh sách.
+        """
+        question = question.strip()
+        asked_at = datetime.now(timezone.utc)
+        create = not thread_id
+        if create:
+            thread_id, history = new_id(), []
+        else:
+            thread = await asyncio.to_thread(self._threads.find, workspace_id, user_id, thread_id)
+            if thread is None:
+                raise ThreadNotFound(thread_id)
+            stored = await asyncio.to_thread(self._threads.recent_messages, workspace_id, thread_id, HISTORY_MESSAGES)
+            history = history_turns(stored)
+
+        result = await self.ask(workspace_id, question, meeting_ids, history)
+
+        # Hai tin ghi cùng transaction; mốc riêng (trả lời sau hỏi ít nhất 1µs)
+        # để đọc lại luôn đúng thứ tự hỏi → đáp.
+        answered_at = max(datetime.now(timezone.utc), asked_at + timedelta(microseconds=1))
+        answer_id = new_id()
+        messages = [
+            {"id": new_id(), "role": "user", "content": question, "created_at": asked_at},
+            {
+                "id": answer_id,
+                "role": "assistant",
+                "content": result["answer"],
+                "list": result.get("list"),
+                "citations": result["citations"],
+                "insufficient_evidence": result["insufficient"],
+                "model": result["model"],
+                "created_at": answered_at,
+            },
+        ]
+        await asyncio.to_thread(
+            lambda: self._threads.save_turn(
+                workspace_id=workspace_id,
+                user_id=user_id,
+                thread_id=thread_id,
+                create=create,
+                title=thread_title(question) if create else None,
+                messages=messages,
+                at=answered_at,
+            )
+        )
+        return {**result, "threadId": thread_id, "messageId": answer_id}
 
     async def ask(
         self,
@@ -416,33 +598,37 @@ class KnowledgeQA:
 
         s = self.settings
         started = time.perf_counter()
-        query = retrieval_query(question, history)
-        try:
-            vector = (await self._embedder.embed([query]))[0]
-        except Exception as err:  # noqa: BLE001
-            raise KnowledgeError(f"nhúng câu hỏi lỗi: {err}") from None
-        t_embed = time.perf_counter()
-        rows = await asyncio.to_thread(self._search, workspace_id, meeting_ids, vector, s.candidates)
-        t_search = time.perf_counter()
-        if not rows:
-            log.info("Hỏi đáp ws=%s: %d cuộc họp, chưa có đoạn nào được lập chỉ mục", workspace_id, len(meeting_ids))
-            return insufficient("none")
-
         async with httpx.AsyncClient(
             base_url=s.base_url,
             headers={"Authorization": f"Bearer {s.api_key}"},
             timeout=httpx.Timeout(s.timeout_s, connect=10.0),
             transport=self._transport,
         ) as client:
+            standalone = await self._standalone(client, question, history) if history else None
+            # Viết lại hỏng thì vẫn trả lời được: tìm bằng câu ghép lượt trước,
+            # model đọc câu gốc cùng lịch sử.
+            asked = standalone or question
+            query = standalone or retrieval_query(question, history)
+            t_rewrite = time.perf_counter()
+            try:
+                vector = (await self._embedder.embed([query]))[0]
+            except Exception as err:  # noqa: BLE001
+                raise KnowledgeError(f"nhúng câu hỏi lỗi: {err}") from None
+            t_embed = time.perf_counter()
+            rows = await asyncio.to_thread(self._search, workspace_id, meeting_ids, vector, s.candidates)
+            t_search = time.perf_counter()
+            if not rows:
+                log.info("Hỏi đáp ws=%s: %d cuộc họp, chưa có đoạn nào được lập chỉ mục", workspace_id, len(meeting_ids))
+                return insufficient("none")
             scores = await self._rerank(client, query, rows)
             t_rerank = time.perf_counter()
             sources = select_sources(rows, scores, s.keep, s.relevance_floor, s.min_keep)
-            raw, model = await self._answer(client, build_qa_messages(question, sources, history))
-        result = finalize(raw, sources, question, model)
+            raw, model = await self._answer(client, build_qa_messages(asked, sources, history))
+        result = finalize(raw, sources, asked, model)
         done = time.perf_counter()
         log.info(
             "Hỏi đáp ws=%s: %d cuộc họp, %d ứng viên, giữ %d, model %s, %s, %d trích dẫn, %.2fs "
-            "(nhúng %.2f, tìm %.2f, xếp hạng %.2f, trả lời %.2f)",
+            "(viết lại %s %.2f, nhúng %.2f, tìm %.2f, xếp hạng %.2f, trả lời %.2f)",
             workspace_id,
             len(meeting_ids),
             len(rows),
@@ -451,7 +637,9 @@ class KnowledgeQA:
             "thiếu thông tin" if result["insufficient"] else "có câu trả lời",
             len(result["citations"]),
             done - started,
-            t_embed - started,
+            "có" if standalone and standalone != question else "không",
+            t_rewrite - started,
+            t_embed - t_rewrite,
             t_search - t_embed,
             t_rerank - t_search,
             done - t_rerank,
@@ -464,6 +652,24 @@ class KnowledgeQA:
             return []
         rows = await asyncio.to_thread(self._list_sources, workspace_id, meeting_ids)
         return [source_summary(r) for r in rows]
+
+    async def _standalone(self, client: httpx.AsyncClient, question: str, history: list[dict[str, str]]) -> str | None:
+        """Câu hỏi nối tiếp → câu đủ nghĩa; None nếu tắt hoặc lỗi (bên gọi lùi về cách cũ)."""
+        if not self.settings.rewrite_model:
+            return None
+        body = {
+            "model": self.settings.rewrite_model,
+            "messages": build_rewrite_messages(question, history),
+            "temperature": 0.0,
+            "max_tokens": 1024,
+            "stream": True,
+        }
+        try:
+            content = await asyncio.wait_for(stream_completion(client, body), timeout=self.settings.rewrite_timeout_s)
+            return parse_rewrite(parse_json(content), question)
+        except (httpx.HTTPError, LlmError, asyncio.TimeoutError) as err:
+            log.warning("Viết lại câu hỏi nối tiếp lỗi, tìm bằng câu ghép lượt trước: %s", str(err) or type(err).__name__)
+            return None
 
     async def _rerank(self, client: httpx.AsyncClient, query: str, rows: list[dict[str, Any]]) -> list[float] | None:
         """Điểm liên quan theo đúng thứ tự rows; None nếu lỗi (bên gọi giữ thứ tự vector)."""

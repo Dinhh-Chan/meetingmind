@@ -38,6 +38,36 @@ export enum EventType {
     KNOWLEDGE_DELETE_REQUESTED = "knowledge.delete.requested",
 }
 
+/**
+ * Queue của các bên nhận lệnh từ Core, Core tự dựng sẵn lúc khởi động. RabbitMQ
+ * bỏ tin phát vào routing key chưa có queue nào bind, nên nếu bên nhận chưa
+ * chạy lần nào thì lệnh mất (lần reindex đầu từng mất như vậy). Tham số phải
+ * trùng hệt chỗ bên nhận tự khai — lệch là PRECONDITION_FAILED:
+ * ai-service/app/worker/main.py, bot-worker/app/main.py (durable=True),
+ * integration-service task-sync.consumer.ts (`queueOptions: { durable: true }`).
+ */
+export const DOWNSTREAM_QUEUES: { queue: string; routingKeys: EventType[] }[] =
+    [
+        {
+            queue: AI_JOBS_QUEUE,
+            routingKeys: [
+                EventType.TRANSCRIPTION_REQUESTED,
+                EventType.ANALYSIS_REQUESTED,
+                EventType.KNOWLEDGE_INDEX_REQUESTED,
+                EventType.KNOWLEDGE_DELETE_REQUESTED,
+            ],
+        },
+        { queue: BOT_JOBS_QUEUE, routingKeys: [EventType.BOT_JOIN_REQUESTED] },
+        {
+            queue: BOT_CONTROL_QUEUE,
+            routingKeys: [EventType.BOT_STOP_REQUESTED],
+        },
+        {
+            queue: `${INTEGRATION_JOBS_QUEUE}.task-sync`,
+            routingKeys: [EventType.TASK_SYNC_REQUESTED],
+        },
+    ];
+
 export interface EventEnvelope<T = Record<string, any>> {
     eventId: string;
     eventType: EventType;

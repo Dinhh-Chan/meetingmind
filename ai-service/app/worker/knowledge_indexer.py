@@ -70,7 +70,7 @@ async def build_chunks(source_type: str, items: list[dict[str, Any]], document: 
         path.unlink(missing_ok=True)
     chunks = chunk_document(text)
     if not chunks:
-        log.warning("Tài liệu %s không có chữ (có thể là bản scan)", document.get("fileName"))
+        log.warning("Tài liệu %s không có chữ (kể cả sau OCR)", document.get("fileName"))
     for chunk in chunks:
         chunk.metadata.update({"fileName": document.get("fileName"), "mimetype": document.get("mimetype")})
     return chunks
