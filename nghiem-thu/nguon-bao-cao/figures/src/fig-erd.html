@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Sơ đồ quan hệ CSDL</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .tb { position: absolute; z-index: 2; width: 296px; box-sizing: border-box; border: 2px solid var(--main); border-radius: 6px; background: #fff; overflow: hidden; }
+  .tb .hd { background: var(--main); color: #fff; font-weight: 700; font-size: 17.5px; padding: 5px 10px; font-family: "DejaVu Sans Mono", monospace; letter-spacing: -0.2px; }
+  .tb .rw { box-sizing: border-box; display: flex; align-items: center; height: 24px; padding: 0 8px; font-size: 15px; border-top: 1px solid #E3EAF2; white-space: nowrap; }
+  .tb .rw:nth-child(odd) { background: #F7FAFD; }
+  .tb .k { width: 30px; flex: none; font-size: 13px; font-weight: 700; }
+  .tb .k.pk { color: #B26A1E; } .tb .k.fk { color: var(--blue); }
+  .tb .c { font-family: "DejaVu Sans Mono", monospace; font-size: 15px; color: #1F2937; letter-spacing: -0.3px; }
+  .tb .v { color: #5B6675; margin-left: 6px; font-size: 15px; overflow: hidden; text-overflow: ellipsis; }
+  .tb.msg { border-color: var(--blue); } .tb.msg .hd { background: var(--blue); }
+  .tb.unused { border: 2px dashed var(--gray); } .tb.unused .hd { background: #8A929E; }
+  .tb .note { font-size: 14px; color: var(--gray); font-style: italic; padding: 3px 8px; border-top: 1px solid #E3EAF2; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, draw, div, rectOf} = F;
+init(1340, 960);
+const COL = [20, 355, 690, 1025], ROW = [20, 254, 488, 700];
+function tb(id, c, r, name, rows, cls, note) {
+  const html = `<div class="hd">${name}</div>` + rows.map(([k, col, v]) =>
+    `<div class="rw"><span class="k ${k.toLowerCase()}">${k}</span><span class="c">${col}</span>${v ? `<span class="v">${v}</span>` : ""}</div>`).join("") +
+    (note ? `<div class="note">${note}</div>` : "");
+  return div("tb " + (cls || ""), COL[c], ROW[r], null, null, html, id);
+}
+const PK = ["PK", "_id"];
+
+tb("ws", 0, 0, "workspaces", [PK, ["", "name"], ["", "slug", "unique"], ["", "ownerId"], ["", "plan, timezone"]]);
+tb("pj", 1, 0, "projects", [PK, ["FK", "workspaceId"], ["", "name"], ["", "status"], ["", "createdById"]]);
+tb("job", 2, 0, "processing_jobs", [PK, ["FK", "meetingId"], ["", "type", "TRANSCRIBE | SUMMARIZE"], ["", "status, retryCount"], ["", "idempotencyKey", "unique"], ["", "payload, result"]], "msg");
+tb("ob", 3, 0, "outbox_events", [PK, ["", "aggregateType/Id"], ["", "eventType"], ["", "payload", "envelope"], ["", "status", "PENDING→PUBLISHED"], ["", "retryCount"]], "msg");
+
+tb("file", 0, 1, "files", [PK, ["FK", "meetingId"], ["", "botSessionId"], ["", "bucket, objectKey"], ["", "checksum", "SHA-256"], ["", "status"]]);
+tb("mt", 1, 1, "meetings", [PK, ["FK", "workspaceId"], ["FK", "projectId", "có thể rỗng"], ["", "sourceType"], ["", "accessScope"], ["", "status, processingStatus"]]);
+tb("mm", 2, 1, "meeting_minutes", [PK, ["FK", "meetingId"], ["", "currentVersionId"], ["", "approvedVersionId"]]);
+tb("mv", 3, 1, "minutes_versions", [PK, ["FK", "meetingMinutesId"], ["", "versionNo"], ["", "status", "draft→approved"], ["", "summary, openIssues"], ["", "sourceTranscriptVersionId"]]);
+
+tb("sa", 0, 2, "speaker_aliases", [PK, ["FK", "transcriptVersionId"], ["", "speakerLabel"], ["", "displayName"], ["", "userId"]]);
+tb("tv", 1, 2, "transcript_versions", [PK, ["FK", "meetingId"], ["", "versionNo"], ["", "source", "stt | live_caption…"], ["", "isCurrent, aiRunId"]]);
+tb("rb", 2, 2, "review_batches", [PK, ["FK", "meetingId"], ["", "status"], ["", "sourceTranscriptVersionId"], ["", "aiRunId"]]);
+tb("dc", 3, 2, "decisions", [PK, ["FK", "meetingId"], ["FK", "reviewItemId"], ["", "title"], ["", "status"]]);
+
+tb("ts", 0, 3, "transcript_segments", [PK, ["FK", "transcriptVersionId"], ["", "sequence"], ["", "speakerLabel"], ["", "startMs, endMs"], ["", "text, language"], ["", "isOverlapping"]]);
+tb("cit", 1, 3, "action_item_citations", [PK, ["FK", "actionItemId"], ["FK", "transcriptSegmentId"], ["", "quote"]], "unused", "có bảng, chưa ghi dữ liệu");
+tb("ai", 2, 3, "action_items", [PK, ["FK", "meetingId"], ["FK", "reviewItemId"], ["", "projectId, assigneeId"], ["", "deadline, priority"], ["", "status", "todo…done"], ["", "source", "ai | manual"]]);
+tb("ri", 3, 3, "review_items", [PK, ["FK", "reviewBatchId"], ["", "type", "action_item | decision…"], ["", "payload, originalPayload"], ["", "status"], ["", "actionItemId, decisionId"]]);
+
+// Vẽ quan hệ: điểm đầu ở bảng cha (||), điểm cuối ở bảng con (chân quạ hoặc o|)
+const R = (id) => rectOf(id);
+function rel(pts, child, o) { draw(pts, Object.assign({c: "main", mks: "one", mke: child || "many", r: 6}, o || {})); }
+const yIn = (id, k) => { const e = document.querySelectorAll(`#${id} .rw`)[k].getBoundingClientRect(); const f = document.getElementById("fig").getBoundingClientRect(); return e.top - f.top + e.height / 2; };
+const L = (id) => R(id).x, Rt = (id) => R(id).x + R(id).w, Tp = (id) => R(id).y, Bt = (id) => R(id).y + R(id).h, Cx = (id) => R(id).x + R(id).w / 2;
+
+// workspaces → projects, meetings
+rel([[Rt("ws"), yIn("pj", 1)], [L("pj"), yIn("pj", 1)]]);
+rel([[Rt("ws"), yIn("ws", 4)], [335, yIn("ws", 4)], [335, yIn("mt", 1)], [L("mt"), yIn("mt", 1)]]);
+// projects → meetings
+rel([[Cx("pj"), Bt("pj")], [Cx("pj"), Tp("mt")]], "many", {mks: "zone"});
+// meetings → files, processing_jobs, meeting_minutes, transcript_versions, review_batches
+rel([[L("mt"), yIn("mt", 4)], [Rt("file"), yIn("file", 4)]]);
+rel([[Rt("mt"), yIn("mt", 0)], [670, yIn("mt", 0)], [670, yIn("job", 1)], [L("job"), yIn("job", 1)]]);
+rel([[Rt("mt"), yIn("mm", 1)], [L("mm"), yIn("mm", 1)]], "zone");
+rel([[Cx("mt"), Bt("mt")], [Cx("mt"), Tp("tv")]]);
+rel([[Rt("mt"), yIn("mt", 5)], [670, yIn("mt", 5)], [670, yIn("rb", 1)], [L("rb"), yIn("rb", 1)]]);
+// meeting_minutes → minutes_versions
+rel([[Rt("mm"), yIn("mv", 1)], [L("mv"), yIn("mv", 1)]]);
+// transcript_versions → speaker_aliases, transcript_segments
+rel([[L("tv"), yIn("sa", 1)], [Rt("sa"), yIn("sa", 1)]]);
+rel([[L("tv"), yIn("tv", 4)], [335, yIn("tv", 4)], [335, yIn("ts", 1)], [Rt("ts"), yIn("ts", 1)]]);
+// review_batches → review_items
+rel([[Rt("rb"), yIn("rb", 3)], [1005, yIn("rb", 3)], [1005, yIn("ri", 1)], [L("ri"), yIn("ri", 1)]]);
+// review_items → action_items (0..1), decisions (0..1)
+rel([[L("ri"), yIn("ai", 2)], [Rt("ai"), yIn("ai", 2)]], "zone");
+rel([[Cx("ri"), Tp("ri")], [Cx("ri"), Bt("dc")]], "zone");
+// trích dẫn (chưa dùng)
+rel([[L("ai"), yIn("cit", 1)], [Rt("cit"), yIn("cit", 1)]], "many", {c: "gray", dash: "6 5"});
+rel([[Rt("ts"), yIn("cit", 2)], [L("cit"), yIn("cit", 2)]], "many", {c: "gray", dash: "6 5"});
+
+div("legend", 20, 920, null, null,
+  `<div class="it"><svg width="70" height="20"><path d="M2,10 H68" stroke="#1F3A5F" stroke-width="2" marker-start="url(#one-main)" marker-end="url(#many-main)"/></svg>một – nhiều</div>
+   <div class="it"><svg width="70" height="20"><path d="M2,10 H68" stroke="#1F3A5F" stroke-width="2" marker-start="url(#one-main)" marker-end="url(#zone-main)"/></svg>một – không/một</div>
+   <div class="it"><b style="color:#B26A1E;font-size:13px">PK</b> khoá chính · <b style="color:#2E6DA4;font-size:13px">FK</b> cột tham chiếu *Id (quan hệ kiểm tra ở tầng dịch vụ)</div>
+   <div class="it"><div class="sw" style="background:#2E6DA4"></div>bảng hạ tầng sự kiện</div>`);
+F.done();
+</script></body></html>

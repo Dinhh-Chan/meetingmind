@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Tuần tự sự kiện</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .frame { position: absolute; z-index: 0; border: 1.8px solid #8FA3BA; background: rgba(232,240,248,0.35); }
+  .frame .ft { position: absolute; left: -1px; top: -1px; background: #fff; border: 1.8px solid #8FA3BA; border-top: none; border-left: none;
+               font-size: 16px; padding: 2px 8px; color: var(--main); }
+  .frame .ft b { font-family: "DejaVu Sans Mono", monospace; font-size: 15px; }
+  .act { position: absolute; z-index: 2; width: 14px; background: #FCEFE2; border: 1.8px solid var(--orange); box-sizing: border-box; }
+  .lbl { font-size: 16px; }
+  .lbl.two { line-height: 1.25; text-align: center; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, link, draw, text, T, div} = F;
+init(1280, 1004);
+const X = {core: 100, pg: 420, pub: 670, mq: 900, ai: 1150};
+const heads = [["core", "core-service", "nghiệp vụ + consumer", "main"], ["pg", "PostgreSQL", "schema core", ""],
+  ["pub", "Outbox publisher", "trong core-service", "main"], ["mq", "RabbitMQ", "exchange meetingmind", ""], ["ai", "ai-worker", "Python", "ai"]];
+const END = 994;
+heads.forEach(([k, t, s, cls]) => {
+  const w = 190;
+  node("h_" + k, X[k] - w / 2, 12, w, 64, T(t, s), cls);
+  draw([[X[k], 76], [X[k], END]], {c: "mute", dash: "6 5", head: "none", w: 1.6});
+});
+
+const color = (a, b) => (a === "ai" || b === "ai") ? "orange" : (a === "mq" || b === "mq") ? "blue" : "main";
+function msg(y, a, b, label, o) {
+  o = o || {};
+  const x1 = X[a] + (o.off1 || 0), x2 = X[b] + (o.off2 || 0);
+  const two = label.includes("<br>");
+  const cx = o.lx != null ? o.lx : (x1 + x2) / 2;
+  draw([[x1, y], [x2, y]], {c: o.c || color(a, b), dash: o.dash, label, lat: [cx, y - (two ? 25 : 13)],
+    lcls: "nobg" + (two ? " two" : "") + (color(a, b) === "orange" ? " ai" : ""), lstyle: {background: "rgba(255,255,255,0.92)"}});
+}
+function note(x, y, w, h, html, cls) { return node(null, x, y, w, h, `<div class="s" style="margin:0">${html}</div>`, cls || "note"); }
+function frame(x, y, w, h, title) { div("frame", x, y, w, h, `<div class="ft">${title}</div>`); }
+
+// Phiên âm
+msg(116, "core", "pg", "① INSERT processing_jobs (QUEUED)");
+msg(156, "core", "pg", "② INSERT outbox_events (PENDING)");
+note(440, 96, 214, 60, "hai lệnh ghi tuần tự;<br>thiết kế: cùng transaction", "design");
+
+frame(372, 182, 560, 136, "<b>loop</b> mỗi 2 s · lô 50 · lỗi → thử lại ≤ 5 lần");
+msg(232, "pub", "pg", "③ đọc outbox PENDING");
+msg(266, "pub", "mq", "④ transcription.requested");
+msg(304, "pub", "pg", "⑤ status = PUBLISHED");
+
+msg(350, "mq", "ai", "⑥ giao qua ai.jobs", {off2: -7});
+div("act", X.ai - 7, 350, null, 108, "");
+note(912, 366, 226, 54, "⑦ tải audio từ MinIO,<br>STT + tách người nói", "note");
+msg(458, "ai", "mq", "⑧ transcription.completed", {off1: -7});
+msg(496, "mq", "core", "⑨ giao qua core.events");
+
+msg(582, "core", "pg", "⑩ INSERT processed_messages<br>(eventId, consumer): trùng → bỏ qua");
+msg(638, "core", "pg", "⑪ transcript_version mới + segments<br>processing_job → SUCCEEDED");
+msg(694, "core", "pg", "⑫ processing_job (phân tích)<br>+ outbox analysis.requested");
+
+// Phân tích
+msg(738, "pub", "mq", "⑬ analysis.requested");
+msg(776, "mq", "ai", "⑭ giao qua ai.jobs", {off2: -7});
+div("act", X.ai - 7, 776, null, 108, "");
+note(912, 792, 226, 54, "⑮ gọi LLM qua FPT,<br>chuẩn hoá JSON", "note");
+msg(884, "ai", "mq", "⑯ analysis.completed", {off1: -7});
+msg(922, "mq", "core", "⑰ giao qua core.events");
+msg(978, "core", "pg", "⑱ processed_messages, minutes_version<br>(DRAFT), review_batch, review_items");
+F.done();
+</script></body></html>

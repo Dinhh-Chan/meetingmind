@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Phân quyền theo phạm vi</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .lv { position: absolute; box-sizing: border-box; border-radius: 14px; border: 2px solid; }
+  .lv .hd { font-weight: 700; font-size: 20px; color: var(--main); }
+  .lv .src { font-family: "DejaVu Sans Mono", monospace; font-size: 15px; color: #3B4656; margin-left: 6px; font-weight: 400; }
+  .lv .roles { margin-top: 6px; }
+  .role { display: inline-block; font-family: "DejaVu Sans Mono", monospace; font-size: 15.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin: 2px 3px 2px 0; color: #fff; background: var(--main); }
+  .role.l2 { background: var(--blue); } .role.l3 { background: #4F86BD; } .role.l4 { background: #6E9BC8; }
+  .perm { font-size: 15.5px; color: #3B4656; margin-top: 6px; line-height: 1.35; }
+  .perm code { font-size: 14.5px; color: #1F3A5F; }
+  .rules { position: absolute; box-sizing: border-box; border-radius: 10px; background: #FFFDF5; border: 1.5px solid #D6CFB8; padding: 14px 18px; z-index: 2; }
+  .rules h4 { margin: 0 0 8px; font-size: 19px; color: var(--main); }
+  .rules ol { margin: 0; padding-left: 22px; font-size: 16.5px; line-height: 1.38; color: #1F2937; }
+  .rules li { margin-bottom: 7px; }
+  .rules code { font-size: 14.5px; color: #1F3A5F; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, div, link, draw} = F;
+init(1240, 620);
+const lv = (x, y, w, h, bg, bd, html, id) => { const d = div("lv", x, y, w, h, html, id); d.style.background = bg; d.style.borderColor = bd; d.style.padding = "12px 16px"; return d; };
+
+lv(16, 14, 800, 592, "#F4F7FB", "#1F3A5F",
+  `<div class="hd">Hệ thống<span class="src">users.systemRole</span></div>
+   <div class="roles"><span class="role">SUPER_ADMIN</span><span class="role">USER</span>
+   <span class="perm" style="margin-left:8px">SUPER_ADMIN quản trị nền tảng, không mặc nhiên đọc nội dung họp</span></div>`);
+lv(36, 112, 760, 476, "#EAF1F8", "#2E6DA4",
+  `<div class="hd">Workspace<span class="src">workspace_members.role</span></div>
+   <div class="roles"><span class="role l2">OWNER</span><span class="role l2">ADMIN</span><span class="role l2">MEMBER</span><span class="role l2">VIEWER</span></div>
+   <div class="perm">vd. <code>workspace.member.invite</code>, <code>project.create</code> (Owner/Admin) · <code>meeting.create</code> (Member)</div>`, "ws");
+lv(56, 226, 360, 346, "#DDE9F5", "#4F86BD",
+  `<div class="hd">Dự án<span class="src">project_members.role</span></div>
+   <div class="roles"><span class="role l3">PM</span><span class="role l3">MEMBER</span><span class="role l3">VIEWER</span></div>
+   <div class="perm"><b>PM:</b> <code>review.approve</code>, <code>minutes.approve</code>, <code>meeting.recording.control</code><br>
+   <b>MEMBER:</b> <code>task.create</code>, <code>minutes.view.draft</code><br><b>VIEWER:</b> <code>transcript.view</code></div>`, "pj");
+lv(76, 456, 320, 100, "#fff", "#6E9BC8",
+  `<div class="hd" style="font-size:18px">Cuộc họp thuộc dự án</div>
+   <div class="perm" style="margin-top:3px"><code>accessScope = project</code><br>dùng vai trò của dự án</div>`);
+lv(436, 226, 340, 346, "#fff", "#6E9BC8",
+  `<div class="hd">Cuộc họp độc lập<span class="src"></span></div>
+   <div class="perm" style="margin-top:2px"><code>accessScope = restricted</code> — mặc định khi không thuộc dự án</div>
+   <div class="perm" style="margin-top:8px"><span class="src" style="margin:0">meeting_access.role</span></div>
+   <div class="roles"><span class="role l4">MANAGER</span><span class="role l4">EDITOR</span><span class="role l4">VIEWER</span></div>
+   <div class="perm"><b>MANAGER:</b> <code>review.approve</code>, <code>minutes.approve</code><br><b>EDITOR:</b> <code>transcript.update</code>, <code>review.update</code><br>
+   <b>VIEWER:</b> <code>transcript.view</code><br>Người tạo cuộc họp trở thành MANAGER.</div>`);
+
+div("rules", 840, 14, 384, 592,
+  `<h4>Cách tính quyền hiệu lực</h4>
+   <ol>
+   <li>54 quyền dạng <code>tài_nguyên.hành_động</code>, gán cho vai trò theo từng phạm vi.</li>
+   <li>Quyền hiệu lực = hợp các quyền của vai trò ở workspace, dự án và cuộc họp.</li>
+   <li>Không còn là thành viên workspace (active) thì không có quyền nào, kể cả khi còn bản ghi dự án cũ.</li>
+   <li>OWNER/ADMIN được coi như PM ở mọi dự án và MANAGER ở cuộc họp độc lập.</li>
+   <li>Một số quyền có điều kiện: cuộc họp do mình tạo, task được giao cho mình.</li>
+   <li>Đề xuất của AI không đổi vai trò hay dữ liệu chính thức; luôn chờ người duyệt.</li>
+   </ol>`);
+F.done();
+</script></body></html>

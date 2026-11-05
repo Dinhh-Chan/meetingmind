@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Trạng thái phiên bot</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .st { border-radius: 22px; }
+  .st .t { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 19px; }
+  .st .s { font-size: 16px; }
+  .st.fail { border-color: #B4483C; background: #FBEDEB; }
+  .st.fail .t { color: #8E3329; }
+  .st.end { background: #fff; }
+  .act { border-radius: 8px; background: #fff; border: 2px solid var(--blue); }
+  .dot { position: absolute; z-index: 2; border-radius: 50%; background: var(--main); }
+  .tl { position: absolute; z-index: 3; font-size: 16px; color: var(--main); text-align: center; line-height: 1.2; transform: translateX(-50%); white-space: nowrap; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, db, link, text, T, div} = F;
+init(1300, 612);
+const st = (id, x, y, w, h, name, sub, extra, cls) =>
+  node(id, x, y, w, h, `<div class="t">${name}</div><div class="s">${sub}</div>` + (extra || ""), "st " + (cls || ""));
+const tl = (x, y, html, color) => { const d = div("tl", x, y, null, null, html); if (color) d.style.color = color; return d; };
+const core = `<div class="tag solid" style="color:#1F3A5F;border-color:#1F3A5F">do Core đặt</div>`;
+
+// Trạng thái đầu
+div("dot", 18, 142, 24, 24, "", "init");
+st("queued", 62, 80, 178, 150, "queued", "Core tạo bot_session, phát bot.join.requested", core);
+st("joining", 310, 80, 180, 150, "joining", "Chromium + hồ sơ Google của bot, mở link Meet (hl=en), bấm “Ask to join”");
+st("waiting", 560, 80, 200, 150, "waiting_admission", "chờ chủ phòng cho vào, tối đa 300 s");
+st("rec", 830, 80, 190, 150, "recording", "Proxy RTCPeerConnection → AudioContext → MediaRecorder (webm/opus)");
+st("left", 1080, 80, 200, 150, "left", "dừng ghi, bấm “Leave call”, rời phòng", "", "end");
+node("why", 952, 258, 214, 96, `<div class="s2" style="margin:0;color:#1F2937"><b>endReason</b>: alone (một mình &gt; 60 s) · meeting_ended · removed · stop_requested · max_duration (4 h)</div>`, "note left");
+link("why.t@0.45", [1055, 162], {c: "mute", dash: "4 4", head: "none"});
+
+link("init", "queued.l", {route: "straight"});
+link("queued.r", "joining.l", {});
+tl(275, 112, "bot nhận<br>lệnh");
+link("joining.r", "waiting.l", {});
+tl(525, 112, "Meet<br>bắt chờ");
+link("waiting.r", "rec.l", {});
+tl(795, 112, "được<br>cho vào");
+link("rec.r", "left.l", {});
+tl(1055, 112, "kết<br>thúc");
+// Vào thẳng, không qua phòng chờ
+link("joining.t", "rec.t", {via: [[null, 38], ["x2", 38]], label: "được vào ngay (không có phòng chờ)", lat: [660, 38]});
+
+// Nhánh lỗi / huỷ
+st("cancel", 62, 330, 178, 100, "cancelled", "Core huỷ khi bot chưa nhận lệnh", "", "end");
+link("queued.b", "cancel.t", {});
+tl(232, 258, "người dùng<br>dừng bot");
+
+st("failed", 310, 320, 450, 150, "failed",
+  "lý do ghi vào bot_sessions.error",
+  `<div class="s2" style="margin-top:6px;color:#5C2A24">Meet chặn khách chưa đăng nhập · trùng tài khoản với người dự ·
+   chủ phòng từ chối · chờ quá 300 s · bị huỷ trước khi được cho vào · lỗi trình duyệt/mạng</div>`, "fail");
+link("joining.b", "failed.t@0.2", {c: "red"});
+link("waiting.b", "failed.t@0.7778", {c: "red"});
+link("rec.b@0.5", "failed.r@0.5", {c: "red", via: [[null, 395]], label: "lỗi khi đang ghi", lat: [840, 395], lstyle: {color: "#8E3329"}});
+
+// Sau khi rời phòng: hành động, không phải trạng thái
+node("upload", 1070, 380, 220, 116,
+  `<div class="s" style="margin:0;color:#1F2937">bản ghi ≥ 4 KB: tải lên <b>MinIO</b> rồi phát <b>recording.completed</b></div>
+   <div class="s2" style="margin-top:6px">Core đăng ký tệp, xin phiên âm</div>`, "act");
+text(1190, 290, "hành động<br>sau <span class=mono>left</span>", "", 100, {fontStyle: "italic", color: "#3B4656", fontSize: "15.5px"});
+link("left.b", "upload.t@0.5", {});
+div("dot", 1167, 548, 26, 26, "", "fin").style.cssText += "background:#fff;border:3px solid #1F3A5F;box-sizing:border-box;";
+div("dot", 1173, 554, 14, 14, "");
+link("upload.b@0.5", "fin.t", {});
+
+node("note", 62, 520, 900, 66,
+  `<div class="s" style="margin:0">Mỗi lần đổi trạng thái, bot-worker phát <b>bot.status.changed</b>; core-service cập nhật <b>bot_sessions</b>
+   và bỏ qua sự kiện đến trễ sau khi phiên đã ở trạng thái kết thúc (left, failed, cancelled).</div>`, "note left");
+F.done();
+</script></body></html>

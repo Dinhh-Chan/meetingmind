@@ -1,0 +1,111 @@
+[
+ {
+  "model": "DeepSeek-V4.1-Flash",
+  "runs": 3,
+  "scores": [
+   15,
+   15,
+   15
+  ],
+  "mean": 15,
+  "seconds": 74.1,
+  "cost": 0.00523516,
+  "parse_fail": 0
+ },
+ {
+  "model": "GLM-5.2",
+  "runs": 3,
+  "scores": [
+   15,
+   14,
+   15
+  ],
+  "mean": 14.666666666666666,
+  "seconds": 5.2,
+  "cost": 0.006281,
+  "parse_fail": 0
+ },
+ {
+  "model": "gemma-4-31B-it",
+  "runs": 3,
+  "scores": [
+   14,
+   13,
+   13
+  ],
+  "mean": 13.333333333333334,
+  "seconds": 4.766666666666667,
+  "cost": 0.0006159,
+  "parse_fail": 0
+ },
+ {
+  "model": "Qwen3.8-27B",
+  "runs": 3,
+  "scores": [
+   13,
+   12,
+   14
+  ],
+  "mean": 13,
+  "seconds": 27.833333333333332,
+  "cost": 0.00357895,
+  "parse_fail": 0
+ },
+ {
+  "model": "gemma-4-26B-A4B-it",
+  "runs": 1,
+  "scores": [
+   12
+  ],
+  "mean": 12,
+  "seconds": 3.3,
+  "cost": 0.00060026,
+  "parse_fail": 0
+ },
+ {
+  "model": "Quyet-1.0-Large",
+  "runs": 1,
+  "scores": [
+   9
+  ],
+  "mean": 9,
+  "seconds": 15.3,
+  "cost": 0.0001024,
+  "parse_fail": 0
+ },
+ {
+  "model": "Llama-3.3-70B-Instruct",
+  "runs": 1,
+  "scores": [
+   9
+  ],
+  "mean": 9,
+  "seconds": 22.5,
+  "cost": 0.0005993999999999999,
+  "parse_fail": 0
+ },
+ {
+  "model": "gpt-oss-120b",
+  "runs": 1,
+  "scores": [
+   7
+  ],
+  "mean": 7,
+  "seconds": 4.2,
+  "cost": 0.00068252,
+  "parse_fail": 0
+ },
+ {
+  "model": "DeepSeek-V4-Flash",
+  "runs": 3,
+  "scores": [
+   0,
+   0,
+   15
+  ],
+  "mean": 5,
+  "seconds": 32.266666666666666,
+  "cost": 0.00235732,
+  "parse_fail": 2
+ }
+]

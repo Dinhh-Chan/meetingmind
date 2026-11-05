@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Ba đường thu nhận</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .lane { position: absolute; z-index: 0; border-radius: 12px; background: #F3F7FB; }
+  .lhead { position: absolute; z-index: 1; font-weight: 700; color: var(--main); font-size: 20px; text-align: center; }
+  .lhead .s { font-weight: 400; font-size: 16px; color: var(--sub); }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, db, link, text, T, div} = F;
+init(1240, 800);
+
+const lanes = [[20, "① Tải tệp ghi âm", "upload"], [420, "② Bot Google Meet", "meeting_link"], [820, "③ Extension phụ đề", "live_caption"]];
+lanes.forEach(([x, name, src]) => {
+  div("lane", x, 14, 385, 310);
+  div("lhead", x, 22, 385, null, `${name} <span class="s">· nguồn <span class="mono">${src}</span></span>`);
+});
+
+// Làn 1
+node("u1", 60, 64, 305, 80, T("Trình duyệt", "người dùng chọn tệp audio"));
+node("u2", 60, 200, 305, 100, T("core-service", "POST /media-file/upload", "MIME · SHA-256 chống tải trùng"), "main");
+// Làn 2
+node("b1", 460, 64, 305, 80, T("core-service", "tạo bot_session (queued)"), "main");
+node("b2", 460, 200, 305, 100, T("bot-worker", "Chromium + Xvfb vào phòng", "ghi WebRTC → webm/opus"));
+// Làn 3
+node("e1", 860, 64, 320, 80, T("Extension (tab Meet)", "đọc vùng phụ đề, chỉ gửi phần mới"));
+node("e2", 860, 200, 320, 100, T("core-service", "POST /live-transcript (lô 5 s)", "token tự làm mới · đệm khi mất mạng"), "main");
+
+// Dùng chung
+db("minio", 160, 362, 505, 86, T("MinIO", "tệp âm thanh · bucket meetingmind"));
+node("stt", 160, 500, 505, 80, T("ai-worker: STT + tách người nói", "faster-whisper small · sherpa-onnx ERes2Net"), "ai");
+node("tv", 160, 630, 1020, 72,
+  T("transcript_versions + transcript_segments", "source = <b>stt</b> (đường ①, ②) hoặc <b>live_caption</b> (đường ③); mỗi lần sửa hay chạy lại là một phiên bản mới"), "main");
+node("an", 420, 738, 760, 50, `<div class="t" style="font-size:18px">analysis.requested → LLM → biên bản nháp + hàng đợi duyệt (dùng chung)</div>`, "ai");
+
+const side = (x, y, html, cls, align) => {
+  const d = text(x, y, html, cls || "", 200, {fontSize: "16px", color: cls === "ai" ? "#9A520F" : "#1F3A5F", textAlign: align || "left"});
+  return d;
+};
+link("u1.b", "u2.t", {});
+side(222, 160, "multipart/form-data");
+link("u2.b", "minio.t@0.1030", {});
+side(222, 318, "putObject");
+link("b1.b", "b2.t", {c: "blue"});
+side(622, 152, "bot.join.requested<br><span style='color:#3B4656;font-size:15.5px'>(qua RabbitMQ)</span>");
+link("b2.b", "minio.t@0.8950", {c: "blue"});
+side(622, 318, "tải bản ghi lên");
+// recording.completed: bot báo về Core
+link("b2.l@0.3", "b1.l@0.5", {via: [[440, null], [440, "y2"]], c: "blue"});
+side(470, 160, "recording<br>.completed", "", "left");
+link("e1.b", "e2.t", {});
+side(1030, 152, "phụ đề + tên<br>người nói");
+link("minio.b@0.5", "stt.t", {c: "orange"});
+side(422, 460, "transcription.requested", "ai");
+link("stt.b", "tv.t@0.2971", {c: "orange"});
+side(422, 594, "transcription.completed", "ai");
+link("e2.b", "tv.t@0.8431", {});
+side(1032, 400, "segments + speaker_aliases<br>(tên hiển thị) · finalize<br><span style='color:#3B4656;font-size:15.5px'>không qua STT</span>");
+link("tv.b@0.7451", "an.t@0.7368", {c: "orange"});
+F.done();
+</script></body></html>

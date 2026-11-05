@@ -1,0 +1,102 @@
+/* Phong cách chung cho sơ đồ báo cáo MeetingMind */
+:root {
+  --main: #1F3A5F;
+  --blue: #2E6DA4;
+  --light: #E8F0F8;
+  --orange: #D9822B;
+  --orl: #FCEFE2;
+  --ord: #8A4A10;
+  --gray: #6B7280;
+  --grl: #F6F7F8;
+  --ink: #1F2937;
+  --sub: #3B4656;
+}
+html, body { margin: 0; padding: 0; background: #fff; }
+body {
+  font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+#fig { position: relative; background: #fff; overflow: hidden; }
+
+/* Hộp thành phần */
+.n {
+  position: absolute; box-sizing: border-box; z-index: 2;
+  border: 2px solid var(--blue); background: var(--light); border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 6px 10px; line-height: 1.22;
+}
+.n .t { font-weight: 700; font-size: 20px; color: var(--main); }
+.n .s { font-size: 16px; color: var(--sub); margin-top: 3px; }
+.n .s2 { font-size: 15.5px; color: var(--sub); margin-top: 2px; }
+.n.left { align-items: flex-start; text-align: left; }
+.n.main { background: var(--main); border-color: var(--main); }
+.n.main .t { color: #fff; } .n.main .s, .n.main .s2 { color: #D5E1EE; }
+.n.ai { background: var(--orl); border-color: var(--orange); }
+.n.ai .t { color: var(--ord); } .n.ai .s, .n.ai .s2 { color: #5B3A1A; }
+.n.design { background: #FAFAFB; border: 2px dashed var(--gray); }
+.n.design .t { color: #4B5563; } .n.design .s, .n.design .s2 { color: var(--gray); }
+.n.white { background: #fff; }
+.n.ext { background: #fff; border-color: var(--blue); border-width: 2px; }
+.n.plain { background: transparent; border: none; }
+.n.note { background: #FFFDF5; border: 1.5px solid #D6CFB8; border-radius: 4px; }
+.n.db, .n.dia { background: transparent; border: none; }
+
+.tag {
+  position: absolute; top: -12px; right: 10px; background: #fff;
+  border: 1.5px dashed var(--gray); color: var(--gray);
+  font-size: 15px; padding: 0 7px; border-radius: 9px; line-height: 19px; font-style: italic;
+  white-space: nowrap;
+}
+.tag.solid { border-style: solid; font-style: normal; }
+.num {
+  position: absolute; top: -13px; left: -13px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--main); color: #fff; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; z-index: 3;
+}
+.num.ai { background: var(--orange); }
+.num.design { background: var(--gray); }
+
+/* Khung nhóm */
+.grp {
+  position: absolute; box-sizing: border-box; z-index: 0;
+  border: 2px solid #C5D5E6; border-radius: 14px; background: #F7FAFD;
+}
+.grp.dash { border-style: dashed; }
+.grp.design { border: 2px dashed var(--gray); background: #FBFBFC; }
+.grp.ai { border-color: #EBC59E; background: #FFF9F3; }
+.grp.white { background: #fff; }
+.grp > .gt {
+  position: absolute; top: -13px; left: 14px; background: #fff; padding: 0 8px;
+  font-weight: 700; color: var(--main); font-size: 18px; line-height: 24px; white-space: nowrap;
+}
+.grp.design > .gt { color: #4B5563; }
+
+/* Nhãn mũi tên và chữ tự do */
+.lbl {
+  position: absolute; z-index: 5; transform: translate(-50%, -50%);
+  background: #fff; font-size: 16px; color: var(--main); padding: 0 4px;
+  white-space: nowrap; line-height: 1.2; border-radius: 3px;
+}
+.lbl.ai { color: #9A520F; }
+.lbl.design { color: var(--gray); font-style: italic; }
+.lbl.nobg { background: transparent; }
+.lbl.wrap { white-space: normal; text-align: center; }
+.txt { position: absolute; z-index: 3; font-size: 16px; line-height: 1.3; }
+.txt.c { transform: translateX(-50%); text-align: center; }
+
+.chip {
+  display: inline-block; border-radius: 6px; padding: 1px 7px; margin: 2px 2px;
+  font-size: 15.5px; line-height: 21px; border: 1.5px solid var(--blue); background: #fff; color: var(--main);
+  white-space: nowrap;
+}
+.chip.ai { border-color: var(--orange); color: var(--ord); background: #fff; }
+.chip.fill { background: var(--main); color: #fff; border-color: var(--main); }
+.chip.light { background: var(--light); }
+.chip.design { border-style: dashed; border-color: var(--gray); color: var(--gray); }
+code, .mono { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 0.92em; }
+
+/* Chú giải */
+.legend { position: absolute; z-index: 3; display: flex; gap: 22px; align-items: center; font-size: 16px; color: var(--sub); }
+.legend .it { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.legend .sw { width: 30px; height: 18px; border-radius: 4px; box-sizing: border-box; }

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Sơ đồ ca sử dụng</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .uc { background: #fff; border: 2px solid var(--blue); padding: 0 18px; }
+  .uc .t { font-size: 18px; font-weight: 400; color: #1F2937; }
+  .uc.ai { background: #FFF8F1; border-color: var(--orange); }
+  .sys { position: absolute; z-index: 0; border: 2px solid var(--main); border-radius: 6px; background: #FAFCFE; }
+  .sys .gt { position: absolute; top: 10px; left: 14px; font-weight: 700; font-size: 19px; color: var(--main); }
+  .inc { font-size: 15.5px; color: #4B5563; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, uc, actor, link, draw, div, text} = F;
+init(1240, 826);
+div("sys", 270, 12, 740, 806, `<div class="gt">Hệ thống MeetingMind</div>`);
+
+// Tác nhân con người (bên trái), sắp từ quyền cao xuống thấp
+actor("owner", 125, 46, "Owner / Admin");
+actor("pm", 125, 220, "PM / Trưởng nhóm");
+actor("mem", 125, 474, "Thành viên");
+actor("guest", 125, 700, "Khách mời");
+// Kế thừa: tác nhân trên có mọi ca của tác nhân dưới
+const gen = (y1, y2) => draw([[125, y1], [125, y2]], {mk: "tri", c: "main"});
+gen(164, 218); gen(338, 472); gen(592, 698);
+text(136, 182, "kế thừa", "", 80, {fontSize: "15.5px", color: "#4B5563", fontStyle: "italic"});
+
+// Tác nhân hệ thống (bên phải)
+actor("bot", 1130, 208, "Bot Google Meet", "ai");
+actor("ai", 1130, 462, "Dịch vụ AI", "ai");
+
+// Ca sử dụng
+const A = 470, W = 330, H = 58;
+const rows = [
+  ["u1", 90, "Quản lý workspace & thành viên"],
+  ["u2", 170, "Quản lý dự án & phân quyền"],
+  ["u3", 252, "Mời bot vào Google Meet"],
+  ["u4", 334, "Duyệt biên bản & đề xuất AI"],
+  ["u5", 426, "Tạo cuộc họp"],
+  ["u6", 506, "Tải tệp ghi âm / thu phụ đề"],
+  ["u7", 586, "Gán tên người nói"],
+  ["u8", 666, "Quản lý task, xem cảnh báo"],
+  ["u9", 758, "Xem transcript & biên bản"],
+];
+rows.forEach(([id, y, t]) => uc(id, A, y, W, H, `<div class="t">${t}</div>`));
+uc("b1", 840, 252, 270, 64, `<div class="t">Ghi âm cuộc họp<br>trực tuyến</div>`, "ai");
+uc("b2", 840, 506, 270, 84, `<div class="t">Phiên âm, tách người nói,<br>trích xuất biên bản</div>`, "ai");
+
+// Liên kết tác nhân – ca sử dụng
+const as = (a, u, c) => link(a.includes(".") ? a : a + ".r", u.includes(".") ? u : u + ".l", {head: "none", c: c || "main", w: 1.8, route: "straight"});
+as("owner", "u1");
+["u2", "u3", "u4"].forEach((u) => as("pm", u));
+["u5", "u6", "u7", "u8"].forEach((u) => as("mem", u));
+as("guest", "u9");
+as("bot.l", "b1.r", "orange");
+as("ai.l", "b2.r", "orange");
+
+// «include»
+const inc = (a, b, lat) => link(a, b, {mk: "open", dash: "7 5", c: "gray", w: 1.8, label: "«include»", lat, lcls: "design"});
+inc("u3.r", "b1.l", [672, 236]);
+inc("u6.r", "b2.l", [672, 490]);
+inc("b1.b", "b2.t", [890, 380]);
+F.done();
+</script></body></html>

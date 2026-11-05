@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Trích xuất bằng LLM</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .card { position: absolute; z-index: 2; box-sizing: border-box; border-radius: 10px; border: 2px solid var(--blue); background: #fff; padding: 10px 14px; }
+  .card h4 { margin: 0 0 8px; font-size: 19px; color: var(--main); display: flex; align-items: center; gap: 8px; }
+  .card.ai { border-color: var(--orange); background: #FCEFE2; } .card.ai h4 { color: #8A4A10; }
+  .card.pm { border-color: var(--main); background: var(--main); color: #fff; } .card.pm h4 { color: #fff; }
+  .ln { font-size: 15.5px; line-height: 1.35; margin: 3px 0; color: #1F2937; }
+  .ln .sq { font-family: "DejaVu Sans Mono", monospace; color: #2E6DA4; font-weight: 700; font-size: 14.5px; }
+  .ln .sp { font-weight: 700; color: #1F3A5F; }
+  .tagr { font-size: 14.5px; color: #8A4A10; font-style: italic; }
+  ul.r { margin: 0; padding-left: 20px; font-size: 16px; line-height: 1.38; color: #1F2937; }
+  ul.r li { margin-bottom: 4px; }
+  pre { margin: 0; font-family: "DejaVu Sans Mono", monospace; font-size: 14.5px; line-height: 1.38; color: #1F2937; }
+  pre .k { color: #2E6DA4; } pre .v { color: #8A4A10; }
+  .nb { width: 26px; height: 26px; border-radius: 50%; background: var(--main); color: #fff; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .nb.ai { background: var(--orange); }
+  .card.pm .nb { background: #fff; color: var(--main); }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, link, div, text} = F;
+init(1240, 690);
+const card = (id, x, y, w, h, html, cls) => div("card " + (cls || ""), x, y, w, h, html, id);
+const nb = (n, cls) => `<span class="nb ${cls || ""}">${n}</span>`;
+
+card("tr", 16, 16, 352, 318, `<h4>${nb(1)}Transcript đánh số dòng</h4>
+  <div class="ln"><span class="sq">[12]</span> <span class="sp">Lan:</span> Em làm API đăng nhập, xong thứ Sáu.</div>
+  <div class="ln"><span class="sq">[13]</span> <span class="sp">Minh:</span> Hay là thử Redis?</div>
+  <div class="ln"><span class="sq">[14]</span> <span class="sp">Hùng:</span> Chốt giữ JWT như cũ.</div>
+  <div class="ln"><span class="sq">[15]</span> <span class="sp">Lan:</span> À, dời sang thứ Hai nhé.</div>
+  <div class="ln"><span class="sq">[16]</span> <span class="sp">Người nói 2:</span> Tối qua đá bóng vui ghê.</div>
+  <div class="ln" style="margin-top:8px;color:#3B4656;font-size:15px">tên người nói lấy từ speaker_aliases nếu đã gán, không thì giữ nhãn tự động</div>`);
+
+card("pr", 400, 16, 300, 318, `<h4>${nb(2)}Prompt quy tắc</h4>
+  <ul class="r">
+   <li>đề xuất ≠ quyết định <span class="tagr">([13])</span></li>
+   <li>đính chính → lấy thông tin cuối <span class="tagr">([15])</span></li>
+   <li>bỏ chuyện ngoài lề <span class="tagr">([16])</span></li>
+   <li>không rõ người / hạn → null, không bịa</li>
+   <li>trích nguyên văn + số dòng làm bằng chứng</li>
+   <li>viết bằng ngôn ngữ của cuộc họp</li>
+  </ul>`);
+
+card("llm", 732, 56, 196, 238, `<h4 style="font-size:18px">${nb(3, "ai")}LLM</h4>
+  <div class="ln">FPT AI Factory<br>(API kiểu OpenAI)</div>
+  <div class="ln"><b>DeepSeek-V4.1-Flash</b></div>
+  <div class="ln">lỗi → <b>GLM-5.2</b></div>
+  <div class="ln" style="font-size:15px;color:#5B3A1A">temperature 0,2; không bật response_format json</div>`, "ai");
+
+card("js", 960, 16, 264, 318, `<h4>${nb(4)}JSON thô</h4><pre>{"decisions": [{
+  <span class="k">"title"</span>: <span class="v">"Giữ JWT"</span>,
+  <span class="k">"transcriptSequence"</span>: 14}],
+ "actionItems": [{
+  <span class="k">"title"</span>: <span class="v">"API đăng nhập"</span>,
+  <span class="k">"assigneeHint"</span>: <span class="v">"Lan"</span>,
+  <span class="k">"deadlineRawText"</span>:
+     <span class="v">"thứ Hai"</span>,
+  <span class="k">"priority"</span>: <span class="v">"High"</span>,
+  <span class="k">"confidence"</span>: 0.9,
+  <span class="k">"quote"</span>: <span class="v">"dời sang thứ Hai"</span>,
+  <span class="k">"transcriptSequence"</span>: 12}]}</pre>`);
+
+card("nm", 856, 400, 368, 270, `<h4>${nb(5)}Chuẩn hoá & đối chiếu</h4>
+  <ul class="r">
+   <li>bóc JSON khỏi khối <span class="mono">\`\`\`json</span> hay lời dẫn</li>
+   <li>"null", "N/A", "không rõ" → rỗng</li>
+   <li>priority ∉ {high, medium, low} → medium <span class="tagr">("High" → high)</span></li>
+   <li>confidence kẹp vào [0, 1]</li>
+   <li>dò lại số dòng theo câu trích: <span class="tagr">12 → 15</span></li>
+  </ul>`);
+
+card("rv", 440, 400, 380, 270, `<h4>${nb(6)}Hàng đợi duyệt (core-service)</h4>
+  <div class="ln"><span class="mono">minutes_version</span> trạng thái DRAFT (tóm tắt, vấn đề mở)</div>
+  <div class="ln" style="margin-top:6px"><span class="mono">review_batch</span> + các <span class="mono">review_items</span>:</div>
+  <div style="margin-top:6px"><span class="chip">action_item</span><span class="chip">decision</span><span class="chip">open_issue</span></div>
+  <div class="ln" style="margin-top:8px">giữ <span class="mono">originalPayload</span> để so với bản người duyệt sửa</div>`);
+
+card("pm", 16, 400, 390, 270, `<h4>${nb(7)}PM sửa · duyệt · từ chối</h4>
+  <ul class="r" style="color:#E6EEF7">
+   <li>sửa tiêu đề, gán người thực hiện, chốt hạn</li>
+   <li>duyệt action_item → tạo <b style="color:#fff">action_items</b> (task chính thức, nguồn ai)</li>
+   <li>duyệt decision → tạo <b style="color:#fff">decisions</b></li>
+   <li>hạn chỉ có câu gốc → đánh dấu cần xác nhận</li>
+   <li>từ chối → ghi lý do</li>
+  </ul>`, "pm");
+
+link("tr.r", "pr.l", {});
+link("pr.r", "llm.l@0.4706", {c: "orange"});
+link("llm.r@0.4706", "js.l@0.3962", {c: "orange"});
+link("js.b@0.66", "nm.t@0.6957", {});
+link("nm.l", "rv.r", {label: "analysis.completed", lat: [838, 382], lcls: "ai"});
+link("rv.l", "pm.r", {});
+F.done();
+</script></body></html>

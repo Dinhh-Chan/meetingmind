@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Tách người nói</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .trk { position: absolute; z-index: 3; font-size: 16.5px; font-weight: 700; color: var(--main); text-align: right; width: 150px; line-height: 1.2; }
+  .w { position: absolute; z-index: 2; height: 26px; box-sizing: border-box; border-radius: 4px; font-size: 15px; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
+  .wd { background: #fff; border: 1.5px solid #9DB4CC; color: #1F2937; }
+  .win { background: #fff; border: 2px solid #5B7FA6; color: #3B4656; }
+  .s1 { background: #2E6DA4; border: 2px solid #2E6DA4; color: #fff; }
+  .s2 { background: #3A8A6E; border: 2px solid #3A8A6E; color: #fff; }
+  .ov { outline: 3px solid #D9822B; outline-offset: 2px; }
+  .turn { height: 30px; font-weight: 700; font-size: 15.5px; }
+  .step .t { font-size: 18.5px; }
+  .step .s { font-size: 16px; margin-top: 6px; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, link, draw, div, text, T} = F;
+init(1240, 716);
+
+// ---------- Minh hoạ trên trục thời gian ----------
+grp("ill", 16, 14, 1208, 304, "");
+const X0 = 190, PX = 72;  // 1 giây = 72 px
+// Lời: mỗi từ 0,55 s, cách nhau 0,05 s; giữa hai lượt lặng 0,6 s
+const say = (t0, list) => list.map((w, i) => [t0 + i * 0.6, t0 + i * 0.6 + 0.55, w]);
+const words = [...say(0, ["chào", "cả", "nhóm", "hôm", "nay", "bàn"]), ...say(4.15, ["em", "xong", "API", "rồi", "ạ"]),
+  ...say(7.7, ["ok", "còn", "giao", "diện", "thì", "sao"]), ...say(11.85, ["thứ", "Sáu", "ạ"])];
+const wins = [[0, 1.75, 1], [1.8, 3.55, 1], [4.15, 5.9, 2], [5.95, 7.1, 2], [7.7, 9.45, 1], [9.5, 11.25, 1, true], [11.85, 13.6, 2]];
+const turns = [[0, 3.55, 1], [4.15, 7.1, 2], [7.7, 11.25, 1], [11.85, 13.6, 2]];
+const px = (t) => X0 + t * PX;
+const rowY = [34, 92, 150, 212];
+[["Lời Whisper", 0], ["Cửa sổ ~1,5 s", 1], ["Sau gom cụm", 2], ["Lượt nói", 3]].forEach(([t, i]) => div("trk", 26, rowY[i] + 3, null, null, t));
+words.forEach(([a, b, w]) => div("w wd", px(a), rowY[0], (b - a) * PX, null, w));
+wins.forEach(([a, b], i) => div("w win", px(a), rowY[1], (b - a) * PX, null, `c${i + 1}`));
+wins.forEach(([a, b, s, ov], i) => div("w " + (s === 1 ? "s1" : "s2") + (ov ? " ov" : ""), px(a), rowY[2], (b - a) * PX, null, s === 1 ? "A" : "B"));
+turns.forEach(([a, b, s]) => div("w turn " + (s === 1 ? "s1" : "s2"), px(a), rowY[3], (b - a) * PX, null, `Người nói ${s}`));
+const c6 = (px(9.5) + px(11.25)) / 2;
+text(c6 - 70, rowY[2] + 33, "nghi nói chồng", "", 140, {fontSize: "15px", color: "#9A520F", fontWeight: 700, textAlign: "center"});
+div("w", px(9.5), rowY[3] + 36, (11.25 - 9.5) * PX, 6, "").style.cssText += "background:#D9822B;height:6px;border-radius:2px;";
+text(c6 - 70, rowY[3] + 44, "isOverlapping", "", 140, {fontSize: "15px", color: "#9A520F", fontFamily: "DejaVu Sans Mono, monospace", textAlign: "center"});
+// trục thời gian
+draw([[X0, 290], [px(14.2), 290]], {c: "mute", w: 1.5});
+for (let s = 0; s <= 14; s += 2) { draw([[px(s), 286], [px(s), 294]], {c: "mute", w: 1.5, head: "none"}); text(px(s) - 14, 294, `${s} s`, "", 40, {fontSize: "15px", color: "#6B7280"}); }
+
+// ---------- Các bước xử lý ----------
+const steps = [
+  ["1", "Lời có mốc thời gian", "Whisper + VAD trả mốc từng từ (word timestamps)", ""],
+  ["2", "Cắt cửa sổ ~1,5 s", "theo ranh giới từ; cắt sớm khi lặng > 0,4 s hoặc sang đoạn Whisper mới", ""],
+  ["3", "Vector đặc trưng giọng", "ERes2Net (3D-Speaker), ONNX qua sherpa-onnx, CPU; nới ±0,1 s hai đầu", "ai"],
+  ["4", "Gom cụm phân cấp", "average-linkage, độ tương đồng cosine; gộp khi ≥ 0,3; số người tự suy ra", ""],
+  ["5", "Gộp cụm nhỏ", "cụm có tổng thời lượng < 2 s gộp vào cụm có tâm giống nhất", ""],
+  ["6", "Lượt nói + nói chồng", "gán từng từ vào lượt → “Người nói k”; đánh dấu isOverlapping khi độ giống với người thứ hai > max(0,3; trung vị + 2·MAD)", ""],
+];
+const SW = 184, GAP = 20;
+steps.forEach(([n, t, s, cls], i) => node("st" + n, 20 + i * (SW + GAP), 346, SW, 262,
+  `<div class="num ${cls}">${n}</div>` + T(t, s), "step " + cls));
+for (let i = 1; i < steps.length; i++) link(`st${i}.r`, `st${i + 1}.l`, {c: i === 2 || i === 3 ? "orange" : "main"});
+
+node("note", 20, 632, 1200, 66,
+  `<div class="s" style="margin:0">Đã thử mô hình phân đoạn của pyannote trước: trên dữ liệu thử, nó coi cả cửa sổ 10 s là một người và chỉ đổi người ở ranh giới cửa sổ.
+   Vector giọng lại tách người rõ (cùng người ≈ 0,6; khác người ≈ 0,2), nên chuyển sang gom cụm theo cửa sổ lời.</div>`, "note left");
+F.done();
+</script></body></html>

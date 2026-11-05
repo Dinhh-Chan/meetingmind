@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Phiên âm hai lượt</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .dia .t { font-size: 18px; }
+  .yn { position: absolute; z-index: 5; font-size: 16px; font-weight: 700; color: var(--main); background: #fff; padding: 0 3px; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, db, dia, link, draw, text, T, div} = F;
+init(1270, 700);
+const yn = (x, y, t) => div("yn", x, y, null, null, t);
+
+// Lượt 1 — cả bản ghi
+node("n1", 40, 24, 330, 70, T("Âm thanh từ MinIO", "giải mã về 16 kHz, một kênh"));
+node("n2", 40, 126, 330, 112, T("Ngôn ngữ chính L₀", "nhận diện trên 30 s đầu: p ≥ 0,5 → dùng kết quả; ngược lại lấy ngôn ngữ cuộc họp (mặc định vi)"), "ai");
+node("n3", 40, 270, 330, 118, T("Lượt 1: phiên âm bằng L₀", "VAD · mốc thời gian từng từ", "condition_on_previous_text = False<br>hallucination_silence_threshold = 2 s"), "ai");
+node("n4", 40, 420, 330, 80, T("Lọc câu “ảo giác”", "“đăng ký kênh”, “thanks for watching”…"));
+node("n5", 40, 560, 330, 116, T("Kết quả gửi core-service", "tách người nói → segments (language, confidence) + tỷ lệ ngôn ngữ, vd. {vi: 0,8; en: 0,2}"), "main");
+link("n1.b", "n2.t"); link("n2.b", "n3.t"); link("n3.b", "n4.t");
+
+// Lượt 2 — từng đoạn
+grp("loop", 420, 24, 830, 656, "Với từng đoạn của lượt 1");
+dia("d1", 780, 124, 250, 110, `<div class="t">đoạn ≥ 1,5 s ?</div>`);
+node("a", 450, 226, 230, 84, T("Giữ ngôn ngữ<br>của đoạn trước", ""));
+node("b", 860, 214, 370, 108, T("Nhận diện lại ngôn ngữ trên đoạn", "p ≥ 0,7 → ngôn ngữ vừa nhận diện<br>p &lt; 0,7 → L₀"), "ai");
+link("n4.r", "d1.t", {via: [[396, null], [396, 48], ["x2", 48]]});
+link("d1.l", "a.t", {}); yn(600, 98, "không");
+link("d1.r", "b.t@0.5", {}); yn(925, 98, "có");
+
+dia("d3", 780, 425, 270, 112, `<div class="t">ngôn ngữ đoạn<br>khác L₀ ?</div>`);
+draw([[565, 310], [565, 345], [780, 345], [780, 369]], {});
+draw([[1045, 322], [1045, 345], [780, 345]], {head: "none"});
+
+node("f", 440, 392, 170, 66, T("Giữ bản lượt 1", ""));
+node("e", 950, 368, 280, 116, T("Lượt 2: phiên âm lại đoạn", "bằng ngôn ngữ của đoạn; mốc từ cộng độ lệch đầu đoạn; không ra chữ → giữ lượt 1"), "ai");
+link("d3.l", "f.r", {}); yn(608, 396, "không");
+link("d3.r", "e.l@0.5", {}); yn(912, 398, "có");
+
+node("g", 560, 566, 440, 80, T("Gộp từ kèm mốc, ngôn ngữ, độ tin cậy", ""));
+draw([[525, 458], [525, 525], [780, 525], [780, 566]], {});
+draw([[1090, 484], [1090, 525], [780, 525]], {head: "none"});
+link("g.l", "n5.r@0.3966", {mid: 396});
+F.done();
+</script></body></html>

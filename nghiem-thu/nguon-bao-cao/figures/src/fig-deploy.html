@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Triển khai Docker Compose</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .ct { align-items: flex-start; text-align: left; justify-content: flex-start; padding: 8px 12px; border-radius: 8px; }
+  .ct .t { font-family: "DejaVu Sans Mono", monospace; font-size: 17px; letter-spacing: -0.3px; }
+  .ct .s { font-size: 15.5px; margin-top: 4px; }
+  .ct .s2 { font-size: 15px; }
+  .vol { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-family: "DejaVu Sans Mono", monospace; font-size: 14.5px;
+         color: #1F3A5F; background: #fff; border: 1.5px solid #8FA3BA; border-radius: 5px; padding: 1px 6px; }
+  .n.main .vol { color: #1F3A5F; }
+  .frame { position: absolute; z-index: 0; box-sizing: border-box; border: 2.5px solid var(--main); border-radius: 16px; background: #fff; }
+  .frame .gt { position: absolute; top: -14px; left: 16px; background: #fff; padding: 0 8px; font-weight: 700; font-size: 19px; color: var(--main); }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, link, div, text} = F;
+init(1240, 740);
+const cyl = `<svg width="12" height="14" viewBox="0 0 12 14"><ellipse cx="6" cy="3" rx="5" ry="2.2" fill="none" stroke="#2E6DA4" stroke-width="1.4"/><path d="M1,3 V11 A5,2.2 0 0 0 11,11 V3" fill="none" stroke="#2E6DA4" stroke-width="1.4"/></svg>`;
+const vol = (name) => `<span class="vol">${cyl}${name}</span>`;
+const ct = (id, x, y, w, h, name, a, b, extra, cls) =>
+  node(id, x, y, w, h, `<div class="t">${name}</div><div class="s">${a}</div>` + (b ? `<div class="s2">${b}</div>` : "") + (extra || ""), "ct " + (cls || ""));
+const khung = `<div class="tag">khung</div>`;
+
+// Khung Docker
+div("frame", 240, 18, 764, 706, `<div class="gt">docker compose · project meetingmind · 12 service</div>`);
+
+grp("gapp", 258, 52, 728, 296, "Dịch vụ ứng dụng");
+ct("core", 274, 84, 226, 116, "core-service", "build ./core-service · :3010", "healthcheck · tạo bảng schema core", "", "main");
+ct("gw", 514, 84, 226, 116, "api-gateway", "build ./api-gateway · :3000", "chờ core-service healthy", khung, "design");
+ct("bot", 754, 84, 216, 116, "bot-worker", "Chromium + Xvfb", "shm_size 1 GB", vol("bot-profile"));
+ct("int", 274, 218, 226, 116, "integration-service", "build · :3020 · task-sync", "schema integration (4 bảng)");
+ct("aisvc", 514, 218, 226, 116, "ai-service", "FastAPI :8000", "schema ai", khung, "design");
+ct("aiw", 754, 218, 216, 116, "ai-worker", "cùng image ai-service", "python -m app.worker.main", vol("whisper-models"), "ai");
+
+grp("ginf", 258, 376, 728, 166, "Hạ tầng");
+ct("pg", 274, 406, 200, 122, "postgres", "pgvector · pg15 · :5432", "init.sql: 3 schema, 3 role", vol("postgres_data"));
+ct("mq", 486, 406, 156, 122, "rabbitmq", "3.11-management", ":5672 · :15672");
+ct("redis", 654, 406, 124, 122, "redis", "7-alpine", ":6379");
+ct("minio", 790, 406, 180, 122, "minio", ":9000 · :9001", "URL ký cho trình duyệt", vol("minio_data"));
+
+grp("gmon", 258, 570, 382, 136, "Giám sát");
+ct("prom", 274, 598, 166, 94, "prometheus", ":9090", "chưa cấu hình scrape");
+ct("graf", 452, 598, 172, 94, "grafana", ":3005", "", vol("grafana_data"));
+node("order", 656, 570, 330, 136, `<div class="s" style="margin:0;color:#1F2937"><b>Thứ tự khởi động</b> (depends_on + healthcheck):
+  postgres, redis, rabbitmq sẵn sàng → core-service healthy → api-gateway</div>`, "note left");
+
+// Ngoài compose
+grp("host", 14, 52, 210, 296, "Ngoài compose");
+node("fe", 28, 84, 182, 116, `<div class="t" style="font-size:18px">Frontend Next.js</div><div class="s">next dev :3001<br>/api → core :3010</div>`);
+node("br", 28, 218, 182, 116, `<div class="t" style="font-size:18px">Trình duyệt<br>+ Extension</div><div class="s">gọi thẳng core :3010</div>`);
+node("meet", 1028, 84, 198, 116, `<div class="t" style="font-size:18px">Google Meet</div><div class="s">tài khoản Google riêng của bot</div>`, "ext");
+node("fpt", 1028, 218, 198, 116, `<div class="t" style="font-size:18px">FPT AI Factory</div><div class="s">LLM qua HTTPS</div>`, "ai white");
+text(1028, 52, "Bên ngoài (Internet)", "", 198, {fontWeight: 700, color: "#1F3A5F", fontSize: "17px", textAlign: "center"});
+
+link("fe.r", "core.l@0.5", {});
+link("br.r@0.5", "core.l@0.82", {mid: 250});
+link("bot.r", "meet.l", {c: "blue"});
+link("aiw.r", "fpt.l", {c: "orange"});
+node("tt", 1028, 352, 198, 84, `<div class="t" style="font-size:18px">Trello · Telegram</div><div class="s">REST API · Bot API</div>`, "ext");
+link("int.b@0.5", "tt.l@0.119", {c: "blue", via: [[null, 362]]});
+
+F.div("legend", 14, 380, 220, null,
+  `<div style="display:flex;flex-direction:column;gap:10px;font-size:15.5px">
+   <div class="it"><span class="vol" style="margin:0">${cyl}tên</span> volume</div>
+   <div class="it"><div class="sw" style="background:#FAFAFB;border:2px dashed #6B7280"></div>khung, chưa có nghiệp vụ</div>
+   <div class="it"><div class="sw" style="background:#FCEFE2;border:2px solid #D9822B"></div>AI / LLM</div></div>`);
+F.done();
+</script></body></html>

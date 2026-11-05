@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Kiến trúc Whisper</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .tok { display: inline-block; font-family: "DejaVu Sans Mono", monospace; font-size: 15.5px; padding: 3px 7px; border-radius: 6px; margin: 0 3px; border: 1.8px solid var(--blue); background: #fff; color: var(--main); }
+  .tok.sp { border-color: var(--orange); background: #FCEFE2; color: #8A4A10; font-weight: 700; }
+  .tok.dim { border-color: transparent; background: transparent; }
+  .row { position: absolute; z-index: 3; display: flex; justify-content: center; align-items: center; }
+  .cap { position: absolute; z-index: 3; font-size: 16px; color: #3B4656; text-align: center; transform: translateX(-50%); white-space: nowrap; }
+  .blk { font-weight: 700; font-size: 18px; color: var(--main); }
+  .nx { position: absolute; z-index: 3; font-size: 18px; font-weight: 700; color: var(--main); }
+  .colh { position: absolute; z-index: 3; font-size: 21px; font-weight: 700; color: var(--main); letter-spacing: 1px; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, link, draw, div, text, T} = F;
+init(1240, 760);
+
+// ---- Encoder (trái), luồng đi từ dưới lên ----
+node("audio", 100, 640, 420, 70, `<div style="display:flex;align-items:center;gap:14px">
+  <svg width="120" height="44" viewBox="0 0 120 44"><path d="M0,22 ${Array.from({length: 60}, (_, i) => `L${2 * i},${22 + Math.round(Math.sin(i * 0.9) * (6 + 12 * Math.abs(Math.sin(i * 0.23))))}`).join(" ")}" fill="none" stroke="#2E6DA4" stroke-width="1.8"/></svg>
+  <div style="text-align:left"><div class="t" style="font-size:19px">Âm thanh</div><div class="s" style="margin:0">16 kHz · khung 30 s</div></div></div>`, "white");
+const mel = Array.from({length: 8}, (_, r) => Array.from({length: 22}, (_, c) => {
+  const v = 0.25 + 0.75 * Math.abs(Math.sin(c * 0.7 + r * 0.9) * Math.cos(c * 0.21 + r * 0.4));
+  return `<rect x="${c * 6}" y="${r * 5}" width="6" height="5" fill="rgba(46,109,164,${v.toFixed(2)})"/>`;
+}).join("")).join("");
+node("mel", 100, 540, 420, 70, `<div style="display:flex;align-items:center;gap:14px">
+  <svg width="132" height="40">${mel}</svg>
+  <div style="text-align:left"><div class="t" style="font-size:19px">Log-Mel spectrogram</div><div class="s" style="margin:0">80 kênh Mel</div></div></div>`);
+node("conv", 140, 452, 340, 56, T("2 × Conv1D + GELU", ""));
+node("pos1", 140, 382, 340, 46, `<div class="t" style="font-size:18px">⊕ mã hoá vị trí sinusoid</div>`, "white");
+grp("enc", 100, 122, 420, 232, "");
+div("colh", 112, 82, null, null, "ENCODER");
+node("e_sa", 130, 160, 360, 56, T("Self-Attention", ""));
+node("e_mlp", 130, 248, 360, 56, T("MLP", ""));
+div("nx", 440, 318, null, null, "× N");
+link("audio.t", "mel.b"); link("mel.t", "conv.b"); link("conv.t", "pos1.b"); link("pos1.t", "enc.b");
+link("e_sa.b", "e_mlp.t", {});
+
+// ---- Decoder (phải) ----
+grp("dec", 640, 122, 560, 330, "");
+div("colh", 652, 82, null, null, "DECODER");
+node("d_sa", 680, 160, 480, 56, T("Self-Attention có mặt nạ", ""));
+node("d_ca", 680, 248, 480, 56, T("Cross-Attention", ""), "ai");
+node("d_mlp", 680, 336, 480, 56, T("MLP", ""));
+div("nx", 1140, 410, null, null, "× N");
+link("d_sa.b", "d_ca.t"); link("d_ca.b", "d_mlp.t");
+node("emb", 680, 492, 480, 52, `<div class="t" style="font-size:18px">nhúng token + mã hoá vị trí (học được)</div>`, "white");
+link("emb.t", "dec.b@0.5");
+
+// Đầu ra encoder → cross-attention
+link("enc.r@0.4", "d_ca.l", {c: "orange", w: 2.4, label: "biểu diễn âm thanh", lat: [580, 248], lcls: "ai"});
+
+// Token
+const tok = (t, sp) => `<span class="tok ${sp ? "sp" : ""}">${t}</span>`;
+div("row", 640, 590, 560, 40, tok("⟨SOT⟩", 1) + tok("⟨vi⟩", 1) + tok("⟨transcribe⟩", 1) + tok("⟨0.00⟩", 1) + tok("xin") + tok("chào") + `<span class="tok dim">…</span>`, "tin");
+div("cap", 920, 636, null, null, "token đầu vào (dịch phải một vị trí)");
+link([920, 588], "emb.b", {});
+div("row", 640, 22, 560, 40, tok("⟨vi⟩", 1) + tok("⟨transcribe⟩", 1) + tok("⟨0.00⟩", 1) + tok("xin") + tok("chào") + `<span class="tok dim">…</span>` + tok("⟨EOT⟩", 1), "tout");
+link("dec.t@0.5", [920, 64], {});
+div("cap", 1080, 84, null, null, "dự đoán token kế tiếp");
+
+// Chú giải định dạng chuỗi đa nhiệm
+const sp = (t) => `<span class="mono" style="color:#9A520F;font-weight:700">${t}</span>`;
+node("fmt", 640, 672, 560, 74, `<div class="s" style="margin:0;color:#1F2937">Chuỗi điều khiển: ${sp("⟨SOT⟩")} → ngôn ngữ (${sp("⟨vi⟩")}, ${sp("⟨en⟩")}…) → nhiệm vụ
+  (${sp("⟨transcribe⟩")} / ${sp("⟨translate⟩")}) → mốc ${sp("⟨0.00⟩")} hoặc ${sp("⟨notimestamps⟩")} → văn bản xen mốc → ${sp("⟨EOT⟩")}</div>`, "note left");
+node("cfg", 100, 6, 420, 70, `<div class="s" style="margin:0;color:#1F2937">MeetingMind dùng bản <b>small</b>: N = 12 khối mỗi phía, 244 triệu tham số; chạy bằng faster-whisper (CTranslate2), int8 trên CPU</div>`, "note left");
+F.done();
+</script></body></html>

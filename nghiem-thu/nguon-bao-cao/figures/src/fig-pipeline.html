@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Luồng xử lý</title>
+<link rel="stylesheet" href="common.css">
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, db, link, text, T, div} = F;
+init(1240, 720);
+const num = (n, cls) => `<div class="num ${cls || ""}">${n}</div>`;
+
+// Thu nhận
+grp("g1", 20, 22, 290, 300, "Thu nhận (3 đường)");
+node("up", 40, 48, 250, 72, T("Tải tệp ghi âm", "trình duyệt → core-service"));
+node("bot", 40, 140, 250, 72, T("Bot Google Meet", "ghi âm WebRTC → .webm"));
+node("ext", 40, 232, 250, 72, T("Extension Chrome", "phụ đề Meet kèm tên người nói"));
+
+db("minio", 360, 60, 170, 140, T("MinIO", "tệp âm thanh"));
+node("stt", 590, 60, 290, 140, num("1", "ai") + T("Phiên âm + tách người nói", "faster-whisper small · int8 · CPU", "sherpa-onnx · ERes2Net"), "ai");
+node("tv", 940, 60, 280, 250, num("2") +
+  T("Transcript theo phiên bản", "<span class=mono>transcript_versions</span><br><span class=mono>transcript_segments</span><br><span class=mono>speaker_aliases</span>",
+    "<div style='margin-top:6px'>nguồn: stt | live_caption<br>sửa hoặc chạy lại → phiên bản mới</div>"));
+
+link("up.r", "minio.l@0.1714", {mid: 325});
+link("bot.r", "minio.l@0.8286", {mid: 325});
+link("minio.r", "stt.l", {c: "orange", label: "transcription.requested", lat: [560, 34], lcls: "ai"});
+link("stt.r", "tv.l@0.28", {c: "orange", label: "transcription.completed", lat: [910, 34], lcls: "ai"});
+link("ext.r", "tv.l@0.832", {label: "phụ đề theo lô 5 s — không qua STT", lt: 0.5});
+
+// Phân tích và duyệt (đọc từ phải sang trái)
+node("llm", 940, 410, 280, 150, num("3", "ai") + T("Trích xuất bằng LLM", "FPT AI Factory", "DeepSeek-V4.1-Flash<br>dự phòng GLM-5.2"), "ai");
+node("draft", 630, 410, 250, 150, num("4") + T("Biên bản nháp<br>+ hàng đợi duyệt", "minutes_version (DRAFT)", "review_items: action_item ·<br>decision · open_issue"));
+node("pm", 350, 410, 220, 150, num("5") + T("PM sửa · duyệt<br>· từ chối", "quyền review.approve,<br>minutes.approve"), "main");
+node("task", 40, 410, 250, 150, num("6") + T("Công việc chính thức", "action_items (Task Board)", "decisions · biên bản đã duyệt"));
+node("sync", 40, 616, 250, 88, num("7") + `<div class="t" style="font-size:18px">Thẻ Trello + tin Telegram</div><div class="s">integration-service</div>`);
+node("jira", 330, 632, 140, 56, `<div class="t" style="font-size:18px">Jira</div><div class="tag">thiết kế</div>`, "design");
+
+link("tv.b", "llm.t", {c: "orange", label: "analysis.requested", lcls: "ai"});
+link("llm.l", "draft.r", {c: "orange", label: "analysis.completed", lat: [910, 390], lcls: "ai"});
+link("draft.l", "pm.r", {});
+link("pm.l", "task.r", {label: "duyệt", lat: [320, 470]});
+link("task.b", "sync.t", {label: "task.sync.requested", lat: [165, 588]});
+link("sync.r", "jira.l", {c: "gray", dash: true});
+
+node("note", 510, 610, 710, 96,
+  `<div class="s" style="font-size:16.5px;margin:0">AI chỉ trả kết quả qua sự kiện; core-service ghi đề xuất vào hàng đợi duyệt.
+   Chỉ khi PM duyệt một action item thì mới sinh task chính thức và task mới được đẩy sang Trello, báo Telegram;
+   kết quả trả về Core qua <span class="mono">task.sync.completed</span>.</div>`, "note left");
+F.done();
+</script></body></html>

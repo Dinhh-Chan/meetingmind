@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Kiến trúc tổng thể</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  #core .chips { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 6px 8px; margin-top: 10px; }
+  #core .chip { background: #fff; color: var(--main); border-color: #fff; font-size: 15.5px; margin: 0; text-align: center; }
+  #bus { flex-direction: row; gap: 14px; background: var(--blue); border-color: var(--blue); justify-content: flex-start; padding-left: 18px; }
+  #bus .t { color: #fff; } #bus .s { color: #DCE8F4; margin: 0; font-size: 17px; }
+  #bus .chip { background: #fff; border-color: #fff; color: var(--main); font-family: "DejaVu Sans Mono", monospace; font-size: 15px; }
+  #pg .chip { display: block; margin: 3px 0; text-align: center; font-size: 15px; }
+</style>
+</head><body><div id="fig"></div>
+<script src="common.js"></script>
+<script>
+const {init, node, grp, db, link, text, T} = F;
+init(1280, 820);
+
+// Tầng client
+node("fe", 280, 30, 225, 88, T("Frontend web", "Next.js 16 · 29 trang"));
+node("ext", 535, 30, 225, 88, T("Extension Chrome", "Manifest V3"));
+node("meet", 1020, 30, 220, 88, T("Google Meet", "nền tảng họp (bên ngoài)"), "ext");
+
+// Cổng vào (mới là khung)
+node("gw", 330, 146, 380, 62,
+  `<div class="t" style="font-size:18px">API Gateway :3000 (thiết kế)</div>
+   <div class="s2">cổng vào duy nhất — hiện mới là khung</div>`, "design");
+
+// Lõi
+node("core", 280, 236, 480, 160,
+  `<div class="t" style="font-size:22px">core-service</div>
+   <div class="s">NestJS · Sequelize · 64 module</div>
+   <div class="chips"><span class="chip">Workspace · Dự án · Cuộc họp</span><span class="chip">Transcript · Biên bản</span>
+   <span class="chip">Hàng đợi duyệt · Task</span><span class="chip">Phân quyền · Outbox</span></div>`, "main");
+
+db("redis", 40, 246, 190, 92, T("Redis", "cache"));
+db("minio", 800, 252, 180, 112, T("MinIO", "kho đối tượng", "tệp ghi âm"));
+node("bot", 1020, 236, 220, 160, T("bot-worker", "Python · Playwright", "Chromium + Xvfb<br>+ PulseAudio"));
+
+// Bus sự kiện
+node("bus", 280, 434, 960, 56,
+  `<div class="t">RabbitMQ</div><div class="s">exchange topic «meetingmind»</div>
+   <span class="chip" style="position:absolute;left:400px">ai.jobs</span><span class="chip" style="position:absolute;left:488px">core.events</span>
+   <span class="chip" style="position:absolute;left:720px">bot.jobs</span><span class="chip" style="position:absolute;left:824px">bot.control</span>`);
+
+// Worker
+node("int", 280, 545, 240, 112, T("integration-service", "NestJS · module task-sync", "đồng bộ việc đã duyệt"));
+grp("aig", 568, 526, 418, 184, "", "ai");
+node("qa", 582, 544, 164, 136, T("ai-service", "FastAPI :8000", "API hỏi đáp nội bộ:<br>tìm vector, rerank,<br>LLM có trích dẫn"), "ai");
+node("aiw", 758, 544, 214, 136, T("ai-worker", "STT faster-whisper<br>tách người nói", "phân tích biên bản (LLM)<br>lập chỉ mục tri thức"), "ai");
+text(777, 684, "chung mã nguồn Python và ảnh Docker", "c", null, {fontStyle: "italic", color: "#8A4A10", fontSize: "15px", whiteSpace: "nowrap"});
+node("fpt", 1020, 540, 220, 140,
+  `<div class="t">FPT AI Factory</div><div class="s">DeepSeek-V4.1-Flash<br>GLM-5.2</div><div class="s2">Vietnamese_Embedding<br>bge-reranker-v2-m3</div>`, "ai white");
+
+db("pg", 40, 520, 190, 196,
+  `<div class="t">PostgreSQL 15</div><div class="s" style="margin-bottom:6px">+ pgvector</div>
+   <span class="chip fill">schema core</span><span class="chip fill">schema ai</span><span class="chip fill">schema integration</span>`);
+node("ext3", 280, 696, 240, 72, `<div class="t" style="font-size:18px">Trello · Telegram</div><div class="s2">REST API · Bot API</div>`, "white");
+node("jira", 568, 736, 170, 46, `<div class="t" style="font-size:18px">Jira</div><div class="tag">thiết kế</div>`, "design");
+node("mon", 1020, 696, 220, 76, `<div class="t" style="font-size:18px">Prometheus · Grafana</div><div class="s2">chưa cấu hình thu thập</div>`, "design");
+
+// Liên kết client
+link("fe.b@0.0889", "core.t@0.0417", {});
+text(52, 166, "REST/JSON · JWT<br><span style='font-size:15.5px;color:#3B4656'>gọi thẳng :3010</span>", "", 240, {textAlign: "right", color: "#1F3A5F"});
+link("ext.b@0.9111", "core.t@0.9583", {});
+text(752, 166, "phụ đề, lô 5 s<br><span style='font-size:15.5px;color:#3B4656'>gọi thẳng :3010</span>", "", 200, {color: "#1F3A5F"});
+link("meet.l", "ext.r", {label: "phụ đề (DOM)", c: "blue"});
+link("bot.t", "meet.b", {label: "vào phòng, ghi âm", lat: [1130, 177], c: "blue"});
+
+// Core và dữ liệu
+link("core.l@0.32", "redis.r@0.4478", {head: "end"});
+link("core.l@0.9", "pg.t", {via: [[135, null]], label: "SQL · schema core", lat: [135, 452]});
+link("core.r@0.425", "minio.l@0.4643", {});
+link("bot.l@0.425", "minio.r@0.4643", {c: "blue"});
+link("int.l@0.45", "pg.r@0.385", {c: "blue"});
+
+// Bus
+link("core.b@0.5", "bus.t@0.25", {head: "both", label: "outbox → publish · consume", lat: [398, 415]});
+link("bot.b", "bus.t@0.8854", {head: "both", c: "blue"});
+link("bus.b@0.609375", "aiw.t@0.5", {head: "both", c: "orange"});
+link("core.b@0.8", "qa.t@0.5", {top: true, halo: true, label: "HTTP nội bộ (hỏi đáp)", lat: [664, 509]});
+link("bus.b@0.125", "int.t", {head: "both", c: "blue", label: "<span class='mono'>task.sync.*</span>", lat: [400, 517]});
+link("aiw.t@0.8692", "minio.b@0.8", {c: "orange", top: true, halo: true, label: "đọc audio", lat: [944, 400], lcls: "ai"});
+link("aig.r@0.4565", "fpt.l@0.5", {c: "orange"});
+link("aig.b@0.9378", "pg.b", {c: "orange", head: "both", via: [[null, 798], ["x2", 798]], label: "SQL · schema ai (pgvector)", lat: [852, 798], lcls: "ai"});
+link("int.b", "ext3.t", {c: "blue"});
+link("int.r@0.88", "jira.l", {c: "gray", dash: true, mid: 544});
+
+// Chú giải
+F.div("legend", 40, 30, null, null,
+  `<div style="display:flex;flex-direction:column;gap:9px">
+   <div class="it"><div class="sw" style="background:#1F3A5F"></div>đã triển khai</div>
+   <div class="it"><div class="sw" style="background:#FCEFE2;border:2px solid #D9822B"></div>AI / LLM</div>
+   <div class="it"><div class="sw" style="background:#FAFAFB;border:2px dashed #6B7280"></div>thiết kế / khung</div></div>`);
+F.done();
+</script></body></html>
