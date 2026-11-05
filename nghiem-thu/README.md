@@ -9,7 +9,7 @@
 | `thuc-nghiem/` | Tập lệnh và số liệu thô của chương Thực nghiệm và đánh giá |
 | `nguon-bao-cao/` | Nguồn để dựng lại toàn bộ tệp trên (nội dung Markdown, hình, bộ dựng) — xem README trong đó |
 
-Bìa phụ của quyển tổng kết còn các ô `…` (giới tính, dân tộc, khoa, số năm đào tạo, ngành) để nhóm tự điền.
+Thông tin sinh viên trên bìa phụ của quyển tổng kết nằm ở `STUDENTS` trong `nguon-bao-cao/build_docx.py`.
 
 ## Chạy lại thực nghiệm
 

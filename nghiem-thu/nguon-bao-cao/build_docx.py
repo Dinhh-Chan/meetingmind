@@ -19,7 +19,7 @@ import unicodedata
 
 from docx import Document
 from docx.enum.section import WD_SECTION
-from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_TAB_ALIGNMENT, WD_TAB_LEADER
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -40,8 +40,8 @@ TITLE = "THIẾT KẾ VÀ TRIỂN KHAI HỆ THỐNG MEET-ASSISTANT: TỰ ĐỘNG
 CODE = "18-SV-2026-RIPT"
 STUDENTS = [
     # Họ tên, giới tính, dân tộc, mã SV, lớp, khoa, năm thứ, số năm đào tạo, ngành
-    ("Trần Đức Định", "…", "…", "B23DCCC038", "D23CCPM01", "…", "4", "…", "…"),
-    ("Hoàng Nguyễn Trà My", "…", "…", "B23DCCC116", "D23CCPM02", "…", "4", "…", "…"),
+    ("Trần Đức Định", "Nam", "Kinh", "B23DCCC038", "D23CCPM01", "Viện KHKT Bưu điện", "4", "4", "Cử nhân công nghệ thông tin UDU"),
+    ("Hoàng Nguyễn Trà My", "Nữ", "Kinh", "B23DCCC116", "D23CCPM02", "Viện KHKT Bưu điện", "4", "4", "Cử nhân công nghệ thông tin UDU"),
 ]
 ADVISOR = "TS. Lê Văn Hoàng"
 
@@ -638,10 +638,12 @@ def cover(doc, kind: str, subtitle: str | None = None, sub_cover=False):
         t = doc.add_table(rows=len(STUDENTS) + 1, cols=len(cols))
         t.style = "Table Grid"
         t.alignment = WD_TABLE_ALIGNMENT.CENTER
-        widths = [3.6, 1.2, 1.1, 2.8, 2.6, 1.1, 1.0, 1.4, 1.2]
+        # Lề ô hẹp để tiêu đề cột hẹp ("Năm thứ", "Khoa") không bị ngắt giữa chữ.
+        widths = [2.6, 1.15, 1.1, 2.4, 2.2, 2.0, 1.1, 1.3, 2.15]
         for ci, c in enumerate(cols):
             cell = t.cell(0, ci)
             cell.width = Cm(widths[ci])
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             p = cell.paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.line_spacing = 1.0
@@ -651,12 +653,20 @@ def cover(doc, kind: str, subtitle: str | None = None, sub_cover=False):
             for ci, v in enumerate(st):
                 cell = t.cell(ri, ci)
                 cell.width = Cm(widths[ci])
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                 p = cell.paragraphs[0]
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 p.paragraph_format.line_spacing = 1.0
                 r = p.add_run(v)
-                set_run_font(r, size=10.5)
+                set_run_font(r, size=10)
         fix_widths(t, widths)
+        mar = OxmlElement("w:tblCellMar")
+        for side in ("left", "right"):
+            m = OxmlElement(f"w:{side}")
+            m.set(qn("w:w"), "45")
+            m.set(qn("w:type"), "dxa")
+            mar.append(m)
+        t._tbl.tblPr.append(mar)
         centered(doc, "", after=8)
         p = centered(doc, "", 13, after=0)
         r = p.add_run("Người hướng dẫn: ")
