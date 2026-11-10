@@ -45,6 +45,9 @@ export class MinutesVersionModel extends Model implements MinutesVersion {
     aiRunId?: string;
 
     @Column({ type: DataType.STRING, allowNull: true })
+    recordedById?: string;
+
+    @Column({ type: DataType.STRING, allowNull: true })
     approvedById?: string;
 
     @Column({ type: DataType.DATE, allowNull: true })

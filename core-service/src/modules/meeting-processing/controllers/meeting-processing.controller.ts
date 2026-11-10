@@ -108,9 +108,12 @@ export class MeetingProcessingController {
 
     /** Khởi động luồng xử lý cho một bản ghi đã nằm trên MinIO. */
     @Post("transcribe")
-    @RequirePermission(Permission.MEETING_RECORDING_CONTROL)
-    async transcribe(@Body() dto: StartTranscriptionBodyDto) {
-        return this.meetingProcessingService.startTranscription(dto);
+    @RequirePermission(Permission.RECORDING_CREATE)
+    async transcribe(@ReqUser() user: User, @Body() dto: StartTranscriptionBodyDto) {
+        return this.meetingProcessingService.startTranscription({
+            ...dto,
+            recordedById: user._id,
+        });
     }
 
     /* ------------------------------------------- transcript trực tiếp */
@@ -133,18 +136,25 @@ export class MeetingProcessingController {
 
     /** Đẩy một lô đoạn phụ đề. Gọi nhiều lần trong lúc họp. */
     @Post("live-transcript")
-    @RequirePermission(Permission.TRANSCRIPT_UPDATE)
-    async appendLiveTranscript(@Body() dto: AppendLiveTranscriptBodyDto) {
+    @RequirePermission(Permission.RECORDING_CREATE)
+    async appendLiveTranscript(
+        @ReqUser() user: User,
+        @Body() dto: AppendLiveTranscriptBodyDto,
+    ) {
         return this.liveTranscriptService.appendSegments(
             dto.meetingId,
             dto.segments,
+            user._id,
         );
     }
 
     /** Kết thúc họp: chốt phiên bản transcript và xin AI phân tích. */
     @Post("live-transcript/finalize")
-    @RequirePermission(Permission.TRANSCRIPT_UPDATE)
-    async finalizeLiveTranscript(@Body() dto: FinalizeLiveTranscriptBodyDto) {
-        return this.liveTranscriptService.finalize(dto.meetingId);
+    @RequirePermission(Permission.RECORDING_CREATE)
+    async finalizeLiveTranscript(
+        @ReqUser() user: User,
+        @Body() dto: FinalizeLiveTranscriptBodyDto,
+    ) {
+        return this.liveTranscriptService.finalize(dto.meetingId, user._id);
     }
 }

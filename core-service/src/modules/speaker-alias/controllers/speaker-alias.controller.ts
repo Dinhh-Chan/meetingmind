@@ -18,12 +18,12 @@ export class SpeakerAliasController extends BaseControllerFactory<SpeakerAlias>(
     {
         import: { enable: false },
         routes: {
-            getMany: { permission: Permission.TRANSCRIPT_VIEW },
-            getPage: { permission: Permission.TRANSCRIPT_VIEW },
-            getOne: { permission: Permission.TRANSCRIPT_VIEW },
-            getById: { permission: Permission.TRANSCRIPT_VIEW },
-            exportDefinition: { permission: Permission.TRANSCRIPT_VIEW },
-            exportXlsx: { permission: Permission.TRANSCRIPT_VIEW },
+            getMany: { permission: Permission.MINUTES_VIEW_DRAFT },
+            getPage: { permission: Permission.MINUTES_VIEW_DRAFT },
+            getOne: { permission: Permission.MINUTES_VIEW_DRAFT },
+            getById: { permission: Permission.MINUTES_VIEW_DRAFT },
+            exportDefinition: { permission: Permission.MINUTES_VIEW_DRAFT },
+            exportXlsx: { permission: Permission.MINUTES_VIEW_DRAFT },
             create: { permission: Permission.TRANSCRIPT_UPDATE },
             upsert: { permission: Permission.TRANSCRIPT_UPDATE },
             getOneOrUpsert: { permission: Permission.TRANSCRIPT_UPDATE },

@@ -31,6 +31,7 @@ import {
 } from "@module/review-item/common/constant";
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
 import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
+import { MeetingRecordService } from "@module/meeting-record/meeting-record.service";
 import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
 import { UserService } from "@module/user/service/user.service";
 import { VoiceProfileService } from "@module/voice-profile/services/voice-profile.service";
@@ -56,6 +57,8 @@ export interface StartTranscriptionDto {
     bucket: string;
     objectKey: string;
     fileId?: string;
+    /** Người ghi âm: transcript và biên bản nháp từ bản ghi này thuộc về người đó. */
+    recordedById?: string;
 }
 
 /**
@@ -79,6 +82,7 @@ export class MeetingProcessingService {
         private readonly reviewItemService: ReviewItemService,
         private readonly speakerAliasService: SpeakerAliasService,
         private readonly meetingParticipantService: MeetingParticipantService,
+        private readonly meetingRecordService: MeetingRecordService,
         private readonly voiceProfileService: VoiceProfileService,
         private readonly userService: UserService,
         private readonly outboxService: OutboxService,
@@ -111,7 +115,11 @@ export class MeetingProcessingService {
             status: ProcessingJobStatus.QUEUED,
             idempotencyKey,
             inputVersion: dto.objectKey,
-            payload: { bucket: dto.bucket, objectKey: dto.objectKey },
+            payload: {
+                bucket: dto.bucket,
+                objectKey: dto.objectKey,
+                recordedById: dto.recordedById ?? meeting.createdById,
+            },
             retryCount: 0,
         });
 
@@ -183,6 +191,12 @@ export class MeetingProcessingService {
             return;
         }
 
+        const job = await this.processingJobService.getOne(null, {
+            _id: payload.jobId,
+        });
+        const recordedById: string =
+            job?.payload?.recordedById ?? meeting.createdById;
+
         // Sửa transcript hoặc chạy lại AI đều tạo phiên bản mới, không ghi đè.
         const previous = await this.transcriptVersionService.getMany(
             null,
@@ -191,8 +205,12 @@ export class MeetingProcessingService {
         );
         const versionNo = previous.length + 1;
 
-        // Chỉ một phiên bản được đánh dấu đang dùng.
-        for (const old of previous.filter((v) => v.isCurrent)) {
+        // Mỗi người ghi có một phiên bản đang dùng; bản ghi của người khác giữ nguyên.
+        for (const old of previous.filter(
+            (v) =>
+                v.isCurrent &&
+                MeetingRecordService.recorderOf(v, meeting) === recordedById,
+        )) {
             await this.transcriptVersionService.updateById(null, old._id, {
                 isCurrent: false,
             });
@@ -204,6 +222,7 @@ export class MeetingProcessingService {
             versionNo,
             source: TranscriptVersionSource.STT,
             aiRunId: payload.runId,
+            recordedById,
             isCurrent: true,
         });
 
@@ -295,12 +314,26 @@ export class MeetingProcessingService {
      * Là việc phụ: lỗi chỉ ghi log, không làm hỏng luồng phiên âm/duyệt đang
      * chạy — thiếu thì bù bằng POST /workflow/knowledge/reindex.
      */
-    async indexTranscript(meeting: KnowledgeMeeting, transcriptVersionId: string) {
+    async indexTranscript(
+        meeting: KnowledgeMeeting & { createdById?: string },
+        transcriptVersionId: string,
+    ) {
         try {
             const version = await this.transcriptVersionService.getById(
                 null,
                 transcriptVersionId,
             );
+            // Bản ghi riêng của một người chưa được duyệt thì người khác không
+            // xem được, nên cũng không vào kho hỏi đáp chung.
+            if (
+                !version ||
+                !(await this.meetingRecordService.isPublicTranscript(
+                    { _id: meeting._id, createdById: meeting.createdById },
+                    version,
+                ))
+            ) {
+                return false;
+            }
             return await this.knowledgeIndexService.indexTranscript(
                 meeting,
                 { _id: transcriptVersionId, versionNo: version?.versionNo },
@@ -319,7 +352,12 @@ export class MeetingProcessingService {
      * Công khai vì đường transcript trực tiếp (extension) cũng dùng lại.
      */
     async requestAnalysis(
-        meeting: { _id: string; workspaceId: string; language: string },
+        meeting: {
+            _id: string;
+            workspaceId: string;
+            language: string;
+            createdById?: string;
+        },
         transcriptVersionId: string,
         options: { rerun?: boolean } = {},
     ) {
@@ -341,6 +379,10 @@ export class MeetingProcessingService {
             return existing;
         }
 
+        const transcript = await this.transcriptVersionService.getById(
+            null,
+            transcriptVersionId,
+        );
         const job = await this.processingJobService.create(null, {
             workspaceId: meeting.workspaceId,
             meetingId: meeting._id,
@@ -348,7 +390,12 @@ export class MeetingProcessingService {
             status: ProcessingJobStatus.QUEUED,
             idempotencyKey,
             inputVersion: transcriptVersionId,
-            payload: { transcriptVersionId },
+            payload: {
+                transcriptVersionId,
+                recordedById: transcript
+                    ? MeetingRecordService.recorderOf(transcript, meeting)
+                    : undefined,
+            },
             retryCount: 0,
         });
 
@@ -453,10 +500,17 @@ export class MeetingProcessingService {
             {} as any,
         );
 
+        const source = await this.transcriptVersionService.getById(
+            null,
+            payload.transcriptVersionId,
+        );
         const minutesVersion = await this.minutesVersionService.create(null, {
             workspaceId: meeting.workspaceId,
             meetingMinutesId: minutes._id,
             versionNo: previousVersions.length + 1,
+            recordedById: source
+                ? MeetingRecordService.recorderOf(source, meeting)
+                : meeting.createdById,
             summary: payload.summary,
             openIssues: (payload.openIssues ?? []).map((issue) => ({
                 title: issue,

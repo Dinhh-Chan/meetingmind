@@ -46,6 +46,7 @@ import {
 import { ProjectMemberService } from "@module/project-member/services/project-member.service";
 import { ProjectService } from "@module/project/services/project.service";
 import { MeetingProcessingService } from "@module/meeting-processing/services/meeting-processing.service";
+import { MeetingRecordService } from "@module/meeting-record/meeting-record.service";
 import {
     EventType,
     TaskSyncCompletedPayload,
@@ -78,6 +79,8 @@ export interface CreateMeetingInput {
     durationMin?: number;
     agenda?: { title: string; plannedMinutes?: number }[];
     participantIds?: string[];
+    /** Người ghi âm chính (thư ký): transcript của người này ai tham dự cũng xem được. */
+    recorderId?: string;
 }
 
 export interface TaskPatch {
@@ -124,6 +127,7 @@ export class WorkflowService {
         private readonly projectService: ProjectService,
         private readonly projectMemberService: ProjectMemberService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
+        private readonly meetingRecordService: MeetingRecordService,
     ) {}
 
     /* ------------------------------------------------------- tiện ích */
@@ -182,6 +186,9 @@ export class WorkflowService {
         // Kiểm tra người tham dự trước khi ghi gì: lỗi giữa chừng không để lại
         // cuộc họp tạo dở.
         const participantIds = [...new Set([userId, ...(input.participantIds ?? [])])];
+        if (input.recorderId && !participantIds.includes(input.recorderId)) {
+            throw ApiError.BadRequest("error-user-not-participant");
+        }
         const members = await this.workspaceMemberService.getMany(null, {
             workspaceId: input.workspaceId,
             userId: { $in: participantIds },
@@ -262,9 +269,11 @@ export class WorkflowService {
                 displayName: u?.fullname || u?.username || participantId,
                 email: u?.email,
                 role:
-                    participantId === userId
-                        ? MeetingParticipantRole.HOST
-                        : MeetingParticipantRole.PARTICIPANT,
+                    participantId === input.recorderId
+                        ? MeetingParticipantRole.SECRETARY
+                        : participantId === userId
+                          ? MeetingParticipantRole.HOST
+                          : MeetingParticipantRole.PARTICIPANT,
             });
         }
         if (accessScope === MeetingAccessScope.RESTRICTED) {
@@ -299,19 +308,119 @@ export class WorkflowService {
 
     /* ------------------------------------------------------- biên bản */
 
-    private async currentMinutes(meetingId: string) {
-        const minutes = await this.meetingMinutesService.getOne(null, {
+    /**
+     * Nội dung cuộc họp người này xem được: danh sách bản ghi (mỗi người ghi
+     * một bản), transcript, biên bản và đề xuất AI của bản đang chọn, cùng các
+     * thao tác được phép trên bản đó. Quy tắc xem ở MeetingRecordService.
+     */
+    async getMeetingContent(userId: string, meetingId: string, recordId?: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_VIEW);
+        const view = await this.meetingRecordService.recordsOf(userId, meeting);
+        const record =
+            (recordId && view.records.find((r) => r.transcript._id === recordId)) ||
+            view.records[0] ||
+            null;
+        const granted = await this.permissionService.resolve(userId, meeting.workspaceId, {
             meetingId,
+            projectId: meeting.projectId,
         });
-        if (!minutes?.currentVersionId) {
-            throw ApiError.NotFound("error-minutes-not-found");
-        }
-        const version = await this.minutesVersionService.getById(
-            null,
-            minutes.currentVersionId,
-        );
-        if (!version) throw ApiError.NotFound("error-minutes-not-found");
-        return { minutes, version };
+
+        const recorderIds = [...new Set(view.records.map((r) => r.recordedById).filter(Boolean))];
+        const recorders = recorderIds.length
+            ? await this.userService.getMany(null, { _id: { $in: recorderIds } }, {
+                  enableDataPartition: false,
+              } as any)
+            : [];
+        const nameOf = new Map(recorders.map((u) => [u._id, u.fullname || u.username]));
+
+        const segments = record
+            ? await this.transcriptSegmentService.getMany(null, {
+                  transcriptVersionId: record.transcript._id,
+              })
+            : [];
+        const minutes = record?.minutes ?? null;
+        const reviewItems = minutes ? await this.reviewItemsOf(meetingId, minutes) : [];
+
+        const status = minutes?.status as MinutesVersionStatus | undefined;
+        const open = !view.approved;
+        return {
+            records: view.records.map((r) => ({
+                id: r.transcript._id,
+                recordedById: r.recordedById,
+                recordedByName: r.recordedById ? nameOf.get(r.recordedById) : undefined,
+                source: r.transcript.source,
+                createdAt: (r.transcript as unknown as { createdAt?: Date }).createdAt,
+                designated: r.designated,
+                official: r.official,
+                mine: r.mine,
+                minutesStatus: r.minutes?.status ?? null,
+            })),
+            selectedId: record?.transcript._id ?? null,
+            transcript: [...segments].sort((a, b) => a.sequence - b.sequence),
+            minutes,
+            reviewItems,
+            can: {
+                editTranscript:
+                    !!record && (record.mine || granted.has(Permission.TRANSCRIPT_UPDATE)),
+                reanalyze:
+                    !!record && open && (record.mine || granted.has(Permission.TRANSCRIPT_UPDATE)),
+                editMinutes:
+                    !!record?.mine && open && status !== undefined && status !== MinutesVersionStatus.APPROVED,
+                submit: !!record?.mine && open && status === MinutesVersionStatus.DRAFT,
+                approve:
+                    open &&
+                    granted.has(Permission.MINUTES_APPROVE) &&
+                    (status === MinutesVersionStatus.PENDING_APPROVAL ||
+                        (status === MinutesVersionStatus.DRAFT && !!record?.mine)),
+                reject:
+                    open &&
+                    granted.has(Permission.MINUTES_APPROVE) &&
+                    status === MinutesVersionStatus.PENDING_APPROVAL,
+            },
+        };
+    }
+
+    /** Đề xuất AI đi cùng một phiên bản biên bản: cùng lần chạy AI, không thì lô mới nhất của transcript đó. */
+    private async reviewItemsOf(
+        meetingId: string,
+        minutes: { aiRunId?: string; sourceTranscriptVersionId?: string },
+    ) {
+        if (!minutes.sourceTranscriptVersionId) return [];
+        const batches = await this.reviewBatchService.getMany(null, {
+            meetingId,
+            sourceTranscriptVersionId: minutes.sourceTranscriptVersionId,
+        });
+        const batch =
+            batches.find((b) => minutes.aiRunId && b.aiRunId === minutes.aiRunId) ??
+            [...batches].sort(
+                (a, b) =>
+                    new Date((b as any).createdAt).getTime() - new Date((a as any).createdAt).getTime(),
+            )[0];
+        return batch ? this.reviewItemService.getMany(null, { reviewBatchId: batch._id }) : [];
+    }
+
+    /**
+     * Bản ghi người này đang thao tác: theo id transcript hoặc id biên bản nếu
+     * có, không thì bản nên mở trước (cùng quy tắc với getMeetingContent).
+     */
+    private async recordFor(
+        userId: string,
+        meeting: Meeting,
+        target: { transcriptVersionId?: string; minutesVersionId?: string } = {},
+    ) {
+        const view = await this.meetingRecordService.recordsOf(userId, meeting);
+        const record = target.minutesVersionId
+            ? view.records.find((r) => r.minutes?._id === target.minutesVersionId)
+            : target.transcriptVersionId
+              ? view.records.find((r) => r.transcript._id === target.transcriptVersionId)
+              : view.records[0];
+        return { view, record };
+    }
+
+    private async minutesFor(userId: string, meeting: Meeting, minutesVersionId?: string) {
+        const { view, record } = await this.recordFor(userId, meeting, { minutesVersionId });
+        if (!record?.minutes) throw ApiError.NotFound("error-minutes-not-found");
+        return { view, record, version: record.minutes };
     }
 
     private expectStatus(actual: string, ...expected: MinutesVersionStatus[]) {
@@ -320,10 +429,12 @@ export class WorkflowService {
         }
     }
 
-    /** Nháp → chờ duyệt. Người sửa được nháp gửi duyệt được. */
-    async submitMinutes(userId: string, meetingId: string) {
-        await this.meetingFor(userId, meetingId, Permission.MINUTES_UPDATE_DRAFT);
-        const { version } = await this.currentMinutes(meetingId);
+    /** Nháp → chờ duyệt. Chỉ người ghi bản đó, và khi cuộc họp chưa có biên bản được duyệt. */
+    async submitMinutes(userId: string, meetingId: string, minutesVersionId?: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_VIEW);
+        const { view, record, version } = await this.minutesFor(userId, meeting, minutesVersionId);
+        if (!record.mine) throw ApiError.Forbidden("error-minutes-not-owner");
+        if (view.approved) throw ApiError.BadRequest("error-minutes-already-approved");
         this.expectStatus(version.status, MinutesVersionStatus.DRAFT);
         return this.minutesVersionService.updateById(null, version._id, {
             status: MinutesVersionStatus.PENDING_APPROVAL,
@@ -331,17 +442,55 @@ export class WorkflowService {
     }
 
     /**
-     * Nháp hoặc chờ duyệt → đã duyệt. Chỉ người có quyền duyệt (PM, Owner/Admin);
-     * người duyệt duyệt thẳng bản nháp được, khỏi gửi duyệt cho chính mình.
+     * Sửa biên bản nháp: chỉ người ghi bản đó, trước khi cuộc họp có biên bản
+     * được duyệt. Quyết định lưu kèm vào editorContent vì bản AI lấy quyết định
+     * từ đề xuất.
      */
-    async approveMinutes(userId: string, meetingId: string) {
-        const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
-        const { minutes, version } = await this.currentMinutes(meetingId);
+    async updateMinutes(
+        userId: string,
+        meetingId: string,
+        edit: { minutesVersionId?: string; summary?: string; decisions?: string[]; openIssues?: string[] },
+    ) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_VIEW);
+        const { view, record, version } = await this.minutesFor(userId, meeting, edit.minutesVersionId);
+        if (!record.mine) throw ApiError.Forbidden("error-minutes-not-owner");
+        if (view.approved) throw ApiError.BadRequest("error-minutes-already-approved");
         this.expectStatus(
             version.status,
             MinutesVersionStatus.DRAFT,
             MinutesVersionStatus.PENDING_APPROVAL,
         );
+        const clean = (list?: string[]) => list?.map((s) => s.trim()).filter(Boolean);
+        const decisions = clean(edit.decisions);
+        const openIssues = clean(edit.openIssues);
+        return this.minutesVersionService.updateById(null, version._id, {
+            ...(edit.summary !== undefined ? { summary: edit.summary.trim() } : {}),
+            ...(openIssues ? { openIssues: openIssues.map((title) => ({ title })) } : {}),
+            ...(decisions
+                ? { editorContent: { ...(version.editorContent ?? {}), decisions } }
+                : {}),
+        });
+    }
+
+    /**
+     * Chờ duyệt → đã duyệt. Người duyệt (PM, Owner/Admin) duyệt bản đã gửi;
+     * bản nháp của chính mình thì duyệt thẳng, khỏi gửi cho chính mình. Mỗi
+     * cuộc họp một biên bản được duyệt: từ đó mọi người xem nó và transcript
+     * nguồn của nó.
+     */
+    async approveMinutes(userId: string, meetingId: string, minutesVersionId?: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
+        const { view, record, version } = await this.minutesFor(userId, meeting, minutesVersionId);
+        if (view.approved) throw ApiError.BadRequest("error-minutes-already-approved");
+        if (record.mine) {
+            this.expectStatus(
+                version.status,
+                MinutesVersionStatus.DRAFT,
+                MinutesVersionStatus.PENDING_APPROVAL,
+            );
+        } else {
+            this.expectStatus(version.status, MinutesVersionStatus.PENDING_APPROVAL);
+        }
         const approved = await this.minutesVersionService.updateById(
             null,
             version._id,
@@ -351,26 +500,29 @@ export class WorkflowService {
                 approvedAt: new Date(),
             },
         );
+        const minutes = await this.meetingMinutesService.getOne(null, { meetingId });
         await this.meetingMinutesService.updateById(null, minutes._id, {
+            currentVersionId: version._id,
             approvedVersionId: version._id,
         });
-        // Chỉ bản đã duyệt vào kho hỏi đáp; ai-worker bỏ bản duyệt trước của
-        // cùng cuộc họp.
+        // Bản đã duyệt và transcript nguồn của nó giờ ai xem cuộc họp cũng thấy:
+        // đưa vào kho hỏi đáp (ai-worker bỏ bản duyệt trước của cùng cuộc họp).
         await this.indexQuietly(`biên bản ${version._id}`, () =>
             this.knowledgeIndexService.indexMinutes(meeting, approved),
         );
+        await this.meetingProcessingService.indexTranscript(meeting, record.transcript._id);
         return approved;
     }
 
     /**
-     * Không duyệt: bắt buộc nêu lý do, biên bản về nháp để người tạo sửa.
-     * Lý do lưu ở phiên bản và hiện lại cho người tạo cuộc họp.
+     * Không duyệt: bắt buộc nêu lý do, biên bản về nháp để người ghi sửa.
+     * Lý do lưu ở phiên bản và hiện lại cho người ghi.
      */
-    async rejectMinutes(userId: string, meetingId: string, reason: string) {
-        await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
+    async rejectMinutes(userId: string, meetingId: string, reason: string, minutesVersionId?: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
         const text = reason?.trim();
         if (!text) throw ApiError.BadRequest("error-reject-reason-required");
-        const { version } = await this.currentMinutes(meetingId);
+        const { version } = await this.minutesFor(userId, meeting, minutesVersionId);
         this.expectStatus(
             version.status,
             MinutesVersionStatus.DRAFT,
@@ -390,23 +542,69 @@ export class WorkflowService {
      */
     async newMinutesDraft(userId: string, meetingId: string) {
         await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
-        const { minutes, version } = await this.currentMinutes(meetingId);
+        const minutes = await this.meetingMinutesService.getOne(null, { meetingId });
+        const version = minutes?.approvedVersionId
+            ? await this.minutesVersionService.getById(null, minutes.approvedVersionId)
+            : null;
+        if (!version) throw ApiError.NotFound("error-minutes-not-found");
         this.expectStatus(version.status, MinutesVersionStatus.APPROVED);
+        const versions = await this.minutesVersionService.getMany(null, {
+            meetingMinutesId: minutes._id,
+        });
         const draft = await this.minutesVersionService.create(null, {
             workspaceId: version.workspaceId,
             meetingMinutesId: minutes._id,
-            versionNo: version.versionNo + 1,
+            versionNo: Math.max(0, ...versions.map((v) => v.versionNo)) + 1,
             summary: version.summary,
             openIssues: version.openIssues,
             editorContent: version.editorContent,
             templateKey: version.templateKey,
             status: MinutesVersionStatus.DRAFT,
             sourceTranscriptVersionId: version.sourceTranscriptVersionId,
+            recordedById: version.recordedById,
         });
         await this.meetingMinutesService.updateById(null, minutes._id, {
             currentVersionId: draft._id,
         });
         return draft;
+    }
+
+    /* ------------------------------------------------------- thư ký */
+
+    /**
+     * Chỉ định người ghi âm chính (thư ký) trong số người tham dự: transcript
+     * của người này mọi người xem cuộc họp đều thấy, kể cả trước khi duyệt.
+     * `null` thì bỏ chỉ định.
+     */
+    async setMeetingRecorder(userId: string, meetingId: string, recorderId: string | null) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_UPDATE);
+        const participants = await this.meetingParticipantService.getMany(null, { meetingId });
+        const target = recorderId ? participants.find((p) => p.userId === recorderId) : null;
+        if (recorderId && !target) throw ApiError.BadRequest("error-user-not-participant");
+        for (const p of participants) {
+            if (p.role === MeetingParticipantRole.SECRETARY && p._id !== target?._id) {
+                await this.meetingParticipantService.updateById(null, p._id, {
+                    role:
+                        p.userId === meeting.createdById
+                            ? MeetingParticipantRole.HOST
+                            : MeetingParticipantRole.PARTICIPANT,
+                });
+            }
+        }
+        if (target && target.role !== MeetingParticipantRole.SECRETARY) {
+            await this.meetingParticipantService.updateById(null, target._id, {
+                role: MeetingParticipantRole.SECRETARY,
+            });
+        }
+        // Transcript của thư ký mới giờ là bản chung: đưa vào kho hỏi đáp.
+        if (recorderId) {
+            const view = await this.meetingRecordService.recordsOf(recorderId, meeting);
+            const own = view.records.find((r) => r.mine);
+            if (own) {
+                await this.meetingProcessingService.indexTranscript(meeting, own.transcript._id);
+            }
+        }
+        return this.getMeetingInfo(userId, meetingId);
     }
 
     /* ------------------------------------------------------- đề xuất AI */
@@ -662,13 +860,9 @@ export class WorkflowService {
         meetingId: string,
         speakerLabel: string,
         targetUserId: string | null,
+        transcriptVersionId?: string,
     ) {
-        const meeting = await this.meetingFor(userId, meetingId, Permission.TRANSCRIPT_UPDATE);
-        const version = await this.transcriptVersionService.getOne(null, {
-            meetingId,
-            isCurrent: true,
-        });
-        if (!version) throw ApiError.NotFound("error-transcript-not-found");
+        const { meeting, version } = await this.editableTranscript(userId, meetingId, transcriptVersionId);
 
         if (targetUserId) {
             const member = await this.workspaceMemberService.getOne(null, {
@@ -798,16 +992,39 @@ export class WorkflowService {
      * Chạy lại phân tích AI trên transcript hiện tại, thường sau khi đã gán tên
      * người nói. Tạo biên bản nháp và lô đề xuất mới; bản đã duyệt giữ nguyên.
      */
-    async reanalyze(userId: string, meetingId: string) {
-        const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_UPDATE_DRAFT);
-        const version = await this.transcriptVersionService.getOne(null, {
+    async reanalyze(userId: string, meetingId: string, transcriptVersionId?: string) {
+        const { meeting, version, approved } = await this.editableTranscript(
+            userId,
             meetingId,
-            isCurrent: true,
-        });
-        if (!version) throw ApiError.NotFound("error-transcript-not-found");
+            transcriptVersionId,
+        );
+        // Đã có biên bản được duyệt thì bản nháp mới không gửi duyệt được nữa.
+        if (approved) throw ApiError.BadRequest("error-minutes-already-approved");
         return this.meetingProcessingService.requestAnalysis(meeting, version._id, {
             rerun: true,
         });
+    }
+
+    /**
+     * Transcript người này được sửa (gán tên người nói, phân tích lại): bản do
+     * chính mình ghi, hoặc bất kỳ bản nào nếu có quyền sửa transcript (PM).
+     */
+    private async editableTranscript(userId: string, meetingId: string, transcriptVersionId?: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_VIEW);
+        const { view, record } = await this.recordFor(userId, meeting, { transcriptVersionId });
+        if (!record) throw ApiError.NotFound("error-transcript-not-found");
+        if (
+            !record.mine &&
+            !(await this.permissionService.can(
+                userId,
+                meeting.workspaceId,
+                Permission.TRANSCRIPT_UPDATE,
+                { meetingId, projectId: meeting.projectId },
+            ))
+        ) {
+            throw ApiError.Forbidden("error-forbidden");
+        }
+        return { meeting, version: record.transcript, approved: view.approved };
     }
 
     /* ------------------------------------------------------- thành viên */

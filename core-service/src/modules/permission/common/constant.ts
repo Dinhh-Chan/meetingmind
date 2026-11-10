@@ -35,6 +35,11 @@ export enum Permission {
     MEETING_CREATE = "meeting.create",
     MEETING_UPDATE = "meeting.update",
     MEETING_RECORDING_CONTROL = "meeting.recording.control",
+    /**
+     * Tự ghi âm / tải bản ghi của mình lên. Bản ghi thuộc về người ghi: chỉ
+     * người đó và người duyệt xem được cho tới khi biên bản được duyệt.
+     */
+    RECORDING_CREATE = "recording.create",
     MEETING_DELETE = "meeting.delete",
     AUDIO_LISTEN = "audio.listen",
     AUDIO_DOWNLOAD = "audio.download",
@@ -46,6 +51,11 @@ export enum Permission {
 
     /* --------------------------------------------------- minutes, review */
     MINUTES_VIEW_APPROVED = "minutes.view.approved",
+    /**
+     * Xem bản nháp (transcript, biên bản, đề xuất) của **mọi** người ghi âm
+     * trong cuộc họp — quyền của người duyệt. Người ghi luôn xem được bản của
+     * chính mình mà không cần quyền này (MeetingRecordService).
+     */
     MINUTES_VIEW_DRAFT = "minutes.view.draft",
     MINUTES_UPDATE_DRAFT = "minutes.update.draft",
     MINUTES_APPROVE = "minutes.approve",
@@ -165,7 +175,8 @@ export const PROJECT_ROLE_PERMISSIONS: Record<ProjectMemberRole, Permission[]> =
             Permission.TASK_VIEW,
             Permission.SYNC_STATUS_VIEW,
             Permission.MEETING_CREATE,
-            Permission.MINUTES_VIEW_DRAFT,
+            // Thành viên tự ghi âm được nhưng không xem bản nháp của người khác.
+            Permission.RECORDING_CREATE,
             Permission.MINUTES_EXPORT_FILE,
             Permission.TASK_CREATE,
             Permission.TASK_COMMENT_CREATE,
@@ -180,6 +191,7 @@ export const PROJECT_ROLE_PERMISSIONS: Record<ProjectMemberRole, Permission[]> =
             Permission.TASK_VIEW,
             Permission.SYNC_STATUS_VIEW,
             Permission.MEETING_CREATE,
+            Permission.RECORDING_CREATE,
             Permission.MINUTES_VIEW_DRAFT,
             Permission.MINUTES_EXPORT_FILE,
             Permission.TASK_CREATE,
@@ -224,6 +236,8 @@ export const MEETING_ACCESS_ROLE_PERMISSIONS: Record<
         Permission.TRANSCRIPT_VIEW,
         Permission.MINUTES_VIEW_APPROVED,
         Permission.TASK_VIEW,
+        // Người được mời vào cuộc họp ngoài dự án cũng tự ghi âm được.
+        Permission.RECORDING_CREATE,
     ],
     [MeetingAccessRole.EDITOR]: [
         Permission.MEETING_VIEW,
@@ -231,8 +245,8 @@ export const MEETING_ACCESS_ROLE_PERMISSIONS: Record<
         Permission.TRANSCRIPT_VIEW,
         Permission.MINUTES_VIEW_APPROVED,
         Permission.TASK_VIEW,
+        Permission.RECORDING_CREATE,
         Permission.TRANSCRIPT_UPDATE,
-        Permission.MINUTES_VIEW_DRAFT,
         Permission.MINUTES_UPDATE_DRAFT,
         Permission.REVIEW_UPDATE,
         Permission.TASK_CREATE,
@@ -244,8 +258,8 @@ export const MEETING_ACCESS_ROLE_PERMISSIONS: Record<
         Permission.TRANSCRIPT_VIEW,
         Permission.MINUTES_VIEW_APPROVED,
         Permission.TASK_VIEW,
+        Permission.RECORDING_CREATE,
         Permission.TRANSCRIPT_UPDATE,
-        Permission.MINUTES_VIEW_DRAFT,
         Permission.MINUTES_UPDATE_DRAFT,
         Permission.REVIEW_UPDATE,
         Permission.TASK_CREATE,
@@ -255,8 +269,9 @@ export const MEETING_ACCESS_ROLE_PERMISSIONS: Record<
         Permission.MEETING_DELETE,
         Permission.AUDIO_DOWNLOAD,
         Permission.AI_RERUN,
-        // MINUTES_APPROVE không cấp theo vai trò cuộc họp: thành viên tự tạo
-        // cuộc họp không tự duyệt biên bản; Owner/Admin được cấp riêng
+        // MINUTES_APPROVE, MINUTES_VIEW_DRAFT không cấp theo vai trò cuộc họp:
+        // thành viên tự tạo cuộc họp không tự duyệt biên bản, cũng không xem
+        // bản nháp của người khác; Owner/Admin được cấp riêng
         // (PermissionService.resolve).
         Permission.REVIEW_APPROVE,
         Permission.TASK_ASSIGN,

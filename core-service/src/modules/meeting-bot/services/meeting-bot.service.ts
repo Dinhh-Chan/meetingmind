@@ -97,6 +97,7 @@ export class MeetingBotService {
             status: BotSessionStatus.QUEUED,
             joinUrl: meeting.meetingUrl,
             attempt: (current?.attempt ?? 0) + 1,
+            requestedById: userId,
         });
         await this.outboxService.emit({
             aggregateType: "bot_session",
@@ -195,6 +196,7 @@ export class MeetingBotService {
             bucket: payload.bucket,
             objectKey: payload.objectKey,
             fileId: file._id,
+            recordedById: session.requestedById,
         });
     }
 }

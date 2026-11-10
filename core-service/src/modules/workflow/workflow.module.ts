@@ -23,6 +23,7 @@ import { ProjectMemberModule } from "@module/project-member/project-member.modul
 import { ProjectModule } from "@module/project/project.module";
 import { Module } from "@nestjs/common";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
+import { MeetingRecordModule } from "@module/meeting-record/meeting-record.module";
 import { TaskSyncConsumer } from "./consumers/task-sync.consumer";
 import { KnowledgeController } from "./controllers/knowledge.controller";
 import { WorkflowController } from "./controllers/workflow.controller";
@@ -53,6 +54,7 @@ import { WorkflowService } from "./services/workflow.service";
         MeetingAccessModule,
         MeetingBotModule,
         MeetingProcessingModule,
+        MeetingRecordModule,
         KnowledgeModule,
         MediaFileModule,
     ],

@@ -33,6 +33,9 @@ export class TranscriptVersionModel extends Model implements TranscriptVersion {
     @Column({ type: DataType.STRING, allowNull: true })
     createdById?: string;
 
+    @Column({ type: DataType.STRING, allowNull: true })
+    recordedById?: string;
+
     @Column({ type: DataType.BOOLEAN, allowNull: false })
     isCurrent: boolean;
 }

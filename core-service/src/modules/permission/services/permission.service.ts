@@ -154,8 +154,12 @@ export class PermissionService {
                     granted.add(p),
                 );
             }
-            // Cuộc họp ngoài dự án không có PM: chỉ Owner/Admin duyệt biên bản.
-            if (actsAsPm) granted.add(Permission.MINUTES_APPROVE);
+            // Cuộc họp ngoài dự án không có PM: chỉ Owner/Admin duyệt biên bản
+            // và xem bản nháp của mọi người ghi âm.
+            if (actsAsPm) {
+                granted.add(Permission.MINUTES_APPROVE);
+                granted.add(Permission.MINUTES_VIEW_DRAFT);
+            }
         }
 
         return granted;

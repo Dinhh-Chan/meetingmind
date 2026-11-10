@@ -1,4 +1,5 @@
 import { ApiError } from "@config/exception/api-error";
+import { MeetingRecordService } from "@module/meeting-record/meeting-record.service";
 import {
     MeetingAccessScope,
     MeetingSourceType,
@@ -93,6 +94,7 @@ export class LiveTranscriptService {
     async appendSegments(
         meetingId: string,
         segments: LiveSegmentInput[],
+        recordedById?: string,
     ): Promise<{ transcriptVersionId: string; appended: number }> {
         const meeting = await this.meetingService.getOne(null, {
             _id: meetingId,
@@ -101,7 +103,7 @@ export class LiveTranscriptService {
             throw ApiError.NotFound("error-meeting-not-found");
         }
 
-        const version = await this.getOrCreateLiveVersion(meeting);
+        const version = await this.getOrCreateLiveVersion(meeting, recordedById);
 
         const existingCount = (
             await this.transcriptSegmentService.getMany(
@@ -150,7 +152,7 @@ export class LiveTranscriptService {
     }
 
     /** Chốt phiên: đóng cuộc họp rồi xin AI phân tích. */
-    async finalize(meetingId: string) {
+    async finalize(meetingId: string, recordedById?: string) {
         const meeting = await this.meetingService.getOne(null, {
             _id: meetingId,
         });
@@ -158,7 +160,7 @@ export class LiveTranscriptService {
             throw ApiError.NotFound("error-meeting-not-found");
         }
 
-        const version = await this.getOrCreateLiveVersion(meeting);
+        const version = await this.getOrCreateLiveVersion(meeting, recordedById);
 
         await this.meetingService.updateById(null, meeting._id, {
             status: MeetingStatus.ENDED,
@@ -180,13 +182,18 @@ export class LiveTranscriptService {
         return { meetingId: meeting._id, transcriptVersionId: version._id };
     }
 
-    private async getOrCreateLiveVersion(meeting: Meeting) {
+    /** Phụ đề của mỗi người bật extension là bản ghi riêng của người đó. */
+    private async getOrCreateLiveVersion(meeting: Meeting, recordedById?: string) {
+        const recorder = recordedById ?? meeting.createdById;
         const versions = await this.transcriptVersionService.getMany(
             null,
             { meetingId: meeting._id },
             {} as any,
         );
-        const current = versions.find(
+        const own = versions.filter(
+            (v) => MeetingRecordService.recorderOf(v, meeting) === recorder,
+        );
+        const current = own.find(
             (v) =>
                 v.isCurrent && v.source === TranscriptVersionSource.LIVE_CAPTION,
         );
@@ -194,7 +201,7 @@ export class LiveTranscriptService {
             return current;
         }
 
-        for (const old of versions.filter((v) => v.isCurrent)) {
+        for (const old of own.filter((v) => v.isCurrent)) {
             await this.transcriptVersionService.updateById(null, old._id, {
                 isCurrent: false,
             });
@@ -205,6 +212,7 @@ export class LiveTranscriptService {
             meetingId: meeting._id,
             versionNo: versions.length + 1,
             source: TranscriptVersionSource.LIVE_CAPTION,
+            recordedById: recorder,
             isCurrent: true,
         });
     }

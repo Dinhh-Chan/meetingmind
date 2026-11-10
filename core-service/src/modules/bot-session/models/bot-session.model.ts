@@ -39,6 +39,9 @@ export class BotSessionModel extends Model implements BotSession {
     @Column({ type: DataType.DATE, allowNull: true })
     heartbeatAt?: Date;
 
+    @Column({ type: DataType.STRING, allowNull: true })
+    requestedById?: string;
+
     @Column({ type: DataType.TEXT, allowNull: true })
     error?: string;
 }

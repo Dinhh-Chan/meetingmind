@@ -71,6 +71,14 @@ export class BotSession implements BaseEntity {
     heartbeatAt?: Date;
 
     /**
+     * Người mời bot: bản ghi của bot tính là bản ghi của người này.
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Người mời bot" })
+    requestedById?: string;
+
+    /**
      * Lỗi
      */
     @IsString()

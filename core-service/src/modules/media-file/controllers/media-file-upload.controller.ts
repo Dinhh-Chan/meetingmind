@@ -35,7 +35,7 @@ export class MediaFileUploadController {
 
     /** Nhập bản ghi có sẵn — nguồn `upload` của MVP. */
     @Post("upload")
-    @RequirePermission(Permission.MEETING_RECORDING_CONTROL)
+    @RequirePermission(Permission.RECORDING_CREATE)
     @ApiConsumes("multipart/form-data")
     @ApiBody({
         schema: {

@@ -3,6 +3,7 @@ import { ReviewBatchService } from "@module/review-batch/services/review-batch.s
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
 import { MeetingMinutesService } from "@module/meeting-minutes/services/meeting-minutes.service";
 import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
+import { MeetingRecords, MeetingRecordService } from "@module/meeting-record/meeting-record.service";
 import { MeetingStatus } from "@module/meeting/common/constant";
 import { Meeting } from "@module/meeting/entities/meeting.entity";
 import { MeetingService } from "@module/meeting/services/meeting.service";
@@ -72,6 +73,7 @@ const NOTIFICATION_DAYS = 30;
 export class MeService {
     constructor(
         private readonly permissionService: PermissionService,
+        private readonly meetingRecordService: MeetingRecordService,
         private readonly workspaceService: WorkspaceService,
         private readonly workspaceMemberService: WorkspaceMemberService,
         private readonly projectService: ProjectService,
@@ -196,30 +198,37 @@ export class MeService {
      * "Task cần duyệt" không phải mở từng cuộc họp. Chỉ lấy lô mới nhất của
      * mỗi cuộc họp — lô cũ ứng với lần phân tích trước.
      */
+    /**
+     * Đề xuất AI người này xem được: của bản ghi đứng đầu mỗi cuộc họp có biên
+     * bản xem được (bản của mình, bản đã duyệt, hoặc mọi bản nếu là người
+     * duyệt) — cùng bản mà trang chi tiết cuộc họp mở ra.
+     */
     async getReviewItems(userId: string, workspaceId: string) {
-        const meetings = await this.getMeetings(userId, workspaceId);
-        if (!meetings.length) return [];
+        const { meetings, records } = await this.visibleMeetings(userId, workspaceId);
+        const targets = meetings
+            .map((m) => ({ meetingId: m._id, minutes: records.get(m._id)?.records.find((r) => r.minutes)?.minutes }))
+            .filter((t) => t.minutes?.sourceTranscriptVersionId);
+        if (!targets.length) return [];
         const batches = await this.reviewBatchService.getMany(null, {
-            meetingId: { $in: meetings.map((m) => m._id) },
+            sourceTranscriptVersionId: { $in: targets.map((t) => t.minutes.sourceTranscriptVersionId) },
         });
-        const latest = new Map<string, (typeof batches)[number]>();
-        for (const batch of batches) {
-            const prev = latest.get(batch.meetingId);
-            if (!prev || createdAtOf(batch) > createdAtOf(prev)) {
-                latest.set(batch.meetingId, batch);
-            }
+        const chosen = new Map<string, string>();
+        for (const { meetingId, minutes } of targets) {
+            const own = batches.filter(
+                (b) => b.meetingId === meetingId && b.sourceTranscriptVersionId === minutes.sourceTranscriptVersionId,
+            );
+            const batch =
+                own.find((b) => minutes.aiRunId && b.aiRunId === minutes.aiRunId) ??
+                own.sort((a, b) => createdAtOf(b) - createdAtOf(a))[0];
+            if (batch) chosen.set(batch._id, meetingId);
         }
-        const batchIds = [...latest.values()].map((b) => b._id);
-        if (!batchIds.length) return [];
-        const meetingOf = new Map(
-            [...latest.values()].map((b) => [b._id, b.meetingId]),
-        );
+        if (!chosen.size) return [];
         const items = await this.reviewItemService.getMany(null, {
-            reviewBatchId: { $in: batchIds },
+            reviewBatchId: { $in: [...chosen.keys()] },
         });
         return items.map((i) => ({
             ...i,
-            meetingId: meetingOf.get(i.reviewBatchId),
+            meetingId: chosen.get(i.reviewBatchId),
         }));
     }
 
@@ -230,7 +239,7 @@ export class MeService {
      * cuối mở chuông (`workspace_members.notificationsSeenAt`).
      */
     async getNotifications(userId: string, workspaceId: string) {
-        const meetings = await this.getMeetings(userId, workspaceId);
+        const { meetings, records } = await this.visibleMeetings(userId, workspaceId);
         const membership = await this.workspaceMemberService.getOne(null, {
             workspaceId,
             userId,
@@ -309,36 +318,31 @@ export class MeService {
             );
         }
 
-        const minutesList = meetings.length
-            ? await this.meetingMinutesService.getMany(null, {
-                  meetingId: { $in: meetings.map((m) => m._id) },
-              })
-            : [];
-        const versionIds = minutesList.map((m) => m.currentVersionId).filter(Boolean);
-        const versions = versionIds.length
-            ? await this.minutesVersionService.getMany(null, { _id: { $in: versionIds } })
-            : [];
-        const meetingOfVersion = new Map(minutesList.map((m) => [m.currentVersionId, m.meetingId]));
-        for (const v of versions) {
-            const m = meetingOf.get(meetingOfVersion.get(v._id));
-            if (!m) continue;
-            const base = { title: m.title, meetingId: m._id };
-            if (m.createdById === userId) {
-                if (v.status === MinutesVersionStatus.APPROVED && v.approvedById && v.approvedById !== userId) {
-                    push({ ...base, id: `approved:${v._id}`, kind: "minutes_approved", actorId: v.approvedById }, v.approvedAt);
+        // Biên bản: người ghi được báo khi bản của mình được duyệt hoặc bị trả
+        // lại; người duyệt được báo bản đang chờ mình duyệt.
+        for (const m of meetings) {
+            const view = records.get(m._id);
+            if (!view) continue;
+            const canApprove =
+                view.seeAll &&
+                (await this.permissionService.can(userId, workspaceId, Permission.MINUTES_APPROVE, { meetingId: m._id }));
+            for (const { minutes: v, mine } of view.records) {
+                if (!v) continue;
+                const base = { title: m.title, meetingId: m._id };
+                if (mine) {
+                    if (v.status === MinutesVersionStatus.APPROVED && v.approvedById && v.approvedById !== userId) {
+                        push({ ...base, id: `approved:${v._id}`, kind: "minutes_approved", actorId: v.approvedById }, v.approvedAt);
+                    }
+                    if (v.status === MinutesVersionStatus.DRAFT && v.rejectedAt && v.rejectedById !== userId) {
+                        push(
+                            { ...base, id: `rejected:${v._id}:${new Date(v.rejectedAt).getTime()}`, kind: "minutes_rejected", detail: v.rejectedReason, actorId: v.rejectedById },
+                            v.rejectedAt,
+                        );
+                    }
                 }
-                if (v.status === MinutesVersionStatus.DRAFT && v.rejectedAt && v.rejectedById !== userId) {
-                    push(
-                        { ...base, id: `rejected:${v._id}:${new Date(v.rejectedAt).getTime()}`, kind: "minutes_rejected", detail: v.rejectedReason, actorId: v.rejectedById },
-                        v.rejectedAt,
-                    );
+                if (v.status === MinutesVersionStatus.PENDING_APPROVAL && canApprove) {
+                    push({ ...base, id: `pending:${v._id}`, kind: "minutes_pending", actorId: v.recordedById }, updatedAtOf(v));
                 }
-            }
-            if (
-                v.status === MinutesVersionStatus.PENDING_APPROVAL &&
-                (await this.permissionService.can(userId, workspaceId, Permission.MINUTES_APPROVE, { meetingId: m._id }))
-            ) {
-                push({ ...base, id: `pending:${v._id}`, kind: "minutes_pending" }, updatedAtOf(v));
             }
         }
 
@@ -370,6 +374,15 @@ export class MeService {
     }
 
     async getMeetings(userId: string, workspaceId: string, projectId?: string) {
+        return (await this.visibleMeetings(userId, workspaceId, projectId)).meetings;
+    }
+
+    /**
+     * Cuộc họp người này xem được, kèm trạng thái theo góc nhìn của họ: biên
+     * bản và job của bản ghi mình xem được (MeetingRecordService), không phải
+     * của bản ghi riêng người khác.
+     */
+    private async visibleMeetings(userId: string, workspaceId: string, projectId?: string) {
         await this.permissionService.assert(
             userId,
             workspaceId,
@@ -386,51 +399,58 @@ export class MeService {
             candidates,
             [Permission.MEETING_VIEW],
         );
-        if (!visible.length) return [];
+        const records = new Map<string, MeetingRecords>();
+        if (!visible.length) return { meetings: [], records };
 
         const ids = visible.map((m) => m._id);
-        const [minutesList, jobs] = await Promise.all([
+        const [minutesList, jobs, recordsOf] = await Promise.all([
             this.meetingMinutesService.getMany(null, { meetingId: { $in: ids } }),
             this.processingJobService.getMany(null, { meetingId: { $in: ids } }),
+            this.meetingRecordService.recordsFor(userId, visible),
         ]);
-        const versionIds = minutesList
-            .map((m) => m.currentVersionId)
-            .filter(Boolean);
-        const versions = versionIds.length
-            ? await this.minutesVersionService.getMany(null, {
-                  _id: { $in: versionIds },
-              })
-            : [];
-
-        const versionOf = new Map(versions.map((v) => [v._id, v]));
-        const minutesStatusOf = new Map(
-            minutesList.map((m) => [
-                m.meetingId,
-                versionOf.get(m.currentVersionId)?.status as string | undefined,
-            ]),
+        const hasMinutes = new Set(
+            minutesList.filter((m) => m.currentVersionId).map((m) => m.meetingId),
         );
-        const latestJobOf = new Map<string, (typeof jobs)[number]>();
-        for (const job of jobs) {
-            const prev = latestJobOf.get(job.meetingId);
-            if (!prev || createdAtOf(job) > createdAtOf(prev)) {
-                latestJobOf.set(job.meetingId, job);
-            }
-        }
+        const latest = (list: typeof jobs) =>
+            list.reduce<(typeof jobs)[number] | undefined>(
+                (best, job) => (!best || createdAtOf(job) > createdAtOf(best) ? job : best),
+                undefined,
+            );
 
-        return visible
+        const meetings = visible
             .map((meeting) => {
-                const minutesStatus = minutesStatusOf.get(meeting._id);
-                const job = latestJobOf.get(meeting._id);
+                const view = recordsOf.get(meeting._id);
+                records.set(meeting._id, view);
+                const minutesStatus = MeetingRecordService.minutesStatusOf(view) as string | undefined;
+                const meetingJobs = jobs.filter((j) => j.meetingId === meeting._id);
+                // Job của bản ghi mình (người duyệt: mọi bản ghi).
+                const job = latest(
+                    meetingJobs.filter(
+                        (j) => view?.seeAll || (j.payload?.recordedById ?? meeting.createdById) === userId,
+                    ),
+                );
+                let phase = derivePhase(meeting, minutesStatus, job?.status);
+                if (!minutesStatus && !job) {
+                    // Chưa có bản ghi nào của mình: theo tình trạng chung của cuộc
+                    // họp, nhưng không báo lỗi xử lý bản ghi của người khác.
+                    const any = latest(meetingJobs);
+                    phase = derivePhase(
+                        meeting,
+                        hasMinutes.has(meeting._id) ? MinutesVersionStatus.DRAFT : undefined,
+                        any?.status === ProcessingJobStatus.FAILED ? ProcessingJobStatus.SUCCEEDED : any?.status,
+                    );
+                }
                 return {
                     ...meeting,
                     minutesStatus,
                     latestJob: job
                         ? { type: job.type, status: job.status, error: job.error }
                         : undefined,
-                    phase: derivePhase(meeting, minutesStatus, job?.status),
+                    phase,
                 };
             })
             .sort((a, b) => startOf(b) - startOf(a));
+        return { meetings, records };
     }
 }
 

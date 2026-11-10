@@ -11,7 +11,7 @@ import {
 } from "@module/project-member/common/constant";
 import { User } from "@module/user/entities/user.entity";
 import { WorkspaceMemberRole } from "@module/workspace-member/common/constant";
-import { Body, Controller, Get, Param, Post, Put } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
@@ -82,6 +82,11 @@ export class CreateMeetingBodyDto {
     @IsArray()
     @IsString({ each: true })
     participantIds?: string[];
+
+    /** Người ghi âm chính (thư ký), phải nằm trong danh sách tham dự. */
+    @IsOptional()
+    @IsString()
+    recorderId?: string;
 }
 
 export class ReviewEditBodyDto {
@@ -126,6 +131,47 @@ export class RejectBodyDto {
     @IsOptional()
     @IsString()
     reason?: string;
+
+    /** Phiên bản biên bản; bỏ trống thì là bản người này đang xem. */
+    @IsOptional()
+    @IsString()
+    versionId?: string;
+}
+
+export class MinutesTargetBodyDto {
+    @IsOptional()
+    @IsString()
+    versionId?: string;
+}
+
+export class MinutesEditBodyDto extends MinutesTargetBodyDto {
+    @IsOptional()
+    @IsString()
+    summary?: string;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    decisions?: string[];
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    openIssues?: string[];
+}
+
+export class TranscriptTargetBodyDto {
+    /** Bản ghi (phiên bản transcript); bỏ trống thì là bản người này đang xem. */
+    @IsOptional()
+    @IsString()
+    transcriptVersionId?: string;
+}
+
+export class RecorderBodyDto {
+    @IsOptional()
+    @ValidateIf((_, v) => v !== null)
+    @IsString()
+    userId: string | null;
 }
 
 export class TaskPatchBodyDto extends ReviewEditBodyDto {
@@ -160,7 +206,7 @@ export class NoteBodyDto {
     recordingMs?: number;
 }
 
-export class SpeakerBodyDto {
+export class SpeakerBodyDto extends TranscriptTargetBodyDto {
     @IsString()
     speakerLabel: string;
 
@@ -224,16 +270,43 @@ export class WorkflowController {
         return this.workflowService.getMeetingInfo(user._id, id);
     }
 
+    /** Transcript, biên bản, đề xuất của bản ghi người này xem được (`?record=` để chọn bản). */
+    @Get("meetings/:id/content")
+    getMeetingContent(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Query("record") record?: string,
+    ) {
+        return this.workflowService.getMeetingContent(user._id, id, record || undefined);
+    }
+
+    /** Chỉ định người ghi âm chính (thư ký) của cuộc họp. */
+    @Put("meetings/:id/recorder")
+    setMeetingRecorder(@ReqUser() user: User, @Param("id") id: string, @Body() dto: RecorderBodyDto) {
+        return this.workflowService.setMeetingRecorder(user._id, id, dto.userId ?? null);
+    }
+
     /* biên bản */
 
     @Post("meetings/:id/minutes/submit")
-    submitMinutes(@ReqUser() user: User, @Param("id") id: string) {
-        return this.workflowService.submitMinutes(user._id, id);
+    submitMinutes(@ReqUser() user: User, @Param("id") id: string, @Body() dto: MinutesTargetBodyDto) {
+        return this.workflowService.submitMinutes(user._id, id, dto.versionId);
+    }
+
+    /** Người ghi sửa biên bản nháp của mình. */
+    @Put("meetings/:id/minutes")
+    updateMinutes(@ReqUser() user: User, @Param("id") id: string, @Body() dto: MinutesEditBodyDto) {
+        return this.workflowService.updateMinutes(user._id, id, {
+            minutesVersionId: dto.versionId,
+            summary: dto.summary,
+            decisions: dto.decisions,
+            openIssues: dto.openIssues,
+        });
     }
 
     @Post("meetings/:id/minutes/approve")
-    approveMinutes(@ReqUser() user: User, @Param("id") id: string) {
-        return this.workflowService.approveMinutes(user._id, id);
+    approveMinutes(@ReqUser() user: User, @Param("id") id: string, @Body() dto: MinutesTargetBodyDto) {
+        return this.workflowService.approveMinutes(user._id, id, dto.versionId);
     }
 
     @Post("meetings/:id/minutes/reject")
@@ -242,7 +315,7 @@ export class WorkflowController {
         @Param("id") id: string,
         @Body() dto: RejectBodyDto,
     ) {
-        return this.workflowService.rejectMinutes(user._id, id, dto.reason);
+        return this.workflowService.rejectMinutes(user._id, id, dto.reason, dto.versionId);
     }
 
     @Post("meetings/:id/minutes/new-draft")
@@ -305,13 +378,19 @@ export class WorkflowController {
 
     @Post("meetings/:id/speakers")
     assignSpeaker(@ReqUser() user: User, @Param("id") id: string, @Body() dto: SpeakerBodyDto) {
-        return this.workflowService.assignSpeaker(user._id, id, dto.speakerLabel, dto.userId ?? null);
+        return this.workflowService.assignSpeaker(
+            user._id,
+            id,
+            dto.speakerLabel,
+            dto.userId ?? null,
+            dto.transcriptVersionId,
+        );
     }
 
-    /** Phân tích lại transcript hiện tại (sau khi gán tên người nói). */
+    /** Phân tích lại một bản ghi (sau khi gán tên người nói). */
     @Post("meetings/:id/reanalyze")
-    reanalyze(@ReqUser() user: User, @Param("id") id: string) {
-        return this.workflowService.reanalyze(user._id, id);
+    reanalyze(@ReqUser() user: User, @Param("id") id: string, @Body() dto: TranscriptTargetBodyDto) {
+        return this.workflowService.reanalyze(user._id, id, dto.transcriptVersionId);
     }
 
     /* thành viên */

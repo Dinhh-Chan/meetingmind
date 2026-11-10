@@ -78,6 +78,14 @@ export class MinutesVersion implements BaseEntity {
     sourceTranscriptVersionId?: string;
 
     /**
+     * Người ghi âm của transcript nguồn: người duy nhất sửa và gửi duyệt bản này.
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Người ghi âm" })
+    recordedById?: string;
+
+    /**
      * Lần chạy AI
      */
     @IsString()
