@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s [bot
 log = logging.getLogger("bot-worker")
 
 WORK_DIR = Path(os.environ.get("BOT_WORK_DIR", "/tmp/mm-bot"))
-# Bản ghi nhỏ hơn ngần này là không ai nói gì (chỉ có header webm).
+# Bản ghi nhỏ hơn ngần này là gần như chỉ có phần đầu tệp FLAC.
 MIN_RECORDING_BYTES = int(os.environ.get("BOT_MIN_RECORDING_BYTES", "4096"))
 
 
@@ -95,15 +95,15 @@ class Worker:
     async def _run_session(self, session_id, meeting_id, workspace_id, correlation, join_url, status) -> None:
         stop = asyncio.Event()
         self.running[session_id] = stop
-        output = WORK_DIR / f"{session_id}.webm"
+        output = WORK_DIR / f"{session_id}.flac"
         try:
             bot = MeetBot(join_url, output, options_from_env(), on_status=status, stop_event=stop)
             result = await bot.run()
             if result.bytes < MIN_RECORDING_BYTES:
                 log.warning("Bản ghi %s quá nhỏ (%d byte), không gửi phiên âm", session_id, result.bytes)
                 return
-            object_key = f"{workspace_id}/{meeting_id}/bot-{session_id}.webm"
-            await asyncio.to_thread(upload, output, object_key)
+            object_key = f"{workspace_id}/{meeting_id}/bot-{session_id}.flac"
+            await asyncio.to_thread(upload, output, object_key, "audio/flac")
             await self.publish(
                 c.RECORDING_COMPLETED,
                 workspace_id,

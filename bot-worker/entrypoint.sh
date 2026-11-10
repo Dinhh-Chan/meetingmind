@@ -31,6 +31,9 @@ fi
 pulseaudio --daemonize=yes --exit-idle-time=-1 --disallow-exit --log-target=stderr >/dev/null 2>&1 || true
 pactl load-module module-null-sink sink_name=mm_null sink_properties=device.description=MeetingMindNull >/dev/null 2>&1 || true
 pactl set-default-sink mm_null >/dev/null 2>&1 || true
+# Loa ảo không "ngủ" khi im lặng: bot ghi từ monitor của nó, ngủ thì các khoảng
+# lặng bị bỏ khỏi bản ghi và mốc thời gian transcript lệch so với cuộc họp.
+pactl unload-module module-suspend-on-idle >/dev/null 2>&1 || true
 # Container trước bị dừng đột ngột có thể để lại khoá hồ sơ Chromium; mỗi lúc
 # chỉ một phiên dùng hồ sơ nên xoá khoá cũ là an toàn.
 if [ -n "$BOT_PROFILE_DIR" ] && [ -d "$BOT_PROFILE_DIR" ]; then

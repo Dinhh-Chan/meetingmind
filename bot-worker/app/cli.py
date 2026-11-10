@@ -1,6 +1,6 @@
 """Chạy thử một phiên bot bằng tay, không qua RabbitMQ.
 
-    xvfb-run python -m app.cli https://meet.google.com/abc-defg-hij --out /out/rec.webm --debug /out/shots
+    xvfb-run python -m app.cli https://meet.google.com/abc-defg-hij --out /out/rec.flac --debug /out/shots
 """
 
 import argparse
@@ -14,7 +14,7 @@ from app.meet import BotOptions, MeetBot
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
-    parser.add_argument("--out", type=Path, default=Path("/tmp/mm-bot/recording.webm"))
+    parser.add_argument("--out", type=Path, default=Path("/tmp/mm-bot/recording.flac"))
     parser.add_argument("--debug", type=Path, default=None, help="thư mục lưu ảnh chụp từng bước")
     parser.add_argument("--max", type=float, default=600, help="giây ghi tối đa")
     parser.add_argument("--alone", type=float, default=60)

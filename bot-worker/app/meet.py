@@ -1,18 +1,18 @@
 """Điều khiển một phiên bot trong Google Meet bằng Playwright.
 
 Bot vào phòng như một khách tên "MeetingMind Bot", không bật mic/camera, chờ chủ
-phòng cho vào rồi ghi âm thanh của những người khác (xem recorder.js). Bot tự
-rời khi chỉ còn một mình, khi cuộc họp kết thúc, khi bị mời ra, hoặc khi Core
-yêu cầu dừng.
+phòng cho vào rồi ghi âm thanh Meet phát ra loa ảo PulseAudio của container
+(entrypoint.sh), tức giọng những người khác. Bot tự rời khi chỉ còn một mình, khi
+cuộc họp kết thúc, khi bị mời ra, hoặc khi Core yêu cầu dừng.
 
 Không vượt rào kiểm soát của Meet: bot hiện đúng tên, phải được chủ phòng
 duyệt, và dừng nếu Meet từ chối.
 """
 
 import asyncio
-import base64
 import logging
 import re
+import signal
 import time
 from dataclasses import dataclass, field
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -56,7 +56,8 @@ class BotOptions:
     # Còn một mình bao lâu thì rời (người cuối cùng đã ra về).
     alone_timeout_s: float = 60
     max_duration_s: float = 4 * 3600
-    chunk_ms: int = 10_000
+    # Nguồn thu: "monitor" của loa ảo mm_null mà Chromium phát âm thanh Meet ra.
+    pulse_source: str = "mm_null.monitor"
     headless: bool = False
     debug_dir: Path | None = None
     # Hồ sơ Chromium đã đăng nhập tài khoản Google của bot (login.sh). Meet chặn
@@ -140,7 +141,6 @@ class MeetBot:
         self.options = options or BotOptions()
         self.on_status = on_status
         self.stop_event = stop_event or asyncio.Event()
-        self._file = None
         self._shot = 0
 
     async def _status(self, status: Status, detail: str | None = None) -> None:
@@ -158,9 +158,33 @@ class MeetBot:
         except Exception:  # noqa: BLE001 - ảnh dò lỗi không được làm hỏng phiên
             pass
 
-    async def _on_chunk(self, b64: str) -> None:
-        self._file.write(base64.b64decode(b64))
-        self._file.flush()
+    async def _start_recording(self) -> asyncio.subprocess.Process:
+        """Thu âm thanh Meet phát ra loa ảo thành FLAC mono 16 kHz (tần số Whisper dùng)."""
+        return await asyncio.create_subprocess_exec(
+            "parecord",
+            f"--device={self.options.pulse_source}",
+            "--file-format=flac",
+            "--rate=16000",
+            "--channels=1",
+            str(self.output),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+    @staticmethod
+    async def _stop_recording(proc: asyncio.subprocess.Process) -> None:
+        if proc.returncode is not None:
+            return
+        # SIGINT để parecord ghi nốt và đóng tệp FLAC đúng chuẩn.
+        proc.send_signal(signal.SIGINT)
+        try:
+            await asyncio.wait_for(proc.wait(), 15)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+
+    def _recorded_bytes(self) -> int:
+        return self.output.stat().st_size if self.output.exists() else 0
 
     async def run(self) -> RecordingResult:
         args = [
@@ -191,7 +215,6 @@ class MeetBot:
     async def _session(self, context: BrowserContext) -> RecordingResult:
         page = context.pages[0] if context.pages else await context.new_page()
         await page.add_init_script(RECORDER_JS)
-        await page.expose_function("__mmOnChunk", self._on_chunk)
 
         await self._status(Status.JOINING)
         await page.goto(with_english_ui(self.join_url), wait_until="domcontentloaded")
@@ -199,16 +222,16 @@ class MeetBot:
         await self._wait_admission(page)
 
         self.output.parent.mkdir(parents=True, exist_ok=True)
-        self._file = self.output.open("wb")
+        recorder = await self._start_recording()
         started = time.monotonic()
         try:
-            await page.evaluate("ms => window.__mmRecorder.start(ms)", self.options.chunk_ms)
             await self._status(Status.RECORDING)
             await self._debug(page, "recording")
-            reason, stats = await self._watch(page, started)
-            total = await self._leave(page)
+            reason, stats = await self._watch(page, started, recorder)
+            await _click_first(page, LABEL_LEAVE, timeout=3000)
         finally:
-            self._file.close()
+            await self._stop_recording(recorder)
+        total = self._recorded_bytes()
         duration_ms = int((time.monotonic() - started) * 1000)
         await self._status(Status.LEFT, reason.value)
         return RecordingResult(self.output, total, duration_ms, reason, started, stats)
@@ -268,11 +291,14 @@ class MeetBot:
         await self._debug(page, "admission-timeout")
         raise JoinError("Chờ chủ phòng duyệt quá lâu")
 
-    async def _watch(self, page: Page, started: float) -> tuple[EndReason, dict]:
+    async def _watch(self, page: Page, started: float, recorder: asyncio.subprocess.Process) -> tuple[EndReason, dict]:
         alone_since: float | None = None
         stats: dict = {}
         while True:
             await asyncio.sleep(2)
+            if recorder.returncode is not None:
+                err = (await recorder.stderr.read()).decode(errors="replace").strip()
+                raise RuntimeError(f"parecord dừng giữa chừng (mã {recorder.returncode}): {err}")
             elapsed = time.monotonic() - started
             if self.stop_event.is_set():
                 return EndReason.STOP_REQUESTED, stats
@@ -283,7 +309,8 @@ class MeetBot:
             if not await self._in_call(page) or await _has_text(page, TEXT_ENDED):
                 await self._debug(page, "ended")
                 return EndReason.MEETING_ENDED, stats
-            stats = await page.evaluate("() => window.__mmRecorder.stats()")
+            # Tệp FLAC lớn dần rõ khi có người nói (im lặng nén còn rất ít byte).
+            stats = {**await page.evaluate("() => window.__mmRecorder.stats()"), "bytes": self._recorded_bytes()}
             if await _has_text(page, TEXT_ALONE):
                 alone_since = alone_since or time.monotonic()
                 if time.monotonic() - alone_since > self.options.alone_timeout_s:
@@ -292,12 +319,3 @@ class MeetBot:
                 alone_since = None
             if int(elapsed) % 30 < 2:
                 log.info("Đang ghi %.0fs: %s", elapsed, stats)
-
-    async def _leave(self, page: Page) -> int:
-        total = 0
-        try:
-            total = await page.evaluate("() => window.__mmRecorder.stop()")
-        except Exception as err:  # noqa: BLE001 - trang đã đóng thì giữ phần đã ghi
-            log.warning("Không dừng recorder gọn: %s", err)
-        await _click_first(page, LABEL_LEAVE, timeout=3000)
-        return total

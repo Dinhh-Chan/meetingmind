@@ -11,7 +11,7 @@ def bucket() -> str:
     return os.environ.get("MINIO_BUCKET", "meetingmind")
 
 
-def upload(path: Path, object_key: str, content_type: str = "audio/webm") -> None:
+def upload(path: Path, object_key: str, content_type: str = "audio/flac") -> None:
     client = Minio(
         f"{os.environ.get('MINIO_ENDPOINT', 'minio')}:{os.environ.get('MINIO_PORT', '9000')}",
         access_key=os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
