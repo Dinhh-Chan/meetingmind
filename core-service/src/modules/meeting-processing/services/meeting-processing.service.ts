@@ -33,6 +33,8 @@ import {
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
 import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
 import { MeetingRecordService } from "@module/meeting-record/meeting-record.service";
+import { MinutesTemplateService } from "@module/minutes-template/services/minutes-template.service";
+import { ProjectService } from "@module/project/services/project.service";
 import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
 import { UserService } from "@module/user/service/user.service";
 import { VoiceProfileService } from "@module/voice-profile/services/voice-profile.service";
@@ -90,6 +92,8 @@ export class MeetingProcessingService {
         private readonly userService: UserService,
         private readonly outboxService: OutboxService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
+        private readonly projectService: ProjectService,
+        private readonly minutesTemplateService: MinutesTemplateService,
     ) {}
 
     /** Bước 5 của luồng: tạo job phiên âm và phát lệnh cho AI. */
@@ -404,6 +408,7 @@ export class MeetingProcessingService {
             retryCount: 0,
         });
 
+        const template = await this.templateOf(meeting._id);
         await this.outboxService.emit({
             aggregateType: "meeting",
             aggregateId: meeting._id,
@@ -415,6 +420,7 @@ export class MeetingProcessingService {
                 transcriptVersionId,
                 language: meeting.language,
                 segments: await this.analysisSegments(transcriptVersionId),
+                templateSections: template?.sections ?? undefined,
             },
         });
 
@@ -465,6 +471,15 @@ export class MeetingProcessingService {
                 endMs: segment.endMs,
                 language: segment.language ?? undefined,
             }));
+    }
+
+    /** Mẫu biên bản của dự án chứa cuộc họp (cuộc họp ngoài dự án thì không có). */
+    private async templateOf(meetingId: string) {
+        const meeting = await this.meetingService.getOne(null, { _id: meetingId });
+        if (!meeting?.projectId) return null;
+        const project = await this.projectService.getById(null, meeting.projectId);
+        if (!project?.minutesTemplateId) return null;
+        return this.minutesTemplateService.getById(null, project.minutesTemplateId);
     }
 
     /** Tên hiển thị của người tạo cuộc họp (fullname, không có thì username). */
@@ -520,6 +535,16 @@ export class MeetingProcessingService {
             openIssues: (payload.openIssues ?? []).map((issue) => ({
                 title: issue,
             })),
+            // Biên bản theo mẫu của dự án: lưu kèm tên mẫu và nội dung từng mục.
+            ...(payload.sections?.length
+                ? await (async () => {
+                      const template = await this.templateOf(meeting._id);
+                      return {
+                          templateKey: template?._id,
+                          editorContent: { templateName: template?.name, sections: payload.sections },
+                      };
+                  })()
+                : {}),
             // Chạy lại AI tạo bản nháp mới, không đụng bản đã duyệt.
             status: MinutesVersionStatus.DRAFT,
             sourceTranscriptVersionId: payload.transcriptVersionId,

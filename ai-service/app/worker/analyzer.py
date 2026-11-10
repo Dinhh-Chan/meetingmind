@@ -21,6 +21,8 @@ class AnalysisResult:
     open_issues: list[str] = field(default_factory=list)
     decisions: list[dict[str, Any]] = field(default_factory=list)
     action_items: list[dict[str, Any]] = field(default_factory=list)
+    # Nội dung theo từng mục của mẫu biên bản dự án: [{"title", "content"}].
+    sections: list[dict[str, str]] = field(default_factory=list)
 
 
 class Analyzer(Protocol):
@@ -30,6 +32,7 @@ class Analyzer(Protocol):
         transcript_version_id: str,
         language: str,
         segments: list[dict[str, Any]] | None = None,
+        template_sections: list[str] | None = None,
     ) -> AnalysisResult: ...
 
 
@@ -47,6 +50,7 @@ class StubAnalyzer:
         transcript_version_id: str,
         language: str,
         segments: list[dict[str, Any]] | None = None,
+        template_sections: list[str] | None = None,
     ) -> AnalysisResult:
         log.warning("Đang dùng StubAnalyzer (AI_LLM chưa bật)")
         return AnalysisResult(

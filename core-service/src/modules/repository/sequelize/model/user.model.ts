@@ -30,6 +30,12 @@ export class UserModel extends Model implements User {
     @Column({ type: DataType.STRING })
     fullname?: string;
 
+    @Column({ type: DataType.STRING })
+    timezone?: string;
+
+    @Column({ type: DataType.STRING })
+    language?: string;
+
     @Column({
         type: DataType.ENUM(...Object.values(Gender)),
     })

@@ -7,6 +7,7 @@ import { Body, Controller, Get, Put, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
 import { ChangePasswordDto } from "../dto/change-password.dto";
+import { UpdateMeDto } from "../dto/update-me.dto";
 import { User } from "../entities/user.entity";
 import { UserService } from "../service/user.service";
 
@@ -61,6 +62,13 @@ export class UserController extends BaseControllerFactory<User>(
     async getMe(@Req() req: Request) {
         const authData = req.user as RequestAuthData;
         return this.userService.getMe(authData);
+    }
+
+    @Put("me")
+    @ApiRecordResponse(User)
+    @Authorization()
+    async updateMe(@ReqUser() user: User, @Body() dto: UpdateMeDto) {
+        return this.userService.updateMe(user, dto);
     }
 
     @Put("me/password")

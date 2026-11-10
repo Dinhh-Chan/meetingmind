@@ -34,6 +34,14 @@ export class Project implements BaseEntity {
     description?: string;
 
     /**
+     * Mẫu biên bản AI dùng cho cuộc họp của dự án
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Mẫu biên bản" })
+    minutesTemplateId?: string;
+
+    /**
      * Trạng thái
      */
     @IsEnum(ProjectStatus)

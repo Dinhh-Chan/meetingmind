@@ -77,6 +77,11 @@ export class MinioService implements OnModuleInit {
         );
     }
 
+    /** Đọc object dạng stream để Core tự trả về (MinIO không mở ra ngoài). */
+    async getObject(objectKey: string, bucket?: string) {
+        return this.minioClient.getObject(bucket || this.getBucket(), objectKey);
+    }
+
     async removeObject(objectKey: string, bucket?: string) {
         return this.minioClient.removeObject(bucket || this.getBucket(), objectKey);
     }

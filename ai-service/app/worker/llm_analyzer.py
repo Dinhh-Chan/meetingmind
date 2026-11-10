@@ -107,11 +107,23 @@ class LlmError(Exception):
 # ---------- Dựng prompt và đọc kết quả: hàm thuần, test được không cần mạng ----------
 
 
-def build_messages(segments: list[dict[str, Any]], language: str | None) -> list[dict[str, str]]:
+TEMPLATE_PROMPT = """
+
+Dự án dùng mẫu biên bản gồm các mục theo thứ tự: {titles}.
+Thêm vào object JSON trường "sections": mỗi mục một phần tử {{"title": "<tên mục đúng như trên>", "content": "<nội dung>"}}, đúng thứ tự trên. Nội dung viết bằng {language}, ngắn gọn (gạch đầu dòng bắt đầu bằng "- " nếu có nhiều ý), chỉ dựa vào transcript. Mục không có thông tin thì content là "Không có"."""
+
+
+def build_messages(
+    segments: list[dict[str, Any]], language: str | None, template_sections: list[str] | None = None
+) -> list[dict[str, str]]:
     name = LANGUAGE_NAMES.get((language or "vi").split("-")[0], "ngôn ngữ chính của cuộc họp")
     lines = [f"[{s['sequence']}] {s.get('speaker') or 'Không rõ'}: {s['text']}" for s in segments]
+    system = SYSTEM_PROMPT.format(language=name)
+    titles = [t.strip() for t in template_sections or [] if t and t.strip()]
+    if titles:
+        system += TEMPLATE_PROMPT.format(titles="; ".join(f"“{t}”" for t in titles), language=name)
     return [
-        {"role": "system", "content": SYSTEM_PROMPT.format(language=name)},
+        {"role": "system", "content": system},
         {"role": "user", "content": "Transcript cuộc họp:\n\n" + "\n".join(lines)},
     ]
 
@@ -181,7 +193,9 @@ def ground(quote: str | None, sequence: int | None, texts: dict[int, str]) -> in
     return sequence if sequence in texts else None
 
 
-def normalize(raw: dict[str, Any], segments: list[dict[str, Any]]) -> dict[str, Any]:
+def normalize(
+    raw: dict[str, Any], segments: list[dict[str, Any]], template_sections: list[str] | None = None
+) -> dict[str, Any]:
     """Đưa câu trả lời về đúng hình dạng hợp đồng analysis.completed."""
     texts = {int(s["sequence"]): str(s["text"]) for s in segments}
 
@@ -218,11 +232,23 @@ def normalize(raw: dict[str, Any], segments: list[dict[str, Any]]) -> dict[str, 
         if title:
             open_issues.append(title)
 
+    # Giữ đúng các mục và thứ tự của mẫu; mục model bỏ sót thì ghi "Không có".
+    written = {}
+    for item in raw.get("sections") or []:
+        if isinstance(item, dict) and _text(item.get("title")):
+            written[_text(item["title"]).casefold()] = _text(item.get("content")) or ""
+    sections = [
+        {"title": t.strip(), "content": written.get(t.strip().casefold()) or "Không có"}
+        for t in template_sections or []
+        if t and t.strip()
+    ]
+
     return {
         "summary": _text(raw.get("summary")) or "",
         "decisions": decisions,
         "open_issues": open_issues,
         "action_items": action_items,
+        "sections": sections,
     }
 
 
@@ -240,6 +266,7 @@ class LlmAnalyzer:
         transcript_version_id: str,
         language: str,
         segments: list[dict[str, Any]] | None = None,
+        template_sections: list[str] | None = None,
     ) -> AnalysisResult:
         segments = [s for s in segments or [] if str(s.get("text") or "").strip()]
         if not segments:
@@ -247,7 +274,7 @@ class LlmAnalyzer:
             log.warning("Transcript %s rỗng, bỏ qua LLM", transcript_version_id)
             return AnalysisResult(run_id=str(uuid.uuid4()), model="none")
 
-        messages = build_messages(segments, language)
+        messages = build_messages(segments, language, template_sections)
         models = [m for m in (self.settings.model, self.settings.fallback_model) if m]
         errors: list[str] = []
         async with httpx.AsyncClient(
@@ -260,7 +287,7 @@ class LlmAnalyzer:
             for model in models:
                 try:
                     content = await self._complete(client, model, messages)
-                    result = normalize(parse_json(content), segments)
+                    result = normalize(parse_json(content), segments, template_sections)
                 except (httpx.HTTPError, LlmError, asyncio.TimeoutError) as err:
                     reason = str(err) or type(err).__name__
                     log.warning("Model %s không dùng được cho %s: %s", model, meeting_id, reason)

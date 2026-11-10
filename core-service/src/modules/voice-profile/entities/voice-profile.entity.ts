@@ -1,11 +1,12 @@
 import { EntityDefinition } from "@common/constant/class/entity-definition";
 import { BaseEntity } from "@common/interface/base-entity.interface";
-import { IsArray, IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsArray, IsDateString, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
+import { VoiceProfileStatus, VoiceQuality } from "../common/constant";
 
 /**
  * Vân giọng đã đăng ký của một người, để nhận ra họ trong bản ghi cuộc họp.
- * Chỉ lưu vector (không lưu âm thanh mẫu); người dùng tự đồng ý và tự xoá được
- * (dữ liệu sinh trắc học — dữ liệu cá nhân nhạy cảm).
+ * Lưu vector và các mẫu đọc (để admin nghe khi xác nhận); người dùng tự đồng
+ * ý và tự xoá được (dữ liệu sinh trắc học — dữ liệu cá nhân nhạy cảm).
  */
 export class VoiceProfile implements BaseEntity {
     @IsOptional()
@@ -53,6 +54,55 @@ export class VoiceProfile implements BaseEntity {
     @IsDateString()
     @EntityDefinition.field({ label: "Thời điểm đồng ý", required: true })
     consentAt: Date;
+
+    /**
+     * Trạng thái xác nhận của admin; trống là bản đăng ký trước khi có bước
+     * xác nhận (coi như đã xác nhận)
+     */
+    @IsOptional()
+    @IsEnum(VoiceProfileStatus)
+    @EntityDefinition.field({ label: "Trạng thái", enum: Object.values(VoiceProfileStatus) })
+    status?: VoiceProfileStatus;
+
+    /**
+     * Chất lượng mẫu
+     */
+    @IsOptional()
+    @IsEnum(VoiceQuality)
+    @EntityDefinition.field({ label: "Chất lượng", enum: Object.values(VoiceQuality) })
+    quality?: VoiceQuality;
+
+    /**
+     * Object key các mẫu đọc trong MinIO, để admin nghe khi xác nhận
+     */
+    @IsOptional()
+    @IsArray()
+    @EntityDefinition.field({ label: "Mẫu đọc" })
+    sampleKeys?: string[];
+
+    /**
+     * MIME type của mẫu đọc
+     */
+    @IsOptional()
+    @IsString()
+    @EntityDefinition.field({ label: "MIME type mẫu" })
+    sampleMimetype?: string;
+
+    /**
+     * Người xác nhận / từ chối
+     */
+    @IsOptional()
+    @IsString()
+    @EntityDefinition.field({ label: "Người xác nhận" })
+    reviewedById?: string;
+
+    /**
+     * Thời điểm xác nhận / từ chối
+     */
+    @IsOptional()
+    @IsDateString()
+    @EntityDefinition.field({ label: "Thời điểm xác nhận" })
+    reviewedAt?: Date;
 
     @IsOptional()
     @IsDateString()

@@ -68,6 +68,20 @@ export class User implements BaseEntity {
     @EntityDefinition.field({ label: "Full name" })
     fullname?: string;
 
+    /** Múi giờ IANA người dùng chọn, mặc định Asia/Ho_Chi_Minh */
+    @IsString()
+    @IsOptional()
+    @Prop()
+    @EntityDefinition.field({ label: "Múi giờ" })
+    timezone?: string;
+
+    /** Ngôn ngữ giao diện: vi | en */
+    @IsString()
+    @IsOptional()
+    @Prop()
+    @EntityDefinition.field({ label: "Ngôn ngữ" })
+    language?: string;
+
     @IsEnum(Gender)
     @IsOptional()
     @Prop({ type: String, enum: Object.values(Gender) })

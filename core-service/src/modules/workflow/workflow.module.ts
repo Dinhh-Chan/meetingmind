@@ -25,6 +25,7 @@ import { Module } from "@nestjs/common";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
 import { MeetingRecordModule } from "@module/meeting-record/meeting-record.module";
 import { ClarificationRequestModule } from "@module/clarification-request/clarification-request.module";
+import { MinutesTemplateModule } from "@module/minutes-template/minutes-template.module";
 import { TaskSyncConsumer } from "./consumers/task-sync.consumer";
 import { KnowledgeController } from "./controllers/knowledge.controller";
 import { WorkflowController } from "./controllers/workflow.controller";
@@ -57,6 +58,7 @@ import { WorkflowService } from "./services/workflow.service";
         MeetingProcessingModule,
         MeetingRecordModule,
         ClarificationRequestModule,
+        MinutesTemplateModule,
         KnowledgeModule,
         MediaFileModule,
     ],

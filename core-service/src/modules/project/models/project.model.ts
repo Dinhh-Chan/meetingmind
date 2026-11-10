@@ -24,6 +24,9 @@ export class ProjectModel extends Model implements Project {
     @Column({ type: DataType.TEXT, allowNull: true })
     description?: string;
 
+    @Column({ type: DataType.STRING, allowNull: true })
+    minutesTemplateId?: string;
+
     @Column({ type: DataType.STRING, allowNull: false })
     status: ProjectStatus;
 

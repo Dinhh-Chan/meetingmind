@@ -48,6 +48,9 @@ import { ProjectService } from "@module/project/services/project.service";
 import { MeetingProcessingService } from "@module/meeting-processing/services/meeting-processing.service";
 import { MeetingRecordService } from "@module/meeting-record/meeting-record.service";
 import { ClarificationStatus } from "@module/clarification-request/common/constant";
+import { ActivityType } from "@module/activity-log/common/constant";
+import { ActivityLogService } from "@module/activity-log/services/activity-log.service";
+import { MinutesTemplateService } from "@module/minutes-template/services/minutes-template.service";
 import { ClarificationRequestService } from "@module/clarification-request/services/clarification-request.service";
 import {
     EventType,
@@ -65,6 +68,14 @@ import {
 } from "@module/workspace-member/common/constant";
 import { WorkspaceMemberService } from "@module/workspace-member/services/workspace-member.service";
 import { Injectable, Logger } from "@nestjs/common";
+
+const ROLE_LABEL: Record<string, string> = {
+    OWNER: "Owner",
+    ADMIN: "Admin",
+    MEMBER: "Member",
+    VIEWER: "Viewer",
+    PM: "PM",
+};
 
 /** Ngày (YYYY-MM-DD) theo giờ Việt Nam: người dùng chọn hạn theo lịch địa phương. */
 const vnDay = (d: Date | string | number) =>
@@ -143,9 +154,18 @@ export class WorkflowService {
         private readonly knowledgeIndexService: KnowledgeIndexService,
         private readonly meetingRecordService: MeetingRecordService,
         private readonly clarificationRequestService: ClarificationRequestService,
+        private readonly activityLogService: ActivityLogService,
+        private readonly minutesTemplateService: MinutesTemplateService,
     ) {}
 
     /* ------------------------------------------------------- tiện ích */
+
+    /** Tên hiển thị để ghi nhật ký (fullname, không có thì username). */
+    private async nameOf(userId: string | null | undefined) {
+        if (!userId) return "—";
+        const [user] = await this.userService.getMany(null, { _id: userId }, { enableDataPartition: false } as any);
+        return user?.fullname || user?.username || userId;
+    }
 
     private async meetingFor(
         userId: string,
@@ -464,7 +484,13 @@ export class WorkflowService {
     async updateMinutes(
         userId: string,
         meetingId: string,
-        edit: { minutesVersionId?: string; summary?: string; decisions?: string[]; openIssues?: string[] },
+        edit: {
+            minutesVersionId?: string;
+            summary?: string;
+            decisions?: string[];
+            openIssues?: string[];
+            sections?: { title: string; content: string }[];
+        },
     ) {
         const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_VIEW);
         const { view, record, version } = await this.minutesFor(userId, meeting, edit.minutesVersionId);
@@ -478,11 +504,32 @@ export class WorkflowService {
         const clean = (list?: string[]) => list?.map((s) => s.trim()).filter(Boolean);
         const decisions = clean(edit.decisions);
         const openIssues = clean(edit.openIssues);
+        await this.activityLogService.record({
+            workspaceId: meeting.workspaceId,
+            actorId: userId,
+            type: ActivityType.MINUTES_EDITED,
+            target: `${meeting.title} · v${version.versionNo}`,
+            meetingId,
+            projectId: meeting.projectId,
+        });
         return this.minutesVersionService.updateById(null, version._id, {
             ...(edit.summary !== undefined ? { summary: edit.summary.trim() } : {}),
             ...(openIssues ? { openIssues: openIssues.map((title) => ({ title })) } : {}),
-            ...(decisions
-                ? { editorContent: { ...(version.editorContent ?? {}), decisions } }
+            ...(decisions || edit.sections
+                ? {
+                      editorContent: {
+                          ...(version.editorContent ?? {}),
+                          ...(decisions ? { decisions } : {}),
+                          ...(edit.sections
+                              ? {
+                                    sections: edit.sections.map((s) => ({
+                                        title: String(s.title ?? "").trim(),
+                                        content: String(s.content ?? "").trim(),
+                                    })),
+                                }
+                              : {}),
+                      },
+                  }
                 : {}),
         });
     }
@@ -526,6 +573,14 @@ export class WorkflowService {
             this.knowledgeIndexService.indexMinutes(meeting, approved),
         );
         await this.meetingProcessingService.indexTranscript(meeting, record.transcript._id);
+        await this.activityLogService.record({
+            workspaceId: meeting.workspaceId,
+            actorId: userId,
+            type: ActivityType.MINUTES_APPROVED,
+            target: `${meeting.title} · v${version.versionNo}`,
+            meetingId,
+            projectId: meeting.projectId,
+        });
         return approved;
     }
 
@@ -597,6 +652,174 @@ export class WorkflowService {
             { meetingId, projectId: meeting.projectId },
         );
         return this.meetingProcessingService.retryFailed(meeting, userId, anyRecorder);
+    }
+
+    /**
+     * Tình trạng tích hợp (Cài đặt › Tích hợp) và lịch sử đồng bộ công việc.
+     * Trello/Telegram cấu hình trên máy chủ: trạng thái suy ra từ kết quả đồng
+     * bộ gần nhất (synced → đã kết nối, skipped → chưa cấu hình, failed → lỗi).
+     */
+    async getIntegrations(userId: string, workspaceId: string) {
+        await this.permissionService.assert(userId, workspaceId, Permission.INTEGRATION_MANAGE);
+        const tasks = await this.actionItemService.getMany(null, { workspaceId, deletedAt: null });
+        const history = tasks
+            .flatMap((t) =>
+                (t.externalLinks ?? []).map((link) => ({
+                    taskId: t._id,
+                    title: t.title,
+                    projectId: t.projectId ?? null,
+                    provider: link.provider,
+                    status: link.status,
+                    externalId: link.externalId ?? null,
+                    externalUrl: link.externalUrl ?? null,
+                    error: link.error ?? null,
+                    syncedAt: link.syncedAt ?? null,
+                })),
+            )
+            .sort((a, b) => String(b.syncedAt ?? "").localeCompare(String(a.syncedAt ?? "")));
+        const providers = ["trello", "telegram"].map((key) => {
+            const own = history.filter((h) => h.provider === key);
+            const last = own[0];
+            return {
+                key,
+                status: !last
+                    ? "unknown"
+                    : last.status === "synced"
+                      ? "connected"
+                      : last.status === "skipped"
+                        ? "not_configured"
+                        : "error",
+                failed: own.filter((h) => h.status === "failed").length,
+                lastSyncAt: last?.syncedAt ?? null,
+            };
+        });
+        return { providers, history: history.slice(0, 100) };
+    }
+
+    /** Nhật ký hoạt động của workspace (Owner/Admin), mới nhất trước. */
+    async listActivity(userId: string, workspaceId: string, type?: string) {
+        await this.permissionService.assert(userId, workspaceId, Permission.WORKSPACE_AUDIT_VIEW);
+        const rows = await this.activityLogService.getMany(null, {
+            workspaceId,
+            ...(type ? { type } : {}),
+        });
+        return rows
+            .map((r) => ({ ...r, createdAt: (r as unknown as { createdAt?: Date }).createdAt }))
+            .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
+            .slice(0, 300);
+    }
+
+    /* ------------------------------------------------------- mẫu biên bản */
+
+    /** Mẫu biên bản của workspace, kèm các dự án đang dùng mẫu. */
+    async listMinutesTemplates(userId: string, workspaceId: string) {
+        await this.permissionService.assert(userId, workspaceId, Permission.WORKSPACE_VIEW);
+        const [templates, projects] = await Promise.all([
+            this.minutesTemplateService.listFor(workspaceId),
+            this.projectService.getMany(null, { workspaceId, deletedAt: null }),
+        ]);
+        return templates.map((t) => ({
+            ...t,
+            projectIds: projects.filter((p) => p.minutesTemplateId === t._id).map((p) => p._id),
+        }));
+    }
+
+    private cleanSections(sections?: string[]) {
+        const list = (sections ?? []).map((s) => s.trim()).filter(Boolean);
+        if (!list.length) throw ApiError.BadRequest("error-template-sections-required");
+        return list;
+    }
+
+    /** Gán mẫu cho đúng các dự án đã chọn; dự án bỏ chọn thì bỏ mẫu. */
+    private async assignTemplate(workspaceId: string, templateId: string, projectIds?: string[]) {
+        if (!projectIds) return;
+        const projects = await this.projectService.getMany(null, { workspaceId, deletedAt: null });
+        for (const p of projects) {
+            const want = projectIds.includes(p._id);
+            if (want && p.minutesTemplateId !== templateId) {
+                await this.projectService.updateById(null, p._id, { minutesTemplateId: templateId });
+            } else if (!want && p.minutesTemplateId === templateId) {
+                await this.projectService.updateById(null, p._id, { minutesTemplateId: null });
+            }
+        }
+    }
+
+    private async templateFor(userId: string, templateId: string) {
+        const template = await this.minutesTemplateService.getById(null, templateId);
+        if (!template) throw ApiError.NotFound("error-template-not-found");
+        await this.permissionService.assert(userId, template.workspaceId, Permission.WORKSPACE_SETTINGS_UPDATE);
+        return template;
+    }
+
+    async createMinutesTemplate(
+        userId: string,
+        input: { workspaceId: string; name: string; sections: string[]; projectIds?: string[] },
+    ) {
+        await this.permissionService.assert(userId, input.workspaceId, Permission.WORKSPACE_SETTINGS_UPDATE);
+        const name = input.name?.trim();
+        if (!name) throw ApiError.BadRequest("error-template-name-required");
+        const template = await this.minutesTemplateService.create(null, {
+            workspaceId: input.workspaceId,
+            name,
+            sections: this.cleanSections(input.sections),
+            createdById: userId,
+        });
+        await this.assignTemplate(input.workspaceId, template._id, input.projectIds);
+        await this.activityLogService.record({
+            workspaceId: input.workspaceId,
+            actorId: userId,
+            type: ActivityType.TEMPLATE_CHANGED,
+            target: `Mẫu biên bản “${name}”: tạo mới`,
+        });
+        return template;
+    }
+
+    async updateMinutesTemplate(
+        userId: string,
+        templateId: string,
+        input: { name?: string; sections?: string[]; projectIds?: string[] },
+    ) {
+        const template = await this.templateFor(userId, templateId);
+        const patch: Record<string, unknown> = {};
+        if (input.name !== undefined) {
+            const name = input.name.trim();
+            if (!name) throw ApiError.BadRequest("error-template-name-required");
+            patch.name = name;
+        }
+        if (input.sections !== undefined) patch.sections = this.cleanSections(input.sections);
+        const updated = Object.keys(patch).length
+            ? await this.minutesTemplateService.updateById(null, template._id, patch)
+            : template;
+        await this.assignTemplate(template.workspaceId, template._id, input.projectIds);
+        await this.activityLogService.record({
+            workspaceId: template.workspaceId,
+            actorId: userId,
+            type: ActivityType.TEMPLATE_CHANGED,
+            target: `Mẫu biên bản “${updated.name}”: sửa`,
+        });
+        return updated;
+    }
+
+    async duplicateMinutesTemplate(userId: string, templateId: string) {
+        const template = await this.templateFor(userId, templateId);
+        return this.createMinutesTemplate(userId, {
+            workspaceId: template.workspaceId,
+            name: `${template.name} (bản sao)`,
+            sections: template.sections,
+        });
+    }
+
+    async deleteMinutesTemplate(userId: string, templateId: string) {
+        const template = await this.templateFor(userId, templateId);
+        await this.assignTemplate(template.workspaceId, template._id, []);
+        await this.minutesTemplateService.deleteById(null, template._id);
+        await this.activityLogService.record({
+            workspaceId: template.workspaceId,
+            actorId: userId,
+            type: ActivityType.TEMPLATE_CHANGED,
+            target: `Mẫu biên bản “${template.name}”: xoá`,
+        });
+        return { deleted: true };
     }
 
     /* ------------------------------------------------------- thư ký */
@@ -701,6 +924,14 @@ export class WorkflowService {
                 createdById: userId,
             });
             patch.actionItemId = task._id;
+            await this.activityLogService.record({
+                workspaceId: meeting.workspaceId,
+                actorId: userId,
+                type: ActivityType.TASK_APPROVED,
+                target: `${title} · ${meeting.title}`,
+                meetingId: meeting._id,
+                projectId: meeting.projectId,
+            });
             await this.requestTaskSync(task, meeting, payload);
             await this.indexQuietly(`công việc ${task._id}`, () =>
                 this.knowledgeIndexService.indexActionItem(meeting, task, extra),
@@ -944,6 +1175,16 @@ export class WorkflowService {
             update.description = patch.blockedReason;
         }
         const updated = await this.actionItemService.updateById(null, task._id, update);
+        if ("assigneeId" in update) {
+            await this.activityLogService.record({
+                workspaceId: task.workspaceId,
+                actorId: userId,
+                type: ActivityType.ASSIGNEE_CHANGED,
+                target: `${task.title}: ${await this.nameOf(task.assigneeId)} → ${await this.nameOf(update.assigneeId as string)}`,
+                meetingId: task.meetingId,
+                projectId: task.projectId,
+            });
+        }
         // Người làm, hạn, trạng thái đổi thì câu trả lời "ai làm gì" phải đổi theo.
         if (updated?.meetingId) {
             await this.indexQuietly(`công việc ${task._id}`, async () => {
@@ -1113,6 +1354,14 @@ export class WorkflowService {
         }
         // Tên người nói đổi: lập lại chỉ mục để câu "ai nói gì" dùng tên mới.
         await this.meetingProcessingService.indexTranscript(meeting, version._id);
+        await this.activityLogService.record({
+            workspaceId: meeting.workspaceId,
+            actorId: userId,
+            type: ActivityType.SPEAKER_ASSIGNED,
+            target: `${speakerLabel} → ${targetUserId ? displayName : "Chưa xác định"} · ${meeting.title}`,
+            meetingId,
+            projectId: meeting.projectId,
+        });
         return { updatedSegments: segments.length };
     }
 
@@ -1172,6 +1421,15 @@ export class WorkflowService {
         });
         const summary = payload.results.map((r) => `${r.provider}=${r.status}`).join(", ");
         this.logger.log(`Đồng bộ công việc ${payload.actionItemId}: ${summary}`);
+        for (const failed of payload.results.filter((r) => r.status === "failed")) {
+            await this.activityLogService.record({
+                workspaceId: task.workspaceId,
+                type: ActivityType.SYNC_FAILED,
+                target: `${task.title} → ${failed.provider}${failed.error ? ` (${failed.error})` : ""}`,
+                meetingId: task.meetingId,
+                projectId: task.projectId,
+            });
+        }
     }
 
     /**
@@ -1256,6 +1514,12 @@ export class WorkflowService {
             joinedAt: new Date(),
         });
         await this.invitationService.notifyAdded(userId, workspaceId, byName.email);
+        await this.activityLogService.record({
+            workspaceId,
+            actorId: userId,
+            type: ActivityType.PERMISSION_GRANTED,
+            target: `${byName.fullname || byName.username} → ${ROLE_LABEL[role] ?? role} · Workspace`,
+        });
         return member;
     }
 
@@ -1288,6 +1552,15 @@ export class WorkflowService {
             userId: input.userId,
         });
         const patch = { role: input.role, discipline: input.discipline ?? undefined };
+        if (!existing || existing.role !== input.role) {
+            await this.activityLogService.record({
+                workspaceId: project.workspaceId,
+                actorId: userId,
+                type: ActivityType.PERMISSION_GRANTED,
+                target: `${await this.nameOf(input.userId)} → ${ROLE_LABEL[input.role] ?? input.role} · ${project.name}`,
+                projectId,
+            });
+        }
         if (existing) return this.projectMemberService.updateById(null, existing._id, patch);
         return this.projectMemberService.create(null, {
             workspaceId: project.workspaceId,

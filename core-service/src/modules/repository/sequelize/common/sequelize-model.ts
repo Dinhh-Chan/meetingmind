@@ -27,6 +27,8 @@ import { TranscriptSegmentModel } from "@module/transcript-segment/models/transc
 import { SpeakerAliasModel } from "@module/speaker-alias/models/speaker-alias.model";
 import { VoiceProfileModel } from "@module/voice-profile/models/voice-profile.model";
 import { ClarificationRequestModel } from "@module/clarification-request/models/clarification-request.model";
+import { ActivityLogModel } from "@module/activity-log/models/activity-log.model";
+import { MinutesTemplateModel } from "@module/minutes-template/models/minutes-template.model";
 import { MeetingMinutesModel } from "@module/meeting-minutes/models/meeting-minutes.model";
 import { ActionItemModel } from "@module/action-item/models/action-item.model";
 import { ActionItemCitationModel } from "@module/action-item-citation/models/action-item-citation.model";
@@ -84,6 +86,8 @@ export const SequelizeModel: ModelCtor<Model>[] = [
     SpeakerAliasModel,
     VoiceProfileModel,
     ClarificationRequestModel,
+    ActivityLogModel,
+    MinutesTemplateModel,
     MeetingMinutesModel,
     ActionItemModel,
     ActionItemCitationModel,

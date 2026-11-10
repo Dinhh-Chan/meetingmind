@@ -16,6 +16,7 @@ import { ConfigService } from "@nestjs/config";
 import bcrypt from "bcryptjs";
 import { SystemRole } from "../common/constant";
 import { ChangePasswordDto } from "../dto/change-password.dto";
+import { UpdateMeDto } from "../dto/update-me.dto";
 import { User } from "../entities/user.entity";
 
 @Injectable()
@@ -132,6 +133,27 @@ export class UserService
             await this.userTransaction.abortTransaction(t);
             throw err;
         }
+    }
+
+    /** Tự sửa họ tên, múi giờ, ngôn ngữ. */
+    async updateMe(user: User, dto: UpdateMeDto) {
+        const patch: Partial<User> = {};
+        if (dto.fullname !== undefined) {
+            const fullname = dto.fullname.trim();
+            if (!fullname) throw ApiError.BadRequest("error-fullname-required");
+            patch.fullname = fullname;
+        }
+        if (dto.timezone !== undefined) {
+            try {
+                new Intl.DateTimeFormat("en", { timeZone: dto.timezone });
+            } catch {
+                throw ApiError.BadRequest("error-timezone-invalid");
+            }
+            patch.timezone = dto.timezone;
+        }
+        if (dto.language !== undefined) patch.language = dto.language;
+        const res = await this.userRepository.updateById(user._id, patch);
+        return { ...withoutPassword(res), hasPassword: !!res?.password };
     }
 
     async changePasswordMe(user: User, dto: ChangePasswordDto) {

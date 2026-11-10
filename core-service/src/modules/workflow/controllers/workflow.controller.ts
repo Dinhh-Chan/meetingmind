@@ -11,7 +11,7 @@ import {
 } from "@module/project-member/common/constant";
 import { User } from "@module/user/entities/user.entity";
 import { WorkspaceMemberRole } from "@module/workspace-member/common/constant";
-import { Body, Controller, Get, Param, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
@@ -158,6 +158,12 @@ export class MinutesEditBodyDto extends MinutesTargetBodyDto {
     @IsArray()
     @IsString({ each: true })
     openIssues?: string[];
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => MinutesSectionDto)
+    sections?: MinutesSectionDto[];
 }
 
 export class TranscriptTargetBodyDto {
@@ -195,6 +201,35 @@ export class ClarifyBodyDto {
 export class AnswerBodyDto {
     @IsString()
     answer: string;
+}
+
+export class TemplateBodyDto {
+    @IsOptional()
+    @IsString()
+    workspaceId?: string;
+
+    @IsOptional()
+    @IsString()
+    name?: string;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    sections?: string[];
+
+    /** Dự án dùng mẫu này; bỏ trống thì không đổi. */
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    projectIds?: string[];
+}
+
+export class MinutesSectionDto {
+    @IsString()
+    title: string;
+
+    @IsString()
+    content: string;
 }
 
 export class CommentBodyDto {
@@ -320,6 +355,7 @@ export class WorkflowController {
             summary: dto.summary,
             decisions: dto.decisions,
             openIssues: dto.openIssues,
+            sections: dto.sections,
         });
     }
 
@@ -357,6 +393,56 @@ export class WorkflowController {
     @Post("review-items/:id/reject")
     rejectReview(@ReqUser() user: User, @Param("id") id: string, @Body() dto: RejectBodyDto) {
         return this.workflowService.rejectReview(user._id, id, dto.reason);
+    }
+
+    /* mẫu biên bản */
+
+    @Get("minutes-templates")
+    listMinutesTemplates(@ReqUser() user: User, @Query("workspaceId") workspaceId: string) {
+        return this.workflowService.listMinutesTemplates(user._id, workspaceId);
+    }
+
+    @Post("minutes-templates")
+    createMinutesTemplate(@ReqUser() user: User, @Body() dto: TemplateBodyDto) {
+        return this.workflowService.createMinutesTemplate(user._id, {
+            workspaceId: dto.workspaceId,
+            name: dto.name,
+            sections: dto.sections,
+            projectIds: dto.projectIds,
+        });
+    }
+
+    @Put("minutes-templates/:id")
+    updateMinutesTemplate(@ReqUser() user: User, @Param("id") id: string, @Body() dto: TemplateBodyDto) {
+        return this.workflowService.updateMinutesTemplate(user._id, id, dto);
+    }
+
+    @Post("minutes-templates/:id/duplicate")
+    duplicateMinutesTemplate(@ReqUser() user: User, @Param("id") id: string) {
+        return this.workflowService.duplicateMinutesTemplate(user._id, id);
+    }
+
+    @Delete("minutes-templates/:id")
+    deleteMinutesTemplate(@ReqUser() user: User, @Param("id") id: string) {
+        return this.workflowService.deleteMinutesTemplate(user._id, id);
+    }
+
+    /* tích hợp */
+
+    @Get("integrations")
+    getIntegrations(@ReqUser() user: User, @Query("workspaceId") workspaceId: string) {
+        return this.workflowService.getIntegrations(user._id, workspaceId);
+    }
+
+    /* nhật ký hoạt động */
+
+    @Get("activity")
+    listActivity(
+        @ReqUser() user: User,
+        @Query("workspaceId") workspaceId: string,
+        @Query("type") type?: string,
+    ) {
+        return this.workflowService.listActivity(user._id, workspaceId, type || undefined);
     }
 
     /* làm rõ đề xuất */

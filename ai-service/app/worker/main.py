@@ -94,6 +94,7 @@ async def handle_analysis(
             transcript_version_id=payload["transcriptVersionId"],
             language=payload.get("language", "vi"),
             segments=payload.get("segments") or [],
+            template_sections=payload.get("templateSections") or None,
         )
         out = c.envelope(
             c.ANALYSIS_COMPLETED,
@@ -109,6 +110,7 @@ async def handle_analysis(
                 "openIssues": result.open_issues,
                 "decisions": result.decisions,
                 "actionItems": result.action_items,
+                "sections": result.sections,
             },
         )
         routing_key = c.ANALYSIS_COMPLETED

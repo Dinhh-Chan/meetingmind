@@ -164,6 +164,8 @@ export interface AnalysisCompletedPayload {
     openIssues: string[];
     decisions: ProposedDecision[];
     actionItems: ProposedActionItem[];
+    /** Nội dung theo từng mục của mẫu biên bản dự án (nếu có mẫu). */
+    sections?: { title: string; content: string }[];
 }
 
 export interface JobFailedPayload {

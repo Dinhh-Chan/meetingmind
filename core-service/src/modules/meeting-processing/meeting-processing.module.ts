@@ -1,5 +1,7 @@
 import { MeetingParticipantModule } from "@module/meeting-participant/meeting-participant.module";
 import { MeetingRecordModule } from "@module/meeting-record/meeting-record.module";
+import { MinutesTemplateModule } from "@module/minutes-template/minutes-template.module";
+import { ProjectModule } from "@module/project/project.module";
 import { UserModule } from "@module/user/user.module";
 import { VoiceProfileModule } from "@module/voice-profile/voice-profile.module";
 import { KnowledgeModule } from "@module/knowledge/knowledge.module";
@@ -34,6 +36,8 @@ import { MeetingProcessingService } from "./services/meeting-processing.service"
         KnowledgeModule,
         MeetingParticipantModule,
         MeetingRecordModule,
+        MinutesTemplateModule,
+        ProjectModule,
         VoiceProfileModule,
         UserModule,
     ],

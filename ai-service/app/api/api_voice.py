@@ -1,7 +1,8 @@
 """Đăng ký giọng nói: Core gửi vài mẫu đọc, nhận lại vân giọng để lưu.
 
 Route nội bộ, xác thực bằng X-Internal-Token như hỏi đáp tri thức. Âm thanh
-mẫu chỉ được giải mã trong bộ nhớ và tệp tạm, không lưu lại.
+mẫu chỉ được giải mã trong bộ nhớ và tệp tạm; Core tự giữ bản gốc để admin
+nghe khi xác nhận.
 """
 
 import base64
@@ -35,6 +36,8 @@ class EmbeddingResponse(BaseModel):
     embedding: List[float]
     seconds: float
     model: str
+    # good | short | noisy
+    quality: str
 
 
 def _decode(sample: str):
@@ -61,7 +64,7 @@ def _decode(sample: str):
 def embedding(body: EmbeddingRequest) -> EmbeddingResponse:
     samples = [_decode(s) for s in body.samples]
     try:
-        vector, seconds = voice.enroll(samples)
+        vector, seconds, rating = voice.enroll(samples)
     except ValueError as err:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(err))
-    return EmbeddingResponse(embedding=vector, seconds=seconds, model=voice.MODEL)
+    return EmbeddingResponse(embedding=vector, seconds=seconds, model=voice.MODEL, quality=rating)

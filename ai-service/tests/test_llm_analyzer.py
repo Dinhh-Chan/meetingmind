@@ -232,3 +232,28 @@ def test_analyze_falls_back_when_primary_too_slow():
 
     result = run(LlmAnalyzer(settings(timeout_s=0.2), transport=httpx.MockTransport(handler)))
     assert result.model == "backup"
+
+
+def test_mau_bien_ban_dua_vao_prompt_va_giu_dung_thu_tu_muc():
+    sections = ["Mục tiêu", "Quyết định", "Bước tiếp theo"]
+    system = build_messages(SEGMENTS, "vi", sections)[0]["content"]
+    assert "“Mục tiêu”; “Quyết định”; “Bước tiếp theo”" in system
+    raw = {
+        "summary": "x",
+        "sections": [
+            {"title": "quyết định", "content": "- Chốt phạm vi"},
+            {"title": "Mục tiêu", "content": "Thống nhất kế hoạch"},
+            {"title": "Mục lạ", "content": "bỏ"},
+        ],
+    }
+    result = normalize(raw, SEGMENTS, sections)
+    assert result["sections"] == [
+        {"title": "Mục tiêu", "content": "Thống nhất kế hoạch"},
+        {"title": "Quyết định", "content": "- Chốt phạm vi"},
+        {"title": "Bước tiếp theo", "content": "Không có"},
+    ]
+
+
+def test_khong_co_mau_thi_khong_them_muc():
+    assert "sections" not in build_messages(SEGMENTS, "vi")[0]["content"]
+    assert normalize({"summary": "x"}, SEGMENTS)["sections"] == []

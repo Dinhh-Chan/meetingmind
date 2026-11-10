@@ -21,6 +21,10 @@ SAMPLE_RATE = 16000
 # Mỗi mẫu cần đủ giọng nói (sau khi bỏ khoảng lặng) để vân giọng ổn định.
 MIN_SAMPLE_SECONDS = 3.0
 MAX_SAMPLES = 5
+# Chấm chất lượng để admin xác nhận mẫu: ít giọng nói quá hoặc nền ồn thì vân
+# giọng kém tin cậy (dễ nhận nhầm người).
+GOOD_TOTAL_SECONDS = 9.0
+GOOD_SNR_DB = 15.0
 
 _extractor = None
 _lock = threading.Lock()
@@ -67,6 +71,30 @@ def voiced(audio, frame_s: float = 0.025):
     return frames[rms > floor].reshape(-1)
 
 
+def snr_db(audio, frame_s: float = 0.025) -> float:
+    """Ước lượng tỉ lệ tín hiệu/nhiễu: khung to (giọng) so với khung nhỏ nhất (nền)."""
+    import numpy as np
+
+    audio = np.asarray(audio, dtype=np.float32)
+    size = int(frame_s * SAMPLE_RATE)
+    if len(audio) < size * 4:
+        return 0.0
+    frames = audio[: len(audio) // size * size].reshape(-1, size)
+    rms = np.sqrt((frames**2).mean(axis=1))
+    speech = float(np.percentile(rms, 90))
+    noise = max(float(np.percentile(rms, 10)), 1e-4)
+    return 20.0 * float(np.log10(max(speech, 1e-4) / noise))
+
+
+def quality(total_seconds: float, snrs: list[float]) -> str:
+    """good | short | noisy — hiện cho admin khi xác nhận mẫu giọng."""
+    if total_seconds < GOOD_TOTAL_SECONDS:
+        return "short"
+    if snrs and min(snrs) < GOOD_SNR_DB:
+        return "noisy"
+    return "good"
+
+
 def embed(audio):
     stream = _extractor_instance().create_stream()
     stream.accept_waveform(SAMPLE_RATE, audio)
@@ -74,7 +102,7 @@ def embed(audio):
     return normalize(_extractor_instance().compute(stream))
 
 
-def enroll(samples: list[Any]) -> tuple[list[float], float]:
+def enroll(samples: list[Any]) -> tuple[list[float], float, str]:
     """Vân giọng của một người từ vài mẫu đọc: trung bình vân giọng từng mẫu.
 
     Mẫu quá ngắn hoặc quá nhỏ (ít giọng nói) bị từ chối thay vì cho ra vân
@@ -88,7 +116,9 @@ def enroll(samples: list[Any]) -> tuple[list[float], float]:
         raise ValueError(f"Tối đa {MAX_SAMPLES} mẫu giọng")
     vectors = []
     total = 0.0
+    snrs = []
     for index, audio in enumerate(samples, start=1):
+        snrs.append(snr_db(audio))
         speech = voiced(audio)
         seconds = len(speech) / SAMPLE_RATE
         if seconds < MIN_SAMPLE_SECONDS:
@@ -98,7 +128,7 @@ def enroll(samples: list[Any]) -> tuple[list[float], float]:
             )
         vectors.append(embed(speech))
         total += seconds
-    return normalize(np.mean(vectors, axis=0)).tolist(), round(total, 1)
+    return normalize(np.mean(vectors, axis=0)).tolist(), round(total, 1), quality(total, snrs)
 
 
 def match(centroids: dict[str, Any], profiles: list[dict[str, Any]], threshold: float) -> dict[str, dict[str, Any]]:

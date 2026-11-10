@@ -55,3 +55,21 @@ def test_bo_khoang_lang():
     tone = 0.3 * np.sin(np.linspace(0, 2000 * np.pi, voice.SAMPLE_RATE)).astype(np.float32)
     kept = voice.voiced(np.concatenate([silence, tone, silence]))
     assert abs(len(kept) / voice.SAMPLE_RATE - 1.0) < 0.05
+
+
+def test_cham_chat_luong_mau_giong():
+    assert voice.quality(5.0, [30.0]) == "short"
+    assert voice.quality(12.0, [30.0, 8.0]) == "noisy"
+    assert voice.quality(12.0, [25.0, 30.0]) == "good"
+
+
+def test_snr_cao_khi_giong_ro_tren_nen_yen():
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    quiet = rng.normal(0, 0.001, voice.SAMPLE_RATE)
+    loud = rng.normal(0, 0.3, voice.SAMPLE_RATE)
+    clear = np.concatenate([quiet, loud, quiet]).astype(np.float32)
+    noisy = np.concatenate([loud * 0.5, loud, loud * 0.5]).astype(np.float32)
+    assert voice.snr_db(clear) > 30
+    assert voice.snr_db(noisy) < 15

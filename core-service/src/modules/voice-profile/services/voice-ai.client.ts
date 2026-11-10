@@ -9,6 +9,8 @@ export interface VoiceEmbedding {
     embedding: number[];
     seconds: number;
     model: string;
+    /** good | short | noisy (ai-service cũ không trả thì trống) */
+    quality?: string;
 }
 
 /** Gọi ai-service tính vân giọng từ các mẫu đọc (route nội bộ, X-Internal-Token). */
