@@ -25,6 +25,7 @@
     "error-minutes-not-found": "Cuộc họp chưa có biên bản",
     "error-minutes-status-invalid": "Trạng thái biên bản không cho phép thao tác này",
     "error-reject-reason-required": "Cần nêu lý do không duyệt",
+    "error-deadline-past": "Deadline phải từ hôm nay trở đi",
     "error-minutes-already-approved": "Cuộc họp đã có biên bản được duyệt",
     "error-minutes-not-owner": "Chỉ người ghi âm bản này mới sửa và gửi duyệt được biên bản của nó",
     "error-user-not-participant": "Người này không có trong danh sách tham dự cuộc họp",

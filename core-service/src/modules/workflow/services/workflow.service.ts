@@ -64,6 +64,18 @@ import {
 import { WorkspaceMemberService } from "@module/workspace-member/services/workspace-member.service";
 import { Injectable, Logger } from "@nestjs/common";
 
+/** Ngày (YYYY-MM-DD) theo giờ Việt Nam: người dùng chọn hạn theo lịch địa phương. */
+const vnDay = (d: Date | string | number) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(d));
+
+/** Hạn mới giao không được rơi vào ngày đã qua (hạn cũ đã quá thì giữ nguyên được). */
+function assertDeadlineNotPast(deadline: unknown) {
+    if (!deadline) return;
+    const at = new Date(deadline as string);
+    if (Number.isNaN(at.getTime())) throw ApiError.BadRequest("error-deadline-past");
+    if (vnDay(at) < vnDay(Date.now())) throw ApiError.BadRequest("error-deadline-past");
+}
+
 /** Ghi chú cá nhân được chủ sở hữu cho phép đưa vào biên bản (§6.7). */
 export const NOTE_TAG_IN_MINUTES = "use_in_minutes";
 
@@ -638,6 +650,7 @@ export class WorkflowService {
         const payload: Record<string, unknown> = { ...(item.payload as Record<string, unknown>), ...edit };
         const title = String(payload.title ?? "").trim();
         if (!title) throw ApiError.BadRequest("error-review-title-required");
+        if (item.type === ReviewItemType.ACTION_ITEM) assertDeadlineNotPast(payload.deadline);
 
         const patch: Record<string, unknown> = {
             status: ReviewItemStatus.APPROVED,
@@ -708,6 +721,8 @@ export class WorkflowService {
     /** Sửa nội dung đề xuất trước khi duyệt (người tạo cuộc họp cũng được). */
     async editReview(userId: string, reviewItemId: string, edit: Record<string, unknown>) {
         const { item } = await this.reviewFor(userId, reviewItemId, Permission.REVIEW_UPDATE);
+        const before = (item.payload as Record<string, unknown>)?.deadline;
+        if (edit.deadline !== undefined && edit.deadline !== before) assertDeadlineNotPast(edit.deadline);
         return this.reviewItemService.updateById(null, item._id, {
             payload: { ...(item.payload as Record<string, unknown>), ...edit },
             editedById: userId,
@@ -744,6 +759,7 @@ export class WorkflowService {
             patch.deadline !== undefined &&
             dayOf(patch.deadline) !== dayOf(current.deadline)
         ) {
+            assertDeadlineNotPast(patch.deadline);
             update.deadline = patch.deadline ? new Date(patch.deadline) : null;
         }
         const planning = Object.keys(update).length > 0;

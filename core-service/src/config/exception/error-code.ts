@@ -9,6 +9,7 @@ export type ErrorCode =
     | "error-minutes-not-found"
     | "error-minutes-status-invalid"
     | "error-reject-reason-required"
+    | "error-deadline-past"
     | "error-minutes-already-approved"
     | "error-minutes-not-owner"
     | "error-user-not-participant"
