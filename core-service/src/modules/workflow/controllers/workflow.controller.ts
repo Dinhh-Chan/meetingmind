@@ -5,6 +5,10 @@ import {
 } from "@module/action-item/common/constant";
 import { MeetingAccessScope, MeetingSourceType } from "@module/meeting/common/constant";
 import { NoteType, NoteVisibility } from "@module/note/common/constant";
+import {
+    ProjectDiscipline,
+    ProjectMemberRole,
+} from "@module/project-member/common/constant";
 import { User } from "@module/user/entities/user.entity";
 import { WorkspaceMemberRole } from "@module/workspace-member/common/constant";
 import { Body, Controller, Get, Param, Post, Put } from "@nestjs/common";
@@ -98,6 +102,18 @@ export class ReviewEditBodyDto {
     @IsOptional()
     @IsEnum(ActionItemPriority)
     priority?: ActionItemPriority;
+}
+
+export class ProjectMemberBodyDto {
+    @IsString()
+    userId: string;
+
+    @IsEnum(ProjectMemberRole)
+    role: ProjectMemberRole;
+
+    @IsOptional()
+    @IsEnum(ProjectDiscipline)
+    discipline?: ProjectDiscipline | null;
 }
 
 export class RejectBodyDto {
@@ -293,6 +309,11 @@ export class WorkflowController {
     }
 
     /* thành viên */
+
+    @Post("projects/:id/members")
+    addProjectMember(@ReqUser() user: User, @Param("id") id: string, @Body() dto: ProjectMemberBodyDto) {
+        return this.workflowService.addProjectMember(user._id, id, dto);
+    }
 
     @Post("invites/accept")
     acceptInvite(@ReqUser() user: User, @Body("token") token: string) {

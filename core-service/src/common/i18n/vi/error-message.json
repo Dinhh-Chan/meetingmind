@@ -25,6 +25,8 @@
     "error-minutes-not-found": "Cuộc họp chưa có biên bản",
     "error-minutes-status-invalid": "Trạng thái biên bản không cho phép thao tác này",
     "error-reject-reason-required": "Cần nêu lý do không duyệt",
+    "error-user-not-in-project": "Chỉ mời được thành viên của dự án vào cuộc họp dự án",
+    "error-project-not-found": "Không tìm thấy dự án",
     "error-mail-not-configured": "Máy chủ chưa cấu hình gửi email nên chưa mời được người chưa có tài khoản",
     "error-invite-invalid": "Lời mời không hợp lệ hoặc đã hết hạn",
     "error-invite-email-mismatch": "Lời mời này gửi tới email khác với tài khoản đang đăng nhập",

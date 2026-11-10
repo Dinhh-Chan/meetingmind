@@ -30,6 +30,8 @@ export type ErrorCode =
     | "error-thread-not-found"
     | "error-thread-title-empty"
     | "error-user-not-in-workspace"
+    | "error-user-not-in-project"
+    | "error-project-not-found"
     | "error-role-invalid"
     | "error-user-exist"
     | "error-password-wrong"

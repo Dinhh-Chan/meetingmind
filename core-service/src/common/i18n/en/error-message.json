@@ -18,6 +18,8 @@
     "error-minutes-not-found": "Minutes not found",
     "error-minutes-status-invalid": "Invalid minutes status for this action",
     "error-reject-reason-required": "A reason is required to reject",
+    "error-user-not-in-project": "Only project members can be invited to a project meeting",
+    "error-project-not-found": "Project not found",
     "error-mail-not-configured": "Email sending is not configured",
     "error-invite-invalid": "The invitation is invalid or has expired",
     "error-invite-email-mismatch": "This invitation was sent to a different email",

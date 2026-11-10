@@ -39,6 +39,12 @@ import {
 } from "@module/review-item/common/constant";
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
 import { InvitationService } from "@module/invitation/invitation.service";
+import {
+    ProjectDiscipline,
+    ProjectMemberRole,
+} from "@module/project-member/common/constant";
+import { ProjectMemberService } from "@module/project-member/services/project-member.service";
+import { ProjectService } from "@module/project/services/project.service";
 import { MeetingProcessingService } from "@module/meeting-processing/services/meeting-processing.service";
 import {
     EventType,
@@ -115,6 +121,8 @@ export class WorkflowService {
         private readonly userService: UserService,
         private readonly meetingAccessService: MeetingAccessService,
         private readonly invitationService: InvitationService,
+        private readonly projectService: ProjectService,
+        private readonly projectMemberService: ProjectMemberService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
     ) {}
 
@@ -180,6 +188,18 @@ export class WorkflowService {
         });
         if (members.length !== participantIds.length) {
             throw ApiError.BadRequest("error-user-not-in-workspace");
+        }
+        // Cuộc họp của dự án chỉ mời được thành viên dự án (người tạo luôn có mặt).
+        if (input.projectId) {
+            const inProject = await this.projectMemberService.getMany(null, {
+                workspaceId: input.workspaceId,
+                projectId: input.projectId,
+                userId: { $in: participantIds },
+            });
+            const allowed = new Set([userId, ...inProject.map((m) => m.userId)]);
+            if (participantIds.some((id) => !allowed.has(id))) {
+                throw ApiError.BadRequest("error-user-not-in-project");
+            }
         }
         const users = await this.userService.getMany(
             null,
@@ -827,6 +847,44 @@ export class WorkflowService {
         });
         await this.invitationService.notifyAdded(userId, workspaceId, byName.email);
         return member;
+    }
+
+    /**
+     * Thêm (hoặc đổi vai trò) thành viên dự án. PM thêm được Member/Viewer;
+     * gán vai trò PM cần quyền Owner/Admin workspace.
+     */
+    async addProjectMember(
+        userId: string,
+        projectId: string,
+        input: { userId: string; role: ProjectMemberRole; discipline?: ProjectDiscipline | null },
+    ) {
+        const project = await this.projectService.getById(null, projectId);
+        if (!project || project.deletedAt) throw ApiError.NotFound("error-project-not-found");
+        await this.permissionService.assert(userId, project.workspaceId, Permission.PROJECT_MEMBER_MANAGE, {
+            projectId,
+        });
+        if (input.role === ProjectMemberRole.PM) {
+            await this.permissionService.assert(userId, project.workspaceId, Permission.PROJECT_PM_MANAGE);
+        }
+        const inWorkspace = await this.workspaceMemberService.getOne(null, {
+            workspaceId: project.workspaceId,
+            userId: input.userId,
+            status: WorkspaceMemberStatus.ACTIVE,
+        });
+        if (!inWorkspace) throw ApiError.BadRequest("error-user-not-in-workspace");
+        const existing = await this.projectMemberService.getOne(null, {
+            workspaceId: project.workspaceId,
+            projectId,
+            userId: input.userId,
+        });
+        const patch = { role: input.role, discipline: input.discipline ?? undefined };
+        if (existing) return this.projectMemberService.updateById(null, existing._id, patch);
+        return this.projectMemberService.create(null, {
+            workspaceId: project.workspaceId,
+            projectId,
+            userId: input.userId,
+            ...patch,
+        });
     }
 
     /** Nhận lời mời qua email sau khi đã đăng nhập / đăng ký. */

@@ -140,6 +140,7 @@ export class MeService {
             workspaceId,
             deletedAt: null,
         });
+        const allMembers = await this.projectMemberService.getMany(null, { workspaceId });
         const visible = [];
         for (const project of projects) {
             const granted = await this.permissionService.resolve(
@@ -156,7 +157,10 @@ export class MeService {
                 )) ??
                 // OWNER/ADMIN workspace được coi như PM ở mọi project.
                 (granted.has(Permission.PROJECT_PM_MANAGE) ? "PM" : null);
-            visible.push({ ...project, myRole });
+            const members = allMembers
+                .filter((m) => m.projectId === project._id)
+                .map((m) => ({ userId: m.userId, role: m.role, discipline: m.discipline }));
+            visible.push({ ...project, myRole, members });
         }
         return visible;
     }
