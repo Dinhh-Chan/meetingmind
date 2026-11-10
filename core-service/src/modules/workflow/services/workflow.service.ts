@@ -387,6 +387,8 @@ export class WorkflowService {
 
         const status = minutes?.status as MinutesVersionStatus | undefined;
         const open = !view.approved;
+        // Ghi âm cá nhân không có bước gửi duyệt / duyệt.
+        const personal = !meeting.projectId;
         return {
             records: view.records.map((r) => ({
                 id: r.transcript._id,
@@ -415,13 +417,15 @@ export class WorkflowService {
                     !!record && open && (record.mine || granted.has(Permission.TRANSCRIPT_UPDATE)),
                 editMinutes:
                     !!record?.mine && open && status !== undefined && status !== MinutesVersionStatus.APPROVED,
-                submit: !!record?.mine && open && status === MinutesVersionStatus.DRAFT,
+                submit: !personal && !!record?.mine && open && status === MinutesVersionStatus.DRAFT,
                 approve:
+                    !personal &&
                     open &&
                     granted.has(Permission.MINUTES_APPROVE) &&
                     (status === MinutesVersionStatus.PENDING_APPROVAL ||
                         (status === MinutesVersionStatus.DRAFT && !!record?.mine)),
                 reject:
+                    !personal &&
                     open &&
                     granted.has(Permission.MINUTES_APPROVE) &&
                     status === MinutesVersionStatus.PENDING_APPROVAL,

@@ -109,7 +109,19 @@ export class MeService {
             deletedAt: null,
         });
         const roleOf = new Map(memberships.map((m) => [m.workspaceId, m.role]));
-        return workspaces.map((w) => ({ ...w, role: roleOf.get(w._id) }));
+        const joinedOf = new Map(memberships.map((m) => [m.workspaceId, m.joinedAt ?? createdAtOf(m)]));
+        // Số dự án để giao diện không mở nhầm workspace riêng còn trống khi
+        // người dùng vừa được thêm vào workspace khác.
+        const projects = await this.projectService.getMany(null, {
+            workspaceId: { $in: workspaces.map((w) => w._id) },
+            deletedAt: null,
+        });
+        return workspaces.map((w) => ({
+            ...w,
+            role: roleOf.get(w._id),
+            joinedAt: joinedOf.get(w._id),
+            projectCount: projects.filter((p) => p.workspaceId === w._id).length,
+        }));
     }
 
     async getMembers(userId: string, workspaceId: string) {
@@ -342,13 +354,13 @@ export class MeService {
             );
             for (const a of asks) {
                 const title = titleOf.get(a.reviewItemId) ?? "";
-                if (a.recipientId === userId && a.askedById !== userId) {
+                if (a.recipientId === userId) {
                     push(
                         { id: `clarify:${a._id}`, kind: "clarification_requested", title, detail: a.question, meetingId: a.meetingId, actorId: a.askedById },
                         createdAtOf(a),
                     );
                 }
-                if (a.askedById === userId && a.answeredAt && a.recipientId !== userId) {
+                if (a.askedById === userId && a.answeredAt) {
                     push(
                         { id: `answer:${a._id}`, kind: "clarification_answered", title, detail: a.answer, meetingId: a.meetingId, actorId: a.recipientId },
                         a.answeredAt,
@@ -519,6 +531,8 @@ function derivePhase(
     if (meeting.status === MeetingStatus.SCHEDULED && !jobStatus) return "scheduled";
     if (jobStatus === ProcessingJobStatus.FAILED) return "failed";
     if (minutesStatus === "approved") return "completed";
+    // Ghi âm cá nhân (không thuộc dự án) không có bước duyệt: có biên bản là xong.
+    if (minutesStatus && !meeting.projectId) return "completed";
     if (minutesStatus) return "pending_review";
     return "processing";
 }

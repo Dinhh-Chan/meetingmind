@@ -44,6 +44,29 @@ export class VoiceAiClient {
         }
     }
 
+    /** Một câu ghi trực tiếp: chữ (Whisper) và vân giọng để nhận người nói. */
+    async transcribeUtterance(
+        audio: Buffer,
+        language?: string,
+    ): Promise<{ text: string; embedding: number[] | null; seconds: number }> {
+        const { serviceUrl, internalToken } = this.configService.get("ai", { infer: true });
+        try {
+            const res = await lastValueFrom(
+                this.http.post<{ text: string; embedding: number[] | null; seconds: number }>(
+                    `${serviceUrl}/internal/voice/live-utterance`,
+                    { audio: audio.toString("base64"), language: language || "vi" },
+                    { headers: { "X-Internal-Token": internalToken }, timeout: 60_000, maxBodyLength: Infinity },
+                ),
+            );
+            return res.data;
+        } catch (err) {
+            const status = (err as { response?: { status?: number } })?.response?.status;
+            if (status === 422 || status === 413) return { text: "", embedding: null, seconds: 0 };
+            this.logger.warn(`Phiên âm câu trực tiếp lỗi: ${status ? `HTTP ${status}` : ((err as Error).message ?? "không rõ")}`);
+            throw ApiError.ServiceUnavailable("error-voice-unavailable");
+        }
+    }
+
     async embed(samples: Buffer[]): Promise<VoiceEmbedding> {
         const { serviceUrl, internalToken } = this.configService.get("ai", { infer: true });
         try {

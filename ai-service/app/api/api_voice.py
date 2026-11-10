@@ -45,6 +45,19 @@ class UtteranceRequest(BaseModel):
     audio: str
 
 
+class LiveUtteranceRequest(BaseModel):
+    audio: str
+    language: str | None = "vi"
+
+
+class LiveUtteranceResponse(BaseModel):
+    text: str
+    language: str | None
+    # Trống khi câu quá ít giọng nói để nhận người.
+    embedding: List[float] | None
+    seconds: float
+
+
 class UtteranceResponse(BaseModel):
     # Trống khi câu quá ít giọng nói để nhận người.
     embedding: List[float] | None
@@ -89,3 +102,15 @@ def utterance(body: UtteranceRequest) -> UtteranceResponse:
         return UtteranceResponse(embedding=None, seconds=0.0)
     vector, seconds = result
     return UtteranceResponse(embedding=vector, seconds=seconds)
+
+
+@router.post("/live-utterance", response_model=LiveUtteranceResponse)
+def live_utterance(body: LiveUtteranceRequest) -> LiveUtteranceResponse:
+    """Một câu ghi trực tiếp: chép lời (Whisper) và vân giọng để nhận người nói."""
+    from app.worker import live_transcribe
+
+    audio = _decode(body.audio)
+    text, language = live_transcribe.transcribe(audio, body.language)
+    result = voice.embed_utterance(audio) if text else None
+    vector, seconds = result if result else (None, 0.0)
+    return LiveUtteranceResponse(text=text, language=language, embedding=vector, seconds=seconds)

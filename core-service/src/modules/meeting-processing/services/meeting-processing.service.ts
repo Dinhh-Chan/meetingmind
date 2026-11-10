@@ -675,6 +675,21 @@ export class MeetingProcessingService {
         return { embedding, seconds, match };
     }
 
+    /**
+     * Phiên âm trực tiếp bằng máy chủ: chép lời một câu và nhận người nói (như
+     * identifyLiveSpeaker). Dùng khi trình duyệt không nhận dạng được giọng nói.
+     */
+    async liveUtterance(meetingId: string, audio: Buffer) {
+        const meeting = await this.meetingService.getOne(null, { _id: meetingId });
+        const { text, embedding, seconds } = await this.voiceAiClient.transcribeUtterance(audio, meeting?.language);
+        if (!text || !embedding) return { text, embedding: null, seconds, match: null };
+        const participants = await this.meetingParticipantService.getMany(null, { meetingId });
+        const match = await this.voiceProfileService.identify(embedding, [
+            ...new Set(participants.map((p) => p.userId).filter(Boolean)),
+        ]);
+        return { text, embedding, seconds, match };
+    }
+
     async onJobFailed(payload: { jobId: string; meetingId: string; error: string }) {
         await this.processingJobService.updateOne(
             null,

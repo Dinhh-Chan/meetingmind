@@ -142,6 +142,25 @@ export class MeetingProcessingController {
         return this.meetingProcessingService.identifyLiveSpeaker(meetingId, file.buffer);
     }
 
+    /** Ghi âm trên trình duyệt, nhận dạng bằng máy chủ: một câu (wav) → chữ + người nói. */
+    @Post("live-utterance")
+    @RequirePermission(Permission.RECORDING_CREATE)
+    @UseInterceptors(
+        FileInterceptor("audio", {
+            storage: multer.memoryStorage(),
+            limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+        }),
+    )
+    async liveUtterance(
+        @UploadedFile() file: Express.Multer.File,
+        @Headers("x-meeting-id") meetingId: string,
+    ) {
+        if (!file?.buffer?.length || !meetingId) {
+            throw ApiError.BadRequest("error-voice-sample-invalid", { reason: "thiếu đoạn âm thanh" });
+        }
+        return this.meetingProcessingService.liveUtterance(meetingId, file.buffer);
+    }
+
     /* ------------------------------------------- transcript trực tiếp */
 
     /**
