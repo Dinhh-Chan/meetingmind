@@ -40,6 +40,17 @@ class EmbeddingResponse(BaseModel):
     quality: str
 
 
+class UtteranceRequest(BaseModel):
+    # Một câu ghi trực tiếp (wav 16 kHz từ trình duyệt) mã hoá base64.
+    audio: str
+
+
+class UtteranceResponse(BaseModel):
+    # Trống khi câu quá ít giọng nói để nhận người.
+    embedding: List[float] | None
+    seconds: float
+
+
 def _decode(sample: str):
     from faster_whisper import decode_audio
 
@@ -68,3 +79,13 @@ def embedding(body: EmbeddingRequest) -> EmbeddingResponse:
     except ValueError as err:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(err))
     return EmbeddingResponse(embedding=vector, seconds=seconds, model=voice.MODEL, quality=rating)
+
+
+@router.post("/utterance", response_model=UtteranceResponse)
+def utterance(body: UtteranceRequest) -> UtteranceResponse:
+    """Vân giọng của một câu trong lúc ghi trực tiếp, để giao diện gộp câu theo người nói."""
+    result = voice.embed_utterance(_decode(body.audio))
+    if result is None:
+        return UtteranceResponse(embedding=None, seconds=0.0)
+    vector, seconds = result
+    return UtteranceResponse(embedding=vector, seconds=seconds)

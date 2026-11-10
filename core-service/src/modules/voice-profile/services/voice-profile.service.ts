@@ -120,6 +120,27 @@ export class VoiceProfileService extends BaseService<VoiceProfile, VoiceProfileR
             .map((p) => ({ userId: p.userId, embedding: p.embedding }));
     }
 
+    /**
+     * Người (trong danh sách) có vân giọng đã xác nhận giống câu nói nhất, nếu
+     * đủ giống. Cùng ngưỡng với ghép giọng sau cuộc họp (AI_VOICE_MATCH_THRESHOLD).
+     */
+    async identify(embedding: number[], userIds: string[]) {
+        const profiles = await this.profilesFor(userIds);
+        const threshold = Number(process.env.AI_VOICE_MATCH_THRESHOLD ?? 0.5);
+        const norm = (v: number[]) => Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
+        const a = norm(embedding);
+        let best: { userId: string; score: number } | null = null;
+        for (const p of profiles) {
+            if (!p.embedding || p.embedding.length !== embedding.length) continue;
+            const dot = p.embedding.reduce((s, x, i) => s + x * embedding[i], 0);
+            const score = dot / (a * norm(p.embedding));
+            if (score >= threshold && (!best || score > best.score)) {
+                best = { userId: p.userId, score: Math.round(score * 1000) / 1000 };
+            }
+        }
+        return best;
+    }
+
     /** Vân giọng của các thành viên (màn admin), không kèm vector. */
     async listFor(userIds: string[]) {
         if (!userIds.length) return [];

@@ -73,3 +73,10 @@ def test_snr_cao_khi_giong_ro_tren_nen_yen():
     noisy = np.concatenate([loud * 0.5, loud, loud * 0.5]).astype(np.float32)
     assert voice.snr_db(clear) > 30
     assert voice.snr_db(noisy) < 15
+
+
+def test_cau_qua_ngan_khong_tinh_van_giong():
+    import numpy as np
+
+    short = np.random.default_rng(1).normal(0, 0.3, int(0.5 * voice.SAMPLE_RATE)).astype(np.float32)
+    assert voice.embed_utterance(short) is None

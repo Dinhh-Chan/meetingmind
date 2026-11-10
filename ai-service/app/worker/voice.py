@@ -25,6 +25,9 @@ MAX_SAMPLES = 5
 # giọng kém tin cậy (dễ nhận nhầm người).
 GOOD_TOTAL_SECONDS = 9.0
 GOOD_SNR_DB = 15.0
+# Một câu trong lúc ghi trực tiếp: ngắn hơn ngần này giọng nói thì vân giọng
+# không đáng tin, để giao diện giữ người nói trước đó.
+MIN_UTTERANCE_SECONDS = 1.0
 
 _extractor = None
 _lock = threading.Lock()
@@ -100,6 +103,15 @@ def embed(audio):
     stream.accept_waveform(SAMPLE_RATE, audio)
     stream.input_finished()
     return normalize(_extractor_instance().compute(stream))
+
+
+def embed_utterance(audio) -> tuple[list[float], float] | None:
+    """Vân giọng của một câu nói (phiên âm trực tiếp); câu quá ít giọng nói thì None."""
+    speech = voiced(audio)
+    seconds = len(speech) / SAMPLE_RATE
+    if seconds < MIN_UTTERANCE_SECONDS:
+        return None
+    return embed(speech).tolist(), round(seconds, 2)
 
 
 def enroll(samples: list[Any]) -> tuple[list[float], float, str]:

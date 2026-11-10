@@ -37,6 +37,7 @@ import { MinutesTemplateService } from "@module/minutes-template/services/minute
 import { ProjectService } from "@module/project/services/project.service";
 import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
 import { UserService } from "@module/user/service/user.service";
+import { VoiceAiClient } from "@module/voice-profile/services/voice-ai.client";
 import { VoiceProfileService } from "@module/voice-profile/services/voice-profile.service";
 import { SpeakerIdentityStatus } from "@module/transcript-segment/common/constant";
 import { TranscriptSegmentService } from "@module/transcript-segment/services/transcript-segment.service";
@@ -89,6 +90,7 @@ export class MeetingProcessingService {
         private readonly meetingParticipantService: MeetingParticipantService,
         private readonly meetingRecordService: MeetingRecordService,
         private readonly voiceProfileService: VoiceProfileService,
+        private readonly voiceAiClient: VoiceAiClient,
         private readonly userService: UserService,
         private readonly outboxService: OutboxService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
@@ -656,6 +658,21 @@ export class MeetingProcessingService {
             });
         }
         throw ApiError.BadRequest("error-nothing-to-retry");
+    }
+
+    /**
+     * Ai đang nói trong một câu của phiên âm trực tiếp: vân giọng của câu (để
+     * giao diện gộp câu theo "Người nói N") và người tham dự có vân giọng đã
+     * xác nhận giống nhất. Không lưu âm thanh.
+     */
+    async identifyLiveSpeaker(meetingId: string, audio: Buffer) {
+        const { embedding, seconds } = await this.voiceAiClient.embedUtterance(audio);
+        if (!embedding) return { embedding: null, seconds, match: null };
+        const participants = await this.meetingParticipantService.getMany(null, { meetingId });
+        const match = await this.voiceProfileService.identify(embedding, [
+            ...new Set(participants.map((p) => p.userId).filter(Boolean)),
+        ]);
+        return { embedding, seconds, match };
     }
 
     async onJobFailed(payload: { jobId: string; meetingId: string; error: string }) {

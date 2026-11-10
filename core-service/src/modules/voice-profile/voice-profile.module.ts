@@ -21,6 +21,6 @@ import { VoiceProfileService } from "./services/voice-profile.service";
         RepositoryProvider(Entity.VOICE_PROFILE, VoiceProfileSqlRepository),
         TransactionProvider(SqlTransaction),
     ],
-    exports: [VoiceProfileService],
+    exports: [VoiceProfileService, VoiceAiClient],
 })
 export class VoiceProfileModule {}

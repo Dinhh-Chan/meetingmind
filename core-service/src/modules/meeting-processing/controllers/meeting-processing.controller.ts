@@ -2,7 +2,10 @@ import { Authorization, ReqUser } from "@common/decorator/auth.decorator";
 import { Permission } from "@module/permission/common/constant";
 import { RequirePermission } from "@module/permission/common/decorator";
 import { User } from "@module/user/entities/user.entity";
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Headers, Post, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import multer from "multer";
+import { ApiError } from "@config/exception/api-error";
 import { ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
@@ -114,6 +117,29 @@ export class MeetingProcessingController {
             ...dto,
             recordedById: user._id,
         });
+    }
+
+    /**
+     * Ghi âm trên trình duyệt: một câu vừa phiên âm xong (wav ngắn) → vân giọng
+     * và người tham dự khớp giọng. Phạm vi cuộc họp gửi qua header x-meeting-id
+     * vì multer chạy sau guard.
+     */
+    @Post("live-speaker")
+    @RequirePermission(Permission.RECORDING_CREATE)
+    @UseInterceptors(
+        FileInterceptor("audio", {
+            storage: multer.memoryStorage(),
+            limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+        }),
+    )
+    async identifyLiveSpeaker(
+        @UploadedFile() file: Express.Multer.File,
+        @Headers("x-meeting-id") meetingId: string,
+    ) {
+        if (!file?.buffer?.length || !meetingId) {
+            throw ApiError.BadRequest("error-voice-sample-invalid", { reason: "thiếu đoạn âm thanh" });
+        }
+        return this.meetingProcessingService.identifyLiveSpeaker(meetingId, file.buffer);
     }
 
     /* ------------------------------------------- transcript trực tiếp */
