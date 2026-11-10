@@ -1,5 +1,6 @@
 import { BaseControllerFactory } from "@config/controller/base-controller-factory";
 import { Permission } from "@module/permission/common/constant";
+import { SystemRole } from "@module/user/common/constant";
 import { Controller } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { CreateMinutesVersionDto } from "../dto/create-minutes-version.dto";
@@ -17,13 +18,15 @@ export class MinutesVersionController extends BaseControllerFactory<MinutesVersi
     UpdateMinutesVersionDto,
     {
         import: { enable: false },
+        // Đọc thô bản ghi/biên bản của mọi người ghi: chỉ quản trị nền tảng.
+        // Giao diện đọc qua /workflow/meetings/:id/content (lọc theo người xem).
         routes: {
-            getMany: { permission: Permission.MINUTES_VIEW_DRAFT },
-            getPage: { permission: Permission.MINUTES_VIEW_DRAFT },
-            getOne: { permission: Permission.MINUTES_VIEW_DRAFT },
-            getById: { permission: Permission.MINUTES_VIEW_DRAFT },
-            exportDefinition: { permission: Permission.MINUTES_VIEW_DRAFT },
-            exportXlsx: { permission: Permission.MINUTES_VIEW_DRAFT },
+            getMany: { roles: [SystemRole.SUPER_ADMIN] },
+            getPage: { roles: [SystemRole.SUPER_ADMIN] },
+            getOne: { roles: [SystemRole.SUPER_ADMIN] },
+            getById: { roles: [SystemRole.SUPER_ADMIN] },
+            exportDefinition: { roles: [SystemRole.SUPER_ADMIN] },
+            exportXlsx: { roles: [SystemRole.SUPER_ADMIN] },
             create: { permission: Permission.MINUTES_UPDATE_DRAFT },
             upsert: { permission: Permission.MINUTES_UPDATE_DRAFT },
             getOneOrUpsert: { permission: Permission.MINUTES_UPDATE_DRAFT },

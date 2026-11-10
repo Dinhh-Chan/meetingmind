@@ -51,6 +51,9 @@ import { ClarificationStatus } from "@module/clarification-request/common/consta
 import { ActivityType } from "@module/activity-log/common/constant";
 import { ActivityLogService } from "@module/activity-log/services/activity-log.service";
 import { MinutesTemplateService } from "@module/minutes-template/services/minutes-template.service";
+import { MinioService } from "@module/minio/minio.service";
+import { ProcessingJobType } from "@module/processing-job/common/constant";
+import { ProcessingJobService } from "@module/processing-job/services/processing-job.service";
 import { ClarificationRequestService } from "@module/clarification-request/services/clarification-request.service";
 import {
     EventType,
@@ -156,6 +159,8 @@ export class WorkflowService {
         private readonly clarificationRequestService: ClarificationRequestService,
         private readonly activityLogService: ActivityLogService,
         private readonly minutesTemplateService: MinutesTemplateService,
+        private readonly processingJobService: ProcessingJobService,
+        private readonly minioService: MinioService,
     ) {}
 
     /* ------------------------------------------------------- tiện ích */
@@ -373,6 +378,10 @@ export class WorkflowService {
                   transcriptVersionId: record.transcript._id,
               })
             : [];
+        // Tên đặt cho nhãn người nói (kể cả tên tự nhập cho khách không có tài khoản).
+        const aliases = record
+            ? await this.speakerAliasService.getMany(null, { transcriptVersionId: record.transcript._id })
+            : [];
         const minutes = record?.minutes ?? null;
         const reviewItems = minutes ? await this.reviewItemsOf(meetingId, minutes) : [];
 
@@ -392,6 +401,11 @@ export class WorkflowService {
             })),
             selectedId: record?.transcript._id ?? null,
             transcript: [...segments].sort((a, b) => a.sequence - b.sequence),
+            aliases: aliases.map((a) => ({
+                speakerLabel: a.speakerLabel,
+                displayName: a.displayName,
+                userId: a.userId ?? null,
+            })),
             minutes,
             reviewItems,
             can: {
@@ -573,6 +587,17 @@ export class WorkflowService {
             this.knowledgeIndexService.indexMinutes(meeting, approved),
         );
         await this.meetingProcessingService.indexTranscript(meeting, record.transcript._id);
+        // Transcript của thư ký cũng công khai từ lúc này: đưa vào kho hỏi đáp.
+        const secretaries = await this.meetingParticipantService.getMany(null, {
+            meetingId,
+            role: MeetingParticipantRole.SECRETARY,
+        });
+        for (const s of secretaries.filter((p) => p.userId)) {
+            const own = (await this.meetingRecordService.recordsOf(s.userId, meeting)).records.find((r) => r.mine);
+            if (own && own.transcript._id !== record.transcript._id) {
+                await this.meetingProcessingService.indexTranscript(meeting, own.transcript._id);
+            }
+        }
         await this.activityLogService.record({
             workspaceId: meeting.workspaceId,
             actorId: userId,
@@ -820,6 +845,30 @@ export class WorkflowService {
             target: `Mẫu biên bản “${template.name}”: xoá`,
         });
         return { deleted: true };
+    }
+
+    /**
+     * Âm thanh của một bản ghi mình xem được, để nghe lại cạnh transcript.
+     * Bản phụ đề trực tiếp (extension) không có tệp âm thanh.
+     */
+    async recordAudio(userId: string, meetingId: string, transcriptVersionId?: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.AUDIO_LISTEN);
+        const { record } = await this.recordFor(userId, meeting, { transcriptVersionId });
+        if (!record) throw ApiError.NotFound("error-audio-not-found");
+        const jobs = await this.processingJobService.getMany(null, {
+            meetingId,
+            type: ProcessingJobType.TRANSCRIBE,
+        });
+        const job = jobs.find((j) => j.result?.transcriptVersionId === record.transcript._id);
+        const objectKey: string | undefined = job?.payload?.objectKey;
+        if (!objectKey) throw ApiError.NotFound("error-audio-not-found");
+        const bucket: string | undefined = job.payload.bucket;
+        const stat = await this.minioService.statObject(objectKey, bucket);
+        return {
+            stream: await this.minioService.getObject(objectKey, bucket),
+            size: stat.size,
+            mimetype: (stat.metaData?.["content-type"] as string) || "audio/webm",
+        };
     }
 
     /* ------------------------------------------------------- thư ký */
@@ -1288,8 +1337,11 @@ export class WorkflowService {
         speakerLabel: string,
         targetUserId: string | null,
         transcriptVersionId?: string,
+        /** Tên tự nhập cho người không có tài khoản trong dự án (khách mời…). */
+        guestName?: string,
     ) {
         const { meeting, version } = await this.editableTranscript(userId, meetingId, transcriptVersionId);
+        const guest = !targetUserId ? guestName?.trim() || null : null;
 
         if (targetUserId) {
             const member = await this.workspaceMemberService.getOne(null, {
@@ -1306,7 +1358,7 @@ export class WorkflowService {
         for (const segment of segments) {
             await this.transcriptSegmentService.updateById(null, segment._id, {
                 speakerUserId: targetUserId,
-                identityStatus: targetUserId ? "confirmed" : "unknown",
+                identityStatus: targetUserId || guest ? "confirmed" : "unknown",
             });
         }
 
@@ -1316,7 +1368,7 @@ export class WorkflowService {
         });
         // Tên hiển thị đi kèm transcript sang AI khi phân tích lại: AI ghi người
         // thực hiện theo tên này thay vì "Người nói 2".
-        let displayName = speakerLabel;
+        let displayName = guest ?? speakerLabel;
         if (targetUserId) {
             const [target] = await this.userService.getMany(
                 null,
@@ -1328,8 +1380,8 @@ export class WorkflowService {
         const aliasData = {
             displayName,
             userId: targetUserId,
-            confirmedById: targetUserId ? userId : null,
-            confirmedAt: targetUserId ? new Date() : null,
+            confirmedById: targetUserId || guest ? userId : null,
+            confirmedAt: targetUserId || guest ? new Date() : null,
         };
         if (alias) {
             await this.speakerAliasService.updateById(null, alias._id, aliasData);
@@ -1358,7 +1410,7 @@ export class WorkflowService {
             workspaceId: meeting.workspaceId,
             actorId: userId,
             type: ActivityType.SPEAKER_ASSIGNED,
-            target: `${speakerLabel} → ${targetUserId ? displayName : "Chưa xác định"} · ${meeting.title}`,
+            target: `${speakerLabel} → ${targetUserId || guest ? displayName : "Chưa xác định"} · ${meeting.title}`,
             meetingId,
             projectId: meeting.projectId,
         });

@@ -5,6 +5,8 @@ import { MeetingMinutesService } from "@module/meeting-minutes/services/meeting-
 import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
 import { MeetingRecords, MeetingRecordService } from "@module/meeting-record/meeting-record.service";
 import { ClarificationRequestService } from "@module/clarification-request/services/clarification-request.service";
+import { VoiceProfileStatus } from "@module/voice-profile/common/constant";
+import { VoiceProfileService } from "@module/voice-profile/services/voice-profile.service";
 import { MeetingStatus } from "@module/meeting/common/constant";
 import { Meeting } from "@module/meeting/entities/meeting.entity";
 import { MeetingService } from "@module/meeting/services/meeting.service";
@@ -45,7 +47,8 @@ export type NotificationKind =
     | "minutes_approved"
     | "minutes_rejected"
     | "clarification_requested"
-    | "clarification_answered";
+    | "clarification_answered"
+    | "voice_pending";
 
 export interface NotificationItem {
     id: string;
@@ -78,6 +81,7 @@ export class MeService {
         private readonly permissionService: PermissionService,
         private readonly meetingRecordService: MeetingRecordService,
         private readonly clarificationRequestService: ClarificationRequestService,
+        private readonly voiceProfileService: VoiceProfileService,
         private readonly workspaceService: WorkspaceService,
         private readonly workspaceMemberService: WorkspaceMemberService,
         private readonly projectService: ProjectService,
@@ -350,6 +354,22 @@ export class MeService {
                         a.answeredAt,
                     );
                 }
+            }
+        }
+
+        // Thành viên vừa đăng ký (hoặc ghi lại) mẫu giọng: báo người quản lý
+        // thành viên để nghe và xác nhận.
+        if (await this.permissionService.can(userId, workspaceId, Permission.WORKSPACE_MEMBER_MANAGE)) {
+            const members = await this.workspaceMemberService.getMany(null, { workspaceId });
+            const voices = await this.voiceProfileService.listFor(
+                members.map((m) => m.userId).filter((id) => id && id !== userId),
+            );
+            for (const v of voices.filter((x) => x.status === VoiceProfileStatus.PENDING)) {
+                const at = v.updatedAt ?? v.consentAt;
+                push(
+                    { id: `voice:${v.userId}:${new Date(at).getTime()}`, kind: "voice_pending", title: "", actorId: v.userId },
+                    at,
+                );
             }
         }
 

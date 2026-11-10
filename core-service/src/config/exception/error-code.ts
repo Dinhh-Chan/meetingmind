@@ -14,6 +14,7 @@ export type ErrorCode =
     | "error-review-closed"
     | "error-fullname-required"
     | "error-voice-not-found"
+    | "error-audio-not-found"
     | "error-template-not-found"
     | "error-template-name-required"
     | "error-template-sections-required"

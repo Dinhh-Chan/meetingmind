@@ -146,17 +146,21 @@ export class PermissionService {
         }
 
         if (meeting && meeting.accessScope === MeetingAccessScope.RESTRICTED) {
-            const meetingRole = actsAsPm
-                ? MeetingAccessRole.MANAGER
-                : await this.getMeetingAccessRole(userId, meeting._id);
+            // Cuộc họp/ghi âm cá nhân (không thuộc dự án) là của riêng người tạo
+            // và người được mời: Owner/Admin cũng không tự động xem được.
+            const personal = !meeting.projectId;
+            const meetingRole =
+                actsAsPm && !personal
+                    ? MeetingAccessRole.MANAGER
+                    : await this.getMeetingAccessRole(userId, meeting._id);
             if (meetingRole) {
                 MEETING_ACCESS_ROLE_PERMISSIONS[meetingRole].forEach((p) =>
                     granted.add(p),
                 );
             }
-            // Cuộc họp ngoài dự án không có PM: chỉ Owner/Admin duyệt biên bản
-            // và xem bản nháp của mọi người ghi âm.
-            if (actsAsPm) {
+            // Người duyệt: cuộc họp cá nhân thì người tạo (MANAGER) tự duyệt;
+            // cuộc họp hạn chế trong dự án thì Owner/Admin.
+            if (personal ? meetingRole === MeetingAccessRole.MANAGER : actsAsPm) {
                 granted.add(Permission.MINUTES_APPROVE);
                 granted.add(Permission.MINUTES_VIEW_DRAFT);
             }

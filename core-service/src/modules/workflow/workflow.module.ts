@@ -26,6 +26,7 @@ import { MeetingProcessingModule } from "@module/meeting-processing/meeting-proc
 import { MeetingRecordModule } from "@module/meeting-record/meeting-record.module";
 import { ClarificationRequestModule } from "@module/clarification-request/clarification-request.module";
 import { MinutesTemplateModule } from "@module/minutes-template/minutes-template.module";
+import { ProcessingJobModule } from "@module/processing-job/processing-job.module";
 import { TaskSyncConsumer } from "./consumers/task-sync.consumer";
 import { KnowledgeController } from "./controllers/knowledge.controller";
 import { WorkflowController } from "./controllers/workflow.controller";
@@ -59,6 +60,7 @@ import { WorkflowService } from "./services/workflow.service";
         MeetingRecordModule,
         ClarificationRequestModule,
         MinutesTemplateModule,
+        ProcessingJobModule,
         KnowledgeModule,
         MediaFileModule,
     ],

@@ -7,8 +7,8 @@ jest.mock("p-limit", () => ({ __esModule: true, default: () => (fn: () => unknow
 
 /**
  * Quy tắc xem bản ghi (QA: phân quyền ghi âm, xem biên bản):
- * người ghi xem bản của mình, người duyệt xem mọi bản, người khác chỉ xem
- * transcript của thư ký; duyệt xong thì ai cũng xem bản đã duyệt.
+ * bản ghi chỉ người ghi xem; người duyệt xem bản đã gửi duyệt; duyệt xong thì
+ * ai cũng xem bản đã duyệt và transcript của thư ký.
  */
 describe("MeetingRecordService", () => {
     const meeting = { _id: "m1", workspaceId: "w1", projectId: "p1", createdById: "creator" };
@@ -85,19 +85,30 @@ describe("MeetingRecordService", () => {
         expect(MeetingRecordService.minutesStatusOf(view)).toBe(MinutesVersionStatus.DRAFT);
     });
 
-    it("transcript của thư ký ai cũng xem, nhưng không kèm biên bản nháp", async () => {
-        const recordsOf = setup({
+    it("transcript của thư ký chỉ hiện cho mọi người sau khi PM duyệt", async () => {
+        const before = setup({
             transcripts: [transcript("tS", "sec", 1)],
             versions: [minutes("vS", "tS", MinutesVersionStatus.PENDING_APPROVAL, 1)],
             secretaries: ["sec"],
         });
-        const view = await recordsOf("bob");
-        expect(ids(view)).toEqual(["tS"]);
-        expect(view.records[0].designated).toBe(true);
-        expect(view.records[0].minutes).toBeNull();
+        expect((await before("bob")).records).toEqual([]);
+
+        const after = setup({
+            transcripts: [transcript("tA", "alice", 1), transcript("tS", "sec", 2)],
+            versions: [
+                minutes("vA", "tA", MinutesVersionStatus.APPROVED, 1),
+                minutes("vS", "tS", MinutesVersionStatus.DRAFT, 2),
+            ],
+            approvedVersionId: "vA",
+            secretaries: ["sec"],
+        });
+        const view = await after("bob");
+        expect(ids(view)).toEqual(["tA", "tS"]);
+        expect(view.records[1].designated).toBe(true);
+        expect(view.records[1].minutes).toBeNull();
     });
 
-    it("người duyệt xem mọi bản, bản chờ duyệt đứng đầu", async () => {
+    it("người duyệt chỉ xem bản đã gửi duyệt, không xem nháp của người khác", async () => {
         const recordsOf = setup({
             transcripts: [transcript("tA", "alice", 1), transcript("tB", "bob", 2)],
             versions: [
@@ -108,7 +119,7 @@ describe("MeetingRecordService", () => {
         });
         const view = await recordsOf("pm");
         expect(view.seeAll).toBe(true);
-        expect(ids(view)).toEqual(["tA", "tB"]);
+        expect(ids(view)).toEqual(["tA"]);
         expect(MeetingRecordService.minutesStatusOf(view)).toBe(MinutesVersionStatus.PENDING_APPROVAL);
     });
 
@@ -140,10 +151,9 @@ describe("MeetingRecordService", () => {
                 transcript("tA1", "alice", 3, false),
                 transcript("tA2", "alice", 4),
             ],
-            approvers: ["pm"],
         });
-        const view = await recordsOf("pm");
-        expect(ids(view).sort()).toEqual(["tA2", "tC"]);
+        expect(ids(await recordsOf("alice"))).toEqual(["tA2"]);
+        expect(ids(await recordsOf("creator"))).toEqual(["tC"]);
         expect(MeetingRecordService.recorderOf({ recordedById: undefined }, meeting)).toBe("creator");
     });
 });

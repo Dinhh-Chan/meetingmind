@@ -30,6 +30,7 @@
     "error-review-closed": "Đề xuất đã được duyệt hoặc đã loại",
     "error-fullname-required": "Nhập họ tên",
     "error-voice-not-found": "Không tìm thấy mẫu giọng",
+    "error-audio-not-found": "Bản ghi này không có tệp âm thanh để nghe lại",
     "error-template-not-found": "Không tìm thấy mẫu biên bản",
     "error-template-name-required": "Nhập tên mẫu biên bản",
     "error-template-sections-required": "Mẫu biên bản cần ít nhất một mục",

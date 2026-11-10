@@ -22,6 +22,7 @@
     "error-review-closed": "This proposal was already approved or rejected",
     "error-fullname-required": "Enter your full name",
     "error-voice-not-found": "Voice sample not found",
+    "error-audio-not-found": "This recording has no audio file to play",
     "error-template-not-found": "Minutes template not found",
     "error-template-name-required": "Enter a template name",
     "error-template-sections-required": "A template needs at least one section",

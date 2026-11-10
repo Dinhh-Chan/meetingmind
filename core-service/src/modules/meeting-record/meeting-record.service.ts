@@ -47,11 +47,11 @@ const createdAtOf = (row: object) => {
  *
  * Ai có quyền ghi âm cũng ghi được; mỗi lần ghi cho ra transcript và biên bản
  * nháp của riêng người ghi. Trước khi duyệt:
- * - người ghi xem (và sửa, gửi duyệt) bản của mình;
- * - người duyệt (PM, Owner/Admin) xem mọi bản;
- * - người khác chỉ xem transcript của thư ký, không xem biên bản nháp nào.
+ * - người ghi xem (và sửa, gửi duyệt) bản của mình — chỉ mình xem;
+ * - người duyệt (PM, Owner/Admin) xem bản đã được gửi duyệt;
+ * - người khác không xem bản nào.
  * Biên bản được duyệt thì mọi người xem cuộc họp đều thấy nó và transcript
- * nguồn của nó; các bản khác không gửi duyệt được nữa.
+ * nguồn của nó, cùng transcript của thư ký; các bản khác không gửi duyệt được nữa.
  */
 @Injectable()
 export class MeetingRecordService {
@@ -186,13 +186,19 @@ export class MeetingRecordService {
             const mine = !!recordedById && recordedById === userId;
             const official = transcript._id === officialSource;
             const isDesignated = !!recordedById && designated.has(recordedById);
-            if (!(seeAll || mine || isDesignated || official)) continue;
+            const latest = latestOf.get(transcript._id) ?? null;
+            // Người duyệt chỉ thấy bản người ghi đã gửi duyệt (hoặc đã duyệt).
+            const submitted =
+                latest?.status === MinutesVersionStatus.PENDING_APPROVAL ||
+                latest?.status === MinutesVersionStatus.APPROVED;
+            // Transcript của thư ký công khai sau khi cuộc họp có biên bản được duyệt.
+            const designatedPublic = isDesignated && !!approved;
+            if (!(mine || official || designatedPublic || (seeAll && submitted))) continue;
 
             // Người ngoài chỉ thấy biên bản đã duyệt; người ghi và người duyệt
-            // thấy bản mới nhất (kể cả nháp).
-            const latest = latestOf.get(transcript._id) ?? null;
+            // thấy bản mới nhất (kể cả nháp của chính mình).
             const minutes =
-                seeAll || mine ? latest : official ? approved : null;
+                mine || (seeAll && submitted) ? latest : official ? approved : null;
             records.push({
                 transcript,
                 recordedById,
@@ -229,22 +235,14 @@ export class MeetingRecordService {
     }
 
     /**
-     * Transcript ai xem cuộc họp cũng thấy: của thư ký, hoặc nguồn của biên bản
-     * đã duyệt. Chỉ những bản này vào kho hỏi đáp.
+     * Transcript ai xem cuộc họp cũng thấy (chỉ sau khi có biên bản được
+     * duyệt): nguồn của biên bản đã duyệt, hoặc của thư ký. Chỉ những bản này
+     * vào kho hỏi đáp.
      */
     async isPublicTranscript(
         meeting: { _id: string; createdById?: string | null },
         transcript: Pick<TranscriptVersion, "_id" | "recordedById">,
     ) {
-        const recorder = MeetingRecordService.recorderOf(transcript, meeting);
-        if (recorder) {
-            const secretary = await this.meetingParticipantService.getOne(null, {
-                meetingId: meeting._id,
-                userId: recorder,
-                role: MeetingParticipantRole.SECRETARY,
-            });
-            if (secretary) return true;
-        }
         const row = await this.meetingMinutesService.getOne(null, {
             meetingId: meeting._id,
         });
@@ -253,6 +251,14 @@ export class MeetingRecordService {
             null,
             row.approvedVersionId,
         );
-        return approved?.sourceTranscriptVersionId === transcript._id;
+        if (approved?.sourceTranscriptVersionId === transcript._id) return true;
+        const recorder = MeetingRecordService.recorderOf(transcript, meeting);
+        if (!recorder) return false;
+        const secretary = await this.meetingParticipantService.getOne(null, {
+            meetingId: meeting._id,
+            userId: recorder,
+            role: MeetingParticipantRole.SECRETARY,
+        });
+        return !!secretary;
     }
 }

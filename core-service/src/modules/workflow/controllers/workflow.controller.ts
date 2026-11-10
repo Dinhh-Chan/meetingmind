@@ -11,7 +11,8 @@ import {
 } from "@module/project-member/common/constant";
 import { User } from "@module/user/entities/user.entity";
 import { WorkspaceMemberRole } from "@module/workspace-member/common/constant";
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res } from "@nestjs/common";
+import { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
@@ -258,6 +259,11 @@ export class SpeakerBodyDto extends TranscriptTargetBodyDto {
     @IsString()
     speakerLabel: string;
 
+    /** Tên tự nhập khi người nói không có tài khoản trong dự án. */
+    @IsOptional()
+    @IsString()
+    guestName?: string;
+
     @IsOptional()
     @ValidateIf((_, v) => v !== null)
     @IsString()
@@ -332,6 +338,20 @@ export class WorkflowController {
     @Post("meetings/:id/retry")
     retryProcessing(@ReqUser() user: User, @Param("id") id: string) {
         return this.workflowService.retryProcessing(user._id, id);
+    }
+
+    /** Âm thanh của bản ghi đang mở (`?record=`), để nghe lại trong tab Transcript. */
+    @Get("meetings/:id/audio")
+    async recordAudio(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Query("record") record: string | undefined,
+        @Res() res: Response,
+    ) {
+        const { stream, size, mimetype } = await this.workflowService.recordAudio(user._id, id, record || undefined);
+        res.setHeader("Content-Type", mimetype);
+        res.setHeader("Content-Length", String(size));
+        stream.pipe(res);
     }
 
     /** Chỉ định người ghi âm chính (thư ký) của cuộc họp. */
@@ -506,6 +526,7 @@ export class WorkflowController {
             dto.speakerLabel,
             dto.userId ?? null,
             dto.transcriptVersionId,
+            dto.guestName,
         );
     }
 
