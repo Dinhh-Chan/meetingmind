@@ -32,6 +32,7 @@ export const MEETING_PARTICIPANT = "MeetingParticipant";
 export const TRANSCRIPT_SEGMENT = "TranscriptSegment";
 export const SPEAKER_ALIAS = "SpeakerAlias";
 export const VOICE_PROFILE = "VoiceProfile";
+export const CLARIFICATION_REQUEST = "ClarificationRequest";
 export const MEETING_MINUTES = "MeetingMinutes";
 export const ACTION_ITEM = "ActionItem";
 export const ACTION_ITEM_CITATION = "ActionItemCitation";

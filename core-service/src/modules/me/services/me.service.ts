@@ -4,6 +4,7 @@ import { ReviewItemService } from "@module/review-item/services/review-item.serv
 import { MeetingMinutesService } from "@module/meeting-minutes/services/meeting-minutes.service";
 import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
 import { MeetingRecords, MeetingRecordService } from "@module/meeting-record/meeting-record.service";
+import { ClarificationRequestService } from "@module/clarification-request/services/clarification-request.service";
 import { MeetingStatus } from "@module/meeting/common/constant";
 import { Meeting } from "@module/meeting/entities/meeting.entity";
 import { MeetingService } from "@module/meeting/services/meeting.service";
@@ -42,7 +43,9 @@ export type NotificationKind =
     | "task_assigned"
     | "minutes_pending"
     | "minutes_approved"
-    | "minutes_rejected";
+    | "minutes_rejected"
+    | "clarification_requested"
+    | "clarification_answered";
 
 export interface NotificationItem {
     id: string;
@@ -74,6 +77,7 @@ export class MeService {
     constructor(
         private readonly permissionService: PermissionService,
         private readonly meetingRecordService: MeetingRecordService,
+        private readonly clarificationRequestService: ClarificationRequestService,
         private readonly workspaceService: WorkspaceService,
         private readonly workspaceMemberService: WorkspaceMemberService,
         private readonly projectService: ProjectService,
@@ -316,6 +320,37 @@ export class MeService {
                 { id: `task:${task._id}`, kind: "task_assigned", title: task.title, taskId: task._id, actorId },
                 createdAtOf(task),
             );
+        }
+
+        // Yêu cầu làm rõ đề xuất: người được hỏi được báo câu hỏi, người hỏi
+        // được báo câu trả lời. Tên việc lấy từ đề xuất.
+        const [toMe, byMe] = await Promise.all([
+            this.clarificationRequestService.getMany(null, { workspaceId, recipientId: userId }),
+            this.clarificationRequestService.getMany(null, { workspaceId, askedById: userId }),
+        ]);
+        const asks = [...new Map([...toMe, ...byMe].map((a) => [a._id, a])).values()];
+        if (asks.length) {
+            const reviewItems = await this.reviewItemService.getMany(null, {
+                _id: { $in: [...new Set(asks.map((a) => a.reviewItemId))] },
+            });
+            const titleOf = new Map(
+                reviewItems.map((i) => [i._id, String((i.payload as Record<string, unknown>)?.title ?? "")]),
+            );
+            for (const a of asks) {
+                const title = titleOf.get(a.reviewItemId) ?? "";
+                if (a.recipientId === userId && a.askedById !== userId) {
+                    push(
+                        { id: `clarify:${a._id}`, kind: "clarification_requested", title, detail: a.question, meetingId: a.meetingId, actorId: a.askedById },
+                        createdAtOf(a),
+                    );
+                }
+                if (a.askedById === userId && a.answeredAt && a.recipientId !== userId) {
+                    push(
+                        { id: `answer:${a._id}`, kind: "clarification_answered", title, detail: a.answer, meetingId: a.meetingId, actorId: a.recipientId },
+                        a.answeredAt,
+                    );
+                }
+            }
         }
 
         // Biên bản: người ghi được báo khi bản của mình được duyệt hoặc bị trả

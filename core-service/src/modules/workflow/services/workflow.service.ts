@@ -47,6 +47,8 @@ import { ProjectMemberService } from "@module/project-member/services/project-me
 import { ProjectService } from "@module/project/services/project.service";
 import { MeetingProcessingService } from "@module/meeting-processing/services/meeting-processing.service";
 import { MeetingRecordService } from "@module/meeting-record/meeting-record.service";
+import { ClarificationStatus } from "@module/clarification-request/common/constant";
+import { ClarificationRequestService } from "@module/clarification-request/services/clarification-request.service";
 import {
     EventType,
     TaskSyncCompletedPayload,
@@ -140,6 +142,7 @@ export class WorkflowService {
         private readonly projectMemberService: ProjectMemberService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
         private readonly meetingRecordService: MeetingRecordService,
+        private readonly clarificationRequestService: ClarificationRequestService,
     ) {}
 
     /* ------------------------------------------------------- tiện ích */
@@ -743,6 +746,158 @@ export class WorkflowService {
             editedById: userId,
             editedAt: new Date(),
         });
+    }
+
+    /* ------------------------------------------------------- làm rõ đề xuất */
+
+    /**
+     * Người duyệt hỏi lại về một đề xuất trước khi duyệt thành task (thiếu
+     * người thực hiện, hạn mơ hồ…). Người được hỏi phải xem được cuộc họp để
+     * đọc trích dẫn.
+     */
+    async requestClarification(
+        userId: string,
+        reviewItemId: string,
+        input: { recipientId: string; question: string },
+    ) {
+        const { item, meeting } = await this.reviewFor(userId, reviewItemId, Permission.REVIEW_UPDATE);
+        if (item.status !== ReviewItemStatus.PENDING) throw ApiError.BadRequest("error-review-closed");
+        const question = input.question?.trim();
+        if (!question) throw ApiError.BadRequest("error-clarification-empty");
+        if (
+            !input.recipientId ||
+            !(await this.permissionService.canOnMeeting(input.recipientId, meeting, Permission.MEETING_VIEW))
+        ) {
+            throw ApiError.BadRequest("error-recipient-no-access");
+        }
+        return this.clarificationRequestService.create(null, {
+            workspaceId: meeting.workspaceId,
+            meetingId: meeting._id,
+            reviewItemId: item._id,
+            askedById: userId,
+            recipientId: input.recipientId,
+            question,
+            status: ClarificationStatus.PENDING,
+        });
+    }
+
+    /** Người được hỏi trả lời; mỗi yêu cầu trả lời một lần. */
+    async answerClarification(userId: string, requestId: string, answer: string) {
+        const request = await this.clarificationRequestService.getById(null, requestId);
+        if (!request) throw ApiError.NotFound("error-clarification-not-found");
+        if (request.recipientId !== userId) throw ApiError.Forbidden("error-forbidden");
+        if (request.status !== ClarificationStatus.PENDING) {
+            throw ApiError.BadRequest("error-clarification-answered");
+        }
+        const text = answer?.trim();
+        if (!text) throw ApiError.BadRequest("error-clarification-empty");
+        return this.clarificationRequestService.updateById(null, request._id, {
+            answer: text,
+            status: ClarificationStatus.ANSWERED,
+            answeredAt: new Date(),
+        });
+    }
+
+    /**
+     * Yêu cầu làm rõ mình được hỏi, mình đã hỏi, hoặc của đề xuất mình duyệt
+     * được — kèm nội dung đề xuất và câu trích trong cuộc họp, vì người được
+     * hỏi thường không xem được bản nháp của người ghi.
+     */
+    async listClarifications(userId: string, workspaceId: string) {
+        await this.permissionService.assert(userId, workspaceId, Permission.WORKSPACE_VIEW);
+        const requests = await this.clarificationRequestService.getMany(null, { workspaceId });
+        if (!requests.length) return [];
+
+        const meetings = await this.meetingService.getMany(null, {
+            _id: { $in: [...new Set(requests.map((r) => r.meetingId))] },
+            deletedAt: null,
+        });
+        const meetingOf = new Map(meetings.map((m) => [m._id, m]));
+        const reviewer = new Map<string, boolean>();
+        const visible = [];
+        for (const r of requests) {
+            const meeting = meetingOf.get(r.meetingId);
+            if (!meeting) continue;
+            if (r.recipientId !== userId && r.askedById !== userId) {
+                if (!reviewer.has(meeting._id)) {
+                    reviewer.set(
+                        meeting._id,
+                        await this.permissionService.canOnMeeting(userId, meeting, Permission.REVIEW_UPDATE),
+                    );
+                }
+                if (!reviewer.get(meeting._id)) continue;
+            }
+            visible.push(r);
+        }
+        if (!visible.length) return [];
+
+        const items = await this.reviewItemService.getMany(null, {
+            _id: { $in: [...new Set(visible.map((r) => r.reviewItemId))] },
+        });
+        const batches = items.length
+            ? await this.reviewBatchService.getMany(null, {
+                  _id: { $in: [...new Set(items.map((i) => i.reviewBatchId))] },
+              })
+            : [];
+        const sourceOf = new Map(batches.map((b) => [b._id, b.sourceTranscriptVersionId]));
+        const versionIds = [...new Set(batches.map((b) => b.sourceTranscriptVersionId).filter(Boolean))];
+        const segments = versionIds.length
+            ? await this.transcriptSegmentService.getMany(null, {
+                  transcriptVersionId: { $in: versionIds },
+                  sequence: {
+                      $in: [
+                          ...new Set(
+                              items
+                                  .map((i) => Number((i.payload as Record<string, unknown>)?.transcriptSequence))
+                                  .filter((n) => Number.isFinite(n)),
+                          ),
+                      ],
+                  },
+              })
+            : [];
+        const itemOf = new Map(items.map((i) => [i._id, i]));
+
+        return visible
+            .map((r) => {
+                const meeting = meetingOf.get(r.meetingId);
+                const item = itemOf.get(r.reviewItemId);
+                const payload = (item?.payload ?? {}) as Record<string, any>;
+                const source = item ? sourceOf.get(item.reviewBatchId) : undefined;
+                const segment = segments.find(
+                    (s) => s.transcriptVersionId === source && s.sequence === Number(payload.transcriptSequence),
+                );
+                return {
+                    ...r,
+                    createdAt: (r as unknown as { createdAt?: Date }).createdAt,
+                    meeting: {
+                        _id: meeting._id,
+                        title: meeting.title,
+                        projectId: meeting.projectId ?? null,
+                        startAt: meeting.actualStartAt ?? meeting.scheduledStartAt ?? null,
+                    },
+                    task: {
+                        title: payload.title ?? "",
+                        status: item?.status,
+                        proposerId: meeting.createdById,
+                        assigneeId: payload.assigneeId ?? null,
+                        assigneeHint: payload.assigneeHint ?? null,
+                        deadline: payload.deadline ?? null,
+                        deadlineRawText: payload.deadlineRawText ?? null,
+                    },
+                    quote: payload.quote
+                        ? {
+                              text: payload.quote,
+                              startMs: segment?.startMs ?? null,
+                              speakerUserId: segment?.speakerUserId ?? null,
+                              speakerLabel: segment?.speakerLabel ?? null,
+                          }
+                        : null,
+                };
+            })
+            .sort(
+                (a, b) =>
+                    new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+            );
     }
 
     /* ------------------------------------------------------- task */

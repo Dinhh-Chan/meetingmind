@@ -4,6 +4,7 @@ import { ReviewItemModule } from "@module/review-item/review-item.module";
 import { MeetingMinutesModule } from "@module/meeting-minutes/meeting-minutes.module";
 import { MeetingParticipantModule } from "@module/meeting-participant/meeting-participant.module";
 import { MeetingRecordModule } from "@module/meeting-record/meeting-record.module";
+import { ClarificationRequestModule } from "@module/clarification-request/clarification-request.module";
 import { MeetingModule } from "@module/meeting/meeting.module";
 import { MinutesVersionModule } from "@module/minutes-version/minutes-version.module";
 import { ProcessingJobModule } from "@module/processing-job/processing-job.module";
@@ -25,6 +26,7 @@ import { MeService } from "./services/me.service";
         MeetingMinutesModule,
         MeetingParticipantModule,
         MeetingRecordModule,
+        ClarificationRequestModule,
         ProjectMemberModule,
         MinutesVersionModule,
         ProcessingJobModule,

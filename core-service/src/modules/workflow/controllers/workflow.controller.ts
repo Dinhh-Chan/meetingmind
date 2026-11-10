@@ -184,6 +184,19 @@ export class TaskPatchBodyDto extends ReviewEditBodyDto {
     blockedReason?: string;
 }
 
+export class ClarifyBodyDto {
+    @IsString()
+    recipientId: string;
+
+    @IsString()
+    question: string;
+}
+
+export class AnswerBodyDto {
+    @IsString()
+    answer: string;
+}
+
 export class CommentBodyDto {
     @IsString()
     body: string;
@@ -344,6 +357,23 @@ export class WorkflowController {
     @Post("review-items/:id/reject")
     rejectReview(@ReqUser() user: User, @Param("id") id: string, @Body() dto: RejectBodyDto) {
         return this.workflowService.rejectReview(user._id, id, dto.reason);
+    }
+
+    /* làm rõ đề xuất */
+
+    @Post("review-items/:id/clarify")
+    requestClarification(@ReqUser() user: User, @Param("id") id: string, @Body() dto: ClarifyBodyDto) {
+        return this.workflowService.requestClarification(user._id, id, dto);
+    }
+
+    @Get("clarifications")
+    listClarifications(@ReqUser() user: User, @Query("workspaceId") workspaceId: string) {
+        return this.workflowService.listClarifications(user._id, workspaceId);
+    }
+
+    @Post("clarifications/:id/answer")
+    answerClarification(@ReqUser() user: User, @Param("id") id: string, @Body() dto: AnswerBodyDto) {
+        return this.workflowService.answerClarification(user._id, id, dto.answer);
     }
 
     /* task */
