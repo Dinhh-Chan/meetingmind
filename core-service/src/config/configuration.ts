@@ -119,6 +119,21 @@ export interface Configuration {
         bucket: string;
         multipartPartSize: number;
     };
+    google: {
+        /** OAuth Client ID loại Web; trống thì tắt đăng nhập bằng Google. */
+        clientId: string;
+    };
+    mail: {
+        /** Tài khoản gửi (Gmail); trống thì không gửi mail mời. */
+        user: string;
+        /** App Password của Gmail. Không ghi log. */
+        pass: string;
+        host: string;
+        port: number;
+        secure: boolean;
+    };
+    /** Địa chỉ giao diện người dùng mở được, dùng trong link mời qua email. */
+    appUrl: string;
     ai: {
         /** ai-service phục vụ HTTP (hỏi đáp tri thức), trong mạng Docker. */
         serviceUrl: string;
@@ -265,6 +280,18 @@ export default (): Configuration => {
         internalToken: getEnv("AI_INTERNAL_TOKEN", ""),
     };
 
+    const google: Configuration["google"] = {
+        clientId: getEnv("GOOGLE_CLIENT_ID", ""),
+    };
+    // Tên biến theo file .env của máy chủ (GMAIL_SMTP, PASS_WORD_SMTP).
+    const mail: Configuration["mail"] = {
+        user: getEnv("GMAIL_SMTP", ""),
+        pass: getEnv("PASS_WORD_SMTP", ""),
+        host: getEnv("SMTP_HOST", "smtp.gmail.com"),
+        port: Number(getEnv("SMTP_PORT", "465")),
+        secure: getEnv("SMTP_SECURE", "1") === "1",
+    };
+    const appUrl = getEnv("APP_URL", "http://localhost:3001").replace(/\/+$/, "");
     return {
         server,
         microservice,
@@ -277,5 +304,8 @@ export default (): Configuration => {
         sentry,
         minio,
         ai,
+        google,
+        mail,
+        appUrl,
     };
 };

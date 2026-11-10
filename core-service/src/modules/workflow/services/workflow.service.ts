@@ -38,6 +38,7 @@ import {
     ReviewItemType,
 } from "@module/review-item/common/constant";
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
+import { InvitationService } from "@module/invitation/invitation.service";
 import { MeetingProcessingService } from "@module/meeting-processing/services/meeting-processing.service";
 import {
     EventType,
@@ -113,6 +114,7 @@ export class WorkflowService {
         private readonly workspaceMemberService: WorkspaceMemberService,
         private readonly userService: UserService,
         private readonly meetingAccessService: MeetingAccessService,
+        private readonly invitationService: InvitationService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
     ) {}
 
@@ -803,19 +805,32 @@ export class WorkflowService {
         const [byName] = byEmail
             ? [byEmail]
             : await this.userService.getMany(null, { username: key }, { enableDataPartition: false });
-        if (!byName) throw ApiError.NotFound("error-user-not-found");
+        if (!byName) {
+            // Chưa có tài khoản: gửi mail mời (link đăng ký / đăng nhập Google).
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) {
+                return this.invitationService.sendInvite(userId, workspaceId, key, role);
+            }
+            throw ApiError.NotFound("error-user-not-found");
+        }
 
         const existing = await this.workspaceMemberService.getOne(null, {
             workspaceId,
             userId: byName._id,
         });
         if (existing) return existing;
-        return this.workspaceMemberService.create(null, {
+        const member = await this.workspaceMemberService.create(null, {
             workspaceId,
             userId: byName._id,
             role,
             status: WorkspaceMemberStatus.ACTIVE,
             joinedAt: new Date(),
         });
+        await this.invitationService.notifyAdded(userId, workspaceId, byName.email);
+        return member;
+    }
+
+    /** Nhận lời mời qua email sau khi đã đăng nhập / đăng ký. */
+    acceptInvite(userId: string, token: string) {
+        return this.invitationService.accept(userId, token);
     }
 }

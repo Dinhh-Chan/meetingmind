@@ -294,6 +294,11 @@ export class WorkflowController {
 
     /* thành viên */
 
+    @Post("invites/accept")
+    acceptInvite(@ReqUser() user: User, @Body("token") token: string) {
+        return this.workflowService.acceptInvite(user._id, token);
+    }
+
     @Post("members/invite")
     inviteMember(@ReqUser() user: User, @Body() dto: InviteBodyDto) {
         return this.workflowService.inviteMember(user._id, dto.workspaceId, dto.identifier, dto.role);

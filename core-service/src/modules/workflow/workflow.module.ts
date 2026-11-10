@@ -18,6 +18,7 @@ import { TranscriptSegmentModule } from "@module/transcript-segment/transcript-s
 import { TranscriptVersionModule } from "@module/transcript-version/transcript-version.module";
 import { UserModule } from "@module/user/user.module";
 import { WorkspaceMemberModule } from "@module/workspace-member/workspace-member.module";
+import { InvitationModule } from "@module/invitation/invitation.module";
 import { Module } from "@nestjs/common";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
 import { TaskSyncConsumer } from "./consumers/task-sync.consumer";
@@ -28,6 +29,7 @@ import { WorkflowService } from "./services/workflow.service";
 
 @Module({
     imports: [
+        InvitationModule,
         MeetingModule,
         MeetingMinutesModule,
         MinutesVersionModule,
