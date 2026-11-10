@@ -215,8 +215,12 @@ export class WorkflowController {
     }
 
     @Post("meetings/:id/minutes/reject")
-    rejectMinutes(@ReqUser() user: User, @Param("id") id: string) {
-        return this.workflowService.rejectMinutes(user._id, id);
+    rejectMinutes(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Body() dto: RejectBodyDto,
+    ) {
+        return this.workflowService.rejectMinutes(user._id, id, dto.reason);
     }
 
     @Post("meetings/:id/minutes/new-draft")

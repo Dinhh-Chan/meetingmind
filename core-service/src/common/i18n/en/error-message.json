@@ -17,6 +17,7 @@
     "error-task-not-found": "Task not found",
     "error-minutes-not-found": "Minutes not found",
     "error-minutes-status-invalid": "Invalid minutes status for this action",
+    "error-reject-reason-required": "A reason is required to reject",
     "error-review-item-not-found": "Review item not found",
     "error-review-title-required": "Review item title is required",
     "error-review-already-approved": "Review item already approved",

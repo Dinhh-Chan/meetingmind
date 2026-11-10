@@ -8,6 +8,7 @@ export type ErrorCode =
     | "error-task-not-found"
     | "error-minutes-not-found"
     | "error-minutes-status-invalid"
+    | "error-reject-reason-required"
     | "error-review-item-not-found"
     | "error-review-title-required"
     | "error-review-already-approved"

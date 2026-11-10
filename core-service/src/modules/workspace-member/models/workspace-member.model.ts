@@ -28,4 +28,7 @@ export class WorkspaceMemberModel extends Model implements WorkspaceMember {
 
     @Column({ type: DataType.DATE, allowNull: true })
     joinedAt?: Date;
+
+    @Column({ type: DataType.DATE, allowNull: true })
+    notificationsSeenAt?: Date;
 }

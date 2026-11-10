@@ -46,4 +46,12 @@ export class WorkspaceMember implements BaseEntity {
     @IsOptional()
     @EntityDefinition.field({ label: "Thời điểm tham gia" })
     joinedAt?: Date;
+
+    /**
+     * Lần cuối mở chuông thông báo: thông báo sau mốc này là chưa đọc
+     */
+    @IsDateString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Lần cuối xem thông báo" })
+    notificationsSeenAt?: Date;
 }

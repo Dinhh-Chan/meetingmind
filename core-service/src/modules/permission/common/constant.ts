@@ -255,7 +255,9 @@ export const MEETING_ACCESS_ROLE_PERMISSIONS: Record<
         Permission.MEETING_DELETE,
         Permission.AUDIO_DOWNLOAD,
         Permission.AI_RERUN,
-        Permission.MINUTES_APPROVE,
+        // MINUTES_APPROVE không cấp theo vai trò cuộc họp: thành viên tự tạo
+        // cuộc họp không tự duyệt biên bản; Owner/Admin được cấp riêng
+        // (PermissionService.resolve).
         Permission.REVIEW_APPROVE,
         Permission.TASK_ASSIGN,
         Permission.TASK_UPDATE,

@@ -49,4 +49,13 @@ export class MinutesVersionModel extends Model implements MinutesVersion {
 
     @Column({ type: DataType.DATE, allowNull: true })
     approvedAt?: Date;
+
+    @Column({ type: DataType.TEXT, allowNull: true })
+    rejectedReason?: string;
+
+    @Column({ type: DataType.STRING, allowNull: true })
+    rejectedById?: string;
+
+    @Column({ type: DataType.DATE, allowNull: true })
+    rejectedAt?: Date;
 }

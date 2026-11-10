@@ -1,6 +1,6 @@
 import { Authorization, ReqUser } from "@common/decorator/auth.decorator";
 import { User } from "@module/user/entities/user.entity";
-import { Controller, Get, Query } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query } from "@nestjs/common";
 import { ApiQuery, ApiTags } from "@nestjs/swagger";
 import { MeService } from "../services/me.service";
 
@@ -14,6 +14,22 @@ import { MeService } from "../services/me.service";
 @Authorization()
 export class MeController {
     constructor(private readonly meService: MeService) {}
+
+    @Get("notifications")
+    async getNotifications(
+        @ReqUser() user: User,
+        @Query("workspaceId") workspaceId: string,
+    ) {
+        return this.meService.getNotifications(user._id, workspaceId);
+    }
+
+    @Post("notifications/seen")
+    async markNotificationsSeen(
+        @ReqUser() user: User,
+        @Body("workspaceId") workspaceId: string,
+    ) {
+        await this.meService.markNotificationsSeen(user._id, workspaceId);
+    }
 
     @Get("workspaces")
     async getWorkspaces(@ReqUser() user: User) {

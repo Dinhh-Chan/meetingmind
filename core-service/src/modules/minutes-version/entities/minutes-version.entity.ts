@@ -100,4 +100,28 @@ export class MinutesVersion implements BaseEntity {
     @IsOptional()
     @EntityDefinition.field({ label: "Thời điểm duyệt" })
     approvedAt?: Date;
+
+    /**
+     * Lý do không duyệt lần gần nhất
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Lý do không duyệt" })
+    rejectedReason?: string;
+
+    /**
+     * Người không duyệt
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Người không duyệt" })
+    rejectedById?: string;
+
+    /**
+     * Thời điểm không duyệt
+     */
+    @IsDateString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Thời điểm không duyệt" })
+    rejectedAt?: Date;
 }

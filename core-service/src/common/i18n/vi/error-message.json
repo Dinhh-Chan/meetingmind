@@ -24,6 +24,7 @@
     "error-task-not-found": "Không tìm thấy task",
     "error-minutes-not-found": "Cuộc họp chưa có biên bản",
     "error-minutes-status-invalid": "Trạng thái biên bản không cho phép thao tác này",
+    "error-reject-reason-required": "Cần nêu lý do không duyệt",
     "error-review-item-not-found": "Không tìm thấy đề xuất",
     "error-review-title-required": "Đề xuất cần có tiêu đề",
     "error-review-already-approved": "Đề xuất đã được duyệt",

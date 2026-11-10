@@ -154,6 +154,8 @@ export class PermissionService {
                     granted.add(p),
                 );
             }
+            // Cuộc họp ngoài dự án không có PM: chỉ Owner/Admin duyệt biên bản.
+            if (actsAsPm) granted.add(Permission.MINUTES_APPROVE);
         }
 
         return granted;

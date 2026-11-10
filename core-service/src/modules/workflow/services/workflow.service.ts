@@ -292,8 +292,8 @@ export class WorkflowService {
         return { minutes, version };
     }
 
-    private expectStatus(actual: string, expected: MinutesVersionStatus) {
-        if (actual !== expected) {
+    private expectStatus(actual: string, ...expected: MinutesVersionStatus[]) {
+        if (!expected.includes(actual as MinutesVersionStatus)) {
             throw ApiError.BadRequest("error-minutes-status-invalid");
         }
     }
@@ -308,11 +308,18 @@ export class WorkflowService {
         });
     }
 
-    /** Chờ duyệt → đã duyệt. Chỉ người có quyền duyệt. */
+    /**
+     * Nháp hoặc chờ duyệt → đã duyệt. Chỉ người có quyền duyệt (PM, Owner/Admin);
+     * người duyệt duyệt thẳng bản nháp được, khỏi gửi duyệt cho chính mình.
+     */
     async approveMinutes(userId: string, meetingId: string) {
         const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
         const { minutes, version } = await this.currentMinutes(meetingId);
-        this.expectStatus(version.status, MinutesVersionStatus.PENDING_APPROVAL);
+        this.expectStatus(
+            version.status,
+            MinutesVersionStatus.DRAFT,
+            MinutesVersionStatus.PENDING_APPROVAL,
+        );
         const approved = await this.minutesVersionService.updateById(
             null,
             version._id,
@@ -333,13 +340,25 @@ export class WorkflowService {
         return approved;
     }
 
-    /** Chờ duyệt → trả về nháp. */
-    async rejectMinutes(userId: string, meetingId: string) {
+    /**
+     * Không duyệt: bắt buộc nêu lý do, biên bản về nháp để người tạo sửa.
+     * Lý do lưu ở phiên bản và hiện lại cho người tạo cuộc họp.
+     */
+    async rejectMinutes(userId: string, meetingId: string, reason: string) {
         await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
+        const text = reason?.trim();
+        if (!text) throw ApiError.BadRequest("error-reject-reason-required");
         const { version } = await this.currentMinutes(meetingId);
-        this.expectStatus(version.status, MinutesVersionStatus.PENDING_APPROVAL);
+        this.expectStatus(
+            version.status,
+            MinutesVersionStatus.DRAFT,
+            MinutesVersionStatus.PENDING_APPROVAL,
+        );
         return this.minutesVersionService.updateById(null, version._id, {
             status: MinutesVersionStatus.DRAFT,
+            rejectedReason: text,
+            rejectedById: userId,
+            rejectedAt: new Date(),
         });
     }
 
