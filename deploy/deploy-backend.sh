@@ -16,17 +16,31 @@ SERVICES=${DEPLOY_SERVICES:-"postgres redis rabbitmq minio core-service api-gate
 # shellcheck disable=SC2086
 docker compose up -d --build --remove-orphans $SERVICES
 
-# Core là dịch vụ duy nhất có healthcheck nghiệp vụ; chờ tối đa 5 phút.
-core=$(docker compose ps -q core-service)
-for _ in $(seq 1 60); do
-    status=$(docker inspect -f '{{.State.Health.Status}}' "$core" 2>/dev/null || echo starting)
-    [ "$status" = healthy ] && break
-    sleep 5
-done
-if [ "$status" != healthy ]; then
-    echo "core-service chưa healthy sau 5 phút (trạng thái: $status)" >&2
-    docker compose logs --tail 80 core-service >&2
-    exit 1
+# Chờ dịch vụ có healthcheck lên hẳn: core (tối đa 5 phút), rồi API gateway
+# (giao diện gọi qua gateway, gateway chỉ healthy khi gọi được core).
+wait_healthy() {
+    local service=$1 tries=$2 id status=starting
+    id=$(docker compose ps -q "$service")
+    for _ in $(seq 1 "$tries"); do
+        status=$(docker inspect -f '{{.State.Health.Status}}' "$id" 2>/dev/null || echo starting)
+        [ "$status" = healthy ] && return 0
+        sleep 5
+    done
+    echo "$service chưa healthy (trạng thái: $status)" >&2
+    docker compose logs --tail 80 "$service" >&2
+    return 1
+}
+wait_healthy core-service 60
+if [[ " $SERVICES " == *" api-gateway "* ]]; then
+    wait_healthy api-gateway 24
+    # Gateway kiểm tra token bằng JWT_SECRET: lệch với core thì mọi request bị 401.
+    # So bằng mã băm để không in khoá ra log.
+    core_key=$(docker compose exec -T core-service printenv JWT_SECRET | sha256sum)
+    gateway_key=$(docker compose exec -T api-gateway printenv JWT_SECRET | sha256sum)
+    if [ "$core_key" != "$gateway_key" ]; then
+        echo "JWT_SECRET của api-gateway khác core-service: đặt cùng giá trị (biến JWT_SECRET trong .env)" >&2
+        exit 1
+    fi
 fi
 
 # Container nào khởi động lại liên tục là lỗi, dù core đã lên.

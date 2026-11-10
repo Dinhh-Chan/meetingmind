@@ -9,7 +9,7 @@ Tài liệu này mô tả cách các service phối hợp, ai được ghi dữ 
 | Thư mục | Công nghệ | Trách nhiệm | Trạng thái |
 | --- | --- | --- | --- |
 | `frontend/` | Next.js | UI, realtime, ghi âm phía trình duyệt | Chưa tạo |
-| `api-gateway/` | NestJS | Cổng vào duy nhất: xác thực token, định tuyến, rate limit, WebSocket | Đang là template |
+| `api-gateway/` | NestJS | Cổng vào duy nhất: xác thực token, định tuyến, rate limit | Đã dựng: kiểm tra JWT, chặn kênh nội bộ, giới hạn tần suất, chuyển tiếp nguyên luồng tới core (xem `api-gateway/README.md`) |
 | `core-service/` | NestJS | Nghiệp vụ và điều phối: workspace, project, meeting, transcript, minutes, task, review, job | 34 module CRUD đã dựng |
 | `integration-service/` | NestJS | Kết nối ngoài: Calendar, Jira/Trello, export tài liệu, webhook | Đang là template |
 | `ai-service/` | FastAPI | STT, tóm tắt, trích xuất công việc, RAG | Đang là template |
@@ -52,7 +52,7 @@ Chỉ `api-gateway` được expose ra ngoài. `core-service`, `integration-serv
 
 > Hiện `docker-compose.yml` vẫn publish cổng 3010/3020/8000 ra host. Đây là **ngoại lệ dev** để gọi Swagger trực tiếp, phải bỏ khi triển khai thật.
 
-Gateway chịu trách nhiệm: kiểm tra token, rate limit, định tuyến, đẩy thông báo realtime. **Không** chứa logic phân quyền nghiệp vụ — việc đó thuộc Core.
+Gateway chịu trách nhiệm: kiểm tra token, rate limit, định tuyến. **Không** chứa logic phân quyền nghiệp vụ — việc đó thuộc Core. Thông báo (chuông) hiện lấy bằng hỏi định kỳ, chưa đẩy realtime qua WebSocket.
 
 ### 3.2. Mỗi bảng có đúng một service sở hữu
 
@@ -69,7 +69,7 @@ MVP dùng **một PostgreSQL instance, ba schema, ba tài khoản**:
 
 | Service | Schema | Tài khoản |
 | --- | --- | --- |
-| core-service, api-gateway | `core` | `mm_core` |
+| core-service | `core` | `mm_core` |
 | integration-service | `integration` | `mm_integration` |
 | ai-service | `ai` | `mm_ai` |
 

@@ -2,7 +2,7 @@ name: meetingmind
 
 x-nest-environment: &nest-environment
   SERVER_ENV: development
-  JWT_SECRET: meetingmind_jwt_secret
+  JWT_SECRET: ${JWT_SECRET:-meetingmind_jwt_secret}
   JWT_EXP: 3600
   JWT_REFRESH_SECRET: meetingmind_refresh_secret
   JWT_REFRESH_EXP: 15552000
@@ -110,35 +110,23 @@ services:
       - minio_data:/data
 
   api-gateway:
+    # Cổng vào duy nhất của giao diện: kiểm tra token, giới hạn tần suất, chuyển
+    # tiếp tới core-service. Không dùng database; JWT_SECRET phải trùng core.
     restart: unless-stopped
-    # Không dùng *nest-common: gateway dùng chung schema `core` nhưng
-    # SQL_SYNCHRONIZE=0, nên phải đợi core-service tạo bảng xong mới khởi động.
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      minio:
-        condition: service_started
       core-service:
         condition: service_healthy
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
     environment:
-      <<: *nest-environment
-      SERVER_ADDRESS: http://localhost:3000
       SERVER_PORT: 3000
-      SERVER_MASTER: 1
-      MICROSERVICE_GRPC_PORT: 3001
-      MICROSERVICE_TCP_PORT: 3002
-      SERVER_GW_ADDRESS: http://api-gateway:3000
-      SQL_USER: mm_core
-      SQL_PASSWORD: mm_core_pass
-      SQL_SCHEMA: core
-      # core-service là chủ schema `core` nên chỉ nó được sinh bảng
+      CORE_SERVICE_URL: http://core-service:3010
+      JWT_SECRET: ${JWT_SECRET:-meetingmind_jwt_secret}
+      # Request mỗi người dùng (hoặc mỗi IP khi chưa đăng nhập) trong 1 phút;
+      # đăng nhập/đăng ký giới hạn riêng theo IP.
+      GATEWAY_RATE_LIMIT: ${GATEWAY_RATE_LIMIT:-600}
+      GATEWAY_AUTH_RATE_LIMIT: ${GATEWAY_AUTH_RATE_LIMIT:-20}
     ports:
       - "3000:3000"
 
