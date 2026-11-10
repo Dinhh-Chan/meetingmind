@@ -135,25 +135,54 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                 break;
 
             case "mm:login": {
-                const res = await fetch(`${msg.apiUrl}/auth/login`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        username: msg.username,
-                        password: msg.password,
-                        platform: "Web",
-                    }),
-                });
-                const json = await res.json();
+                let json;
+                try {
+                    const res = await fetch(`${msg.apiUrl}/auth/login`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            username: msg.username,
+                            password: msg.password,
+                            platform: "Web",
+                        }),
+                    });
+                    json = await res.json().catch(() => ({}));
+                } catch {
+                    sendResponse({ ok: false, error: `Không kết nối được ${msg.apiUrl}` });
+                    break;
+                }
                 if (!json?.data?.accessToken) {
                     sendResponse({ ok: false, error: "Sai tài khoản hoặc mật khẩu" });
                     break;
+                }
+                // Workspace ID khác nhau giữa các máy chủ: lấy workspace đầu tiên
+                // của tài khoản trên máy chủ vừa đăng nhập, người dùng vẫn sửa được.
+                let workspaceId = "";
+                try {
+                    const ws = await fetch(`${msg.apiUrl}/me/workspaces`, {
+                        headers: { Authorization: `Bearer ${json.data.accessToken}` },
+                    }).then((r) => r.json());
+                    workspaceId = ws?.data?.[0]?._id || "";
+                } catch {
+                    // không lấy được thì để người dùng tự dán
                 }
                 await store.set({
                     apiUrl: msg.apiUrl,
                     accessToken: json.data.accessToken,
                     refreshToken: json.data.refreshToken,
+                    workspaceId,
                 });
+                sendResponse({ ok: true });
+                break;
+            }
+
+            case "mm:logout": {
+                const { meetingId } = await store.get(["meetingId"]);
+                if (meetingId) {
+                    sendResponse({ ok: false, error: "Đang ghi phụ đề: bấm Kết thúc trước khi đăng xuất." });
+                    break;
+                }
+                await chrome.storage.local.remove(["accessToken", "refreshToken", "workspaceId", "lastError"]);
                 sendResponse({ ok: true });
                 break;
             }

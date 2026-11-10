@@ -20,6 +20,7 @@ async function render() {
     $("login").classList.toggle("hidden", loggedIn);
     $("session").classList.toggle("hidden", !loggedIn);
     if (s.apiUrl) $("apiUrl").value = s.apiUrl;
+    $("server").textContent = s.apiUrl ? `Máy chủ: ${s.apiUrl}` : "";
     if (s.workspaceId) $("workspaceId").value = s.workspaceId;
     $("status").textContent = s.meetingId
         ? `đang ghi · ${s.captureStatus || "?"}`
@@ -37,6 +38,13 @@ $("btnLogin").onclick = async () => {
         password: $("password").value,
     });
     if (!res?.ok) return showError(res?.error || "Đăng nhập thất bại");
+    render();
+};
+
+$("btnLogout").onclick = async () => {
+    showError("");
+    const res = await send({ type: "mm:logout" });
+    if (!res?.ok) return showError(res?.error || "Không đăng xuất được");
     render();
 };
 

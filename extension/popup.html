@@ -18,7 +18,7 @@
 <h1>MeetingMind</h1>
 
 <div id="login">
-    <label>Địa chỉ core-service</label>
+    <label>Địa chỉ máy chủ (core-service, hoặc https://&lt;domain&gt;/api)</label>
     <input id="apiUrl" value="http://localhost:3010" />
     <label>Tài khoản</label>
     <input id="username" value="admin" />
@@ -42,6 +42,8 @@
         <button id="btnProbe" class="secondary">Kiểm tra phụ đề</button>
         <button id="btnEnd" class="secondary">Kết thúc</button>
     </div>
+    <button id="btnLogout" class="secondary">Đăng xuất / đổi máy chủ</button>
+    <div class="muted" id="server"></div>
 </div>
 
 <div id="err" class="err"></div>
