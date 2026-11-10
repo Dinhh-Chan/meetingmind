@@ -6,8 +6,9 @@ const SAFE_ID = /^[\w-]{8,64}$/;
 
 /**
  * Gắn mã request (giữ mã có sẵn từ phía trước nếu hợp lệ), trả lại trong
- * X-Request-Id để dò log giữa gateway và core. Không ghi query string: link
- * mời mang token trong query.
+ * X-Request-Id để dò log giữa gateway và core. Ghi IP người gọi (cũng là khoá
+ * giới hạn tần suất khi chưa đăng nhập). Không ghi query string: link mời mang
+ * token trong query.
  */
 @Injectable()
 export class RequestLogMiddleware implements NestMiddleware {
@@ -21,7 +22,7 @@ export class RequestLogMiddleware implements NestMiddleware {
         const started = process.hrtime.bigint();
         res.on("finish", () => {
             const ms = Number(process.hrtime.bigint() - started) / 1e6;
-            this.logger.log(`${req.method} ${req.path} ${res.statusCode} ${ms.toFixed(0)}ms ${id}`);
+            this.logger.log(`${req.method} ${req.path} ${res.statusCode} ${ms.toFixed(0)}ms ${req.ip} ${id}`);
         });
         next();
     }
