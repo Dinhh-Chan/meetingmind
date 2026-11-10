@@ -4,7 +4,7 @@ x-nest-environment: &nest-environment
   SERVER_ENV: development
   JWT_SECRET: ${JWT_SECRET:-meetingmind_jwt_secret}
   JWT_EXP: 3600
-  JWT_REFRESH_SECRET: meetingmind_refresh_secret
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-meetingmind_refresh_secret}
   JWT_REFRESH_EXP: 15552000
   SQL_TYPE: postgres
   SQL_HOST: postgres
