@@ -82,8 +82,9 @@ export class UserService
     }
 
     async getMe(authData: RequestAuthData) {
+        // hasPassword: giao diện biết để hỏi "mật khẩu hiện tại" hay cho đặt mật khẩu lần đầu.
         const user = await authData.getUser();
-        return withoutPassword(user);
+        return { ...withoutPassword(user), hasPassword: !!user?.password };
     }
 
     /** Tự đăng ký: luôn là tài khoản thường, không nhận systemRole từ client. */
@@ -138,10 +139,13 @@ export class UserService
         const current = await this.userRepository.getById(user._id, {
             enableDataPartition: false,
         });
-        if (!current || !(await this.comparePassword(current, dto.oldPass))) {
+        if (!current) throw ApiError.BadRequest("error-old-password-wrong");
+        // Tài khoản tạo bằng Google chưa có mật khẩu: đặt lần đầu không cần mật khẩu cũ.
+        const firstPassword = !current.password;
+        if (!firstPassword && !(await this.comparePassword(current, dto.oldPass ?? ""))) {
             throw ApiError.BadRequest("error-old-password-wrong");
         }
-        if (dto.oldPass === dto.newPass) {
+        if (!firstPassword && dto.oldPass === dto.newPass) {
             throw ApiError.BadRequest("error-duplicate-new-password");
         }
         // Trước đây ghi `dto.oldPass` dạng chữ thường vào cột password.

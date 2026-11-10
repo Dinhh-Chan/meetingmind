@@ -426,7 +426,13 @@ export class WorkflowService {
     async approveReview(
         userId: string,
         reviewItemId: string,
-        edit: { title?: string; assigneeId?: string | null; deadline?: string | null; priority?: ActionItemPriority },
+        edit: {
+            title?: string;
+            assigneeId?: string | null;
+            deadline?: string | null;
+            priority?: ActionItemPriority;
+            approverId?: string | null;
+        },
     ) {
         const { item, meeting } = await this.reviewFor(userId, reviewItemId, Permission.REVIEW_APPROVE);
         if (item.status === ReviewItemStatus.APPROVED) return item;
@@ -452,7 +458,8 @@ export class WorkflowService {
                 title,
                 proposerId: meeting.createdById,
                 assigneeId: (payload.assigneeId as string) || null,
-                approverId: userId,
+                // Người duyệt chọn khi sửa đề xuất; không chọn thì là người bấm Duyệt.
+                approverId: (payload.approverId as string) || userId,
                 deadline: payload.deadline ? new Date(payload.deadline as string) : null,
                 deadlineRawText: payload.deadlineRawText as string,
                 // AI chỉ đọc được câu gốc ("thứ Sáu") mà người duyệt chưa chốt ngày.

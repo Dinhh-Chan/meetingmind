@@ -25,6 +25,7 @@
     "error-minutes-not-found": "Cuộc họp chưa có biên bản",
     "error-minutes-status-invalid": "Trạng thái biên bản không cho phép thao tác này",
     "error-reject-reason-required": "Cần nêu lý do không duyệt",
+    "error-password-not-set": "Tài khoản này được tạo bằng Google nên chưa có mật khẩu. Bấm “Tiếp tục với Google”, rồi đặt mật khẩu ở Cài đặt › Tài khoản.",
     "error-voice-consent-required": "Cần đồng ý cho lưu vân giọng trước khi đăng ký",
     "error-voice-sample-count": "Cần từ 2 đến 5 mẫu giọng",
     "error-voice-sample-invalid": "Mẫu giọng chưa dùng được: {reason}",

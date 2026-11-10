@@ -18,6 +18,7 @@
     "error-minutes-not-found": "Minutes not found",
     "error-minutes-status-invalid": "Invalid minutes status for this action",
     "error-reject-reason-required": "A reason is required to reject",
+    "error-password-not-set": "This account was created with Google and has no password yet. Continue with Google, then set a password in Settings › Account.",
     "error-voice-consent-required": "Consent is required to store your voice profile",
     "error-voice-sample-count": "Between 2 and 5 voice samples are required",
     "error-voice-sample-invalid": "Voice sample rejected: {reason}",

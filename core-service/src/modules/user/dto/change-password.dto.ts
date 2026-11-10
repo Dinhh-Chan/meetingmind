@@ -1,9 +1,10 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class ChangePasswordDto {
-    @IsNotEmpty()
+    /** Bỏ trống khi tài khoản (tạo bằng Google) đặt mật khẩu lần đầu. */
+    @IsOptional()
     @IsString()
-    oldPass: string;
+    oldPass?: string;
 
     @IsNotEmpty()
     @IsString()

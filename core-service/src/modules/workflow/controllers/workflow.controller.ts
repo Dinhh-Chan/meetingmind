@@ -102,6 +102,12 @@ export class ReviewEditBodyDto {
     @IsOptional()
     @IsEnum(ActionItemPriority)
     priority?: ActionItemPriority;
+
+    /** Người duyệt task; bỏ trống thì là người bấm Duyệt đề xuất. */
+    @IsOptional()
+    @ValidateIf((_, v) => v !== null)
+    @IsString()
+    approverId?: string | null;
 }
 
 export class ProjectMemberBodyDto {

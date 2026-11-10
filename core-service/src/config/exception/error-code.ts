@@ -9,6 +9,7 @@ export type ErrorCode =
     | "error-minutes-not-found"
     | "error-minutes-status-invalid"
     | "error-reject-reason-required"
+    | "error-password-not-set"
     | "error-voice-consent-required"
     | "error-voice-sample-count"
     | "error-voice-sample-invalid"

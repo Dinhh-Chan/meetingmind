@@ -349,6 +349,10 @@ export class AuthService extends BaseService<Auth, AuthRepository> {
             { username },
             { enableDataPartition: false },
         );
+        if (user && !user.password) {
+            // Tài khoản tạo bằng Google chưa đặt mật khẩu: báo rõ thay vì lỗi so khớp.
+            throw ApiError.BadRequest("error-password-not-set");
+        }
         if (user) {
             const match = await compareUserPassword(password, user.password);
             if (match) {
