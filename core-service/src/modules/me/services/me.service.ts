@@ -255,7 +255,9 @@ function derivePhase(
     minutesStatus: string | undefined,
     jobStatus: string | undefined,
 ): MeetingPhase {
-    if (meeting.status === MeetingStatus.SCHEDULED) return "scheduled";
+    // Buổi họp trực tiếp chỉ sang "ended" khi phiên âm xong; đã có job nghĩa
+    // là bản ghi đã tải lên, đang chờ hoặc đang xử lý chứ không còn "sắp tới".
+    if (meeting.status === MeetingStatus.SCHEDULED && !jobStatus) return "scheduled";
     if (jobStatus === ProcessingJobStatus.FAILED) return "failed";
     if (minutesStatus === "approved") return "completed";
     if (minutesStatus) return "pending_review";
