@@ -1,0 +1,37 @@
+# Push lên nhánh triển khai → máy chủ tự cập nhật backend.
+#
+# Chạy trên self-hosted runner đặt ngay trên máy chủ (nhãn iuclub, meetingmind-be):
+# runner tự kết nối ra GitHub nên máy chủ không cần mở cổng SSH ra Internet.
+# Repo công khai: chỉ chạy khi push hoặc bấm tay, không chạy cho pull request
+# (PR từ fork có thể chạy mã tuỳ ý trên runner).
+name: Triển khai backend
+
+on:
+  push:
+    branches: [refactor/postgres-schemas-drop-mongo]
+  workflow_dispatch:
+
+# Hai lần push sát nhau thì lần sau chờ lần trước xong, không build chồng.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, iuclub, meetingmind-be]
+    timeout-minutes: 90
+    env:
+      # Thư mục repo trên máy chủ (nơi có .env và docker-compose.override.yml).
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+    steps:
+      - name: Đưa mã nguồn trên máy chủ về đúng commit
+        run: |
+          dir="${DEPLOY_DIR:-$HOME/meetingmind}"
+          git -C "$dir" fetch --prune origin "$GITHUB_REF_NAME"
+          git -C "$dir" checkout -B "$GITHUB_REF_NAME" "$GITHUB_SHA"
+          # Tệp không theo dõi (.env, override) được giữ nguyên.
+          git -C "$dir" reset --hard "$GITHUB_SHA"
+          git -C "$dir" log --oneline -1
+
+      - name: Build và khởi động lại dịch vụ
+        run: bash "${DEPLOY_DIR:-$HOME/meetingmind}/deploy/deploy-backend.sh"
