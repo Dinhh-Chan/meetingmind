@@ -25,6 +25,7 @@ import { MeetingModel } from "@module/meeting/models/meeting.model";
 import { MeetingParticipantModel } from "@module/meeting-participant/models/meeting-participant.model";
 import { TranscriptSegmentModel } from "@module/transcript-segment/models/transcript-segment.model";
 import { SpeakerAliasModel } from "@module/speaker-alias/models/speaker-alias.model";
+import { VoiceProfileModel } from "@module/voice-profile/models/voice-profile.model";
 import { MeetingMinutesModel } from "@module/meeting-minutes/models/meeting-minutes.model";
 import { ActionItemModel } from "@module/action-item/models/action-item.model";
 import { ActionItemCitationModel } from "@module/action-item-citation/models/action-item-citation.model";
@@ -80,6 +81,7 @@ export const SequelizeModel: ModelCtor<Model>[] = [
     MeetingParticipantModel,
     TranscriptSegmentModel,
     SpeakerAliasModel,
+    VoiceProfileModel,
     MeetingMinutesModel,
     ActionItemModel,
     ActionItemCitationModel,

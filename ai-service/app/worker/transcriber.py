@@ -18,11 +18,13 @@ class TranscriptResult:
     # Ngôn ngữ nói nhiều nhất (mã ISO 639-1) và tỷ lệ thời lượng từng ngôn ngữ.
     language: str | None = None
     languages: dict[str, float] = field(default_factory=dict)
+    # Nhãn người nói → người đã đăng ký giọng: {"Người nói 1": {"userId", "score"}}.
+    speaker_matches: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 class Transcriber(Protocol):
     async def transcribe(
-        self, bucket: str, object_key: str, language: str
+        self, bucket: str, object_key: str, language: str, voice_profiles: list[dict] | None = None
     ) -> TranscriptResult: ...
 
 
@@ -35,7 +37,7 @@ class StubTranscriber:
     """
 
     async def transcribe(
-        self, bucket: str, object_key: str, language: str
+        self, bucket: str, object_key: str, language: str, voice_profiles: list[dict] | None = None
     ) -> TranscriptResult:
         log.warning(
             "Đang dùng StubTranscriber (AI_STT chưa bật). object=%s/%s",

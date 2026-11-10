@@ -1,5 +1,6 @@
 import { MediaFileModule } from "@module/media-file/media-file.module";
 import { MailModule } from "@module/mail/mail.module";
+import { VoiceProfileModule } from "@module/voice-profile/voice-profile.module";
 import { MeModule } from "@module/me/me.module";
 import { WorkflowModule } from "@module/workflow/workflow.module";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
@@ -69,6 +70,7 @@ import { WebSocketModule } from "./modules/websocket/websocket.module";
         PermissionModule,
         MeModule,
         MailModule,
+        VoiceProfileModule,
         WorkflowModule,
         MeetingProcessingModule,
         MessagingModule,

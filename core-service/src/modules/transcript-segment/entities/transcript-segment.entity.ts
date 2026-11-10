@@ -55,6 +55,14 @@ export class TranscriptSegment implements BaseEntity {
     identityStatus: SpeakerIdentityStatus;
 
     /**
+     * Độ giống vân giọng khi gợi ý người nói (0–1)
+     */
+    @IsOptional()
+    @IsNumber()
+    @EntityDefinition.field({ label: "Độ giống vân giọng" })
+    identityScore?: number;
+
+    /**
      * Thời điểm bắt đầu (ms)
      */
     @IsInt()

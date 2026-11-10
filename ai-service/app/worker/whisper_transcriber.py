@@ -184,7 +184,9 @@ class WhisperTranscriber:
             self._model = _load_model(self.settings)
         return self._model
 
-    async def transcribe(self, bucket: str, object_key: str, language: str) -> TranscriptResult:
+    async def transcribe(
+        self, bucket: str, object_key: str, language: str, voice_profiles: list[dict] | None = None
+    ) -> TranscriptResult:
         # Whisper chạy CPU nặng: đẩy sang thread để không chặn vòng lặp RabbitMQ
         # (heartbeat mất thì broker cắt kết nối giữa chừng).
         path = await asyncio.to_thread(download_to_temp, bucket, object_key)
@@ -192,11 +194,11 @@ class WhisperTranscriber:
             from faster_whisper import decode_audio
 
             audio = await asyncio.to_thread(decode_audio, str(path), SAMPLE_RATE)
-            return await asyncio.to_thread(self.transcribe_audio, audio, language)
+            return await asyncio.to_thread(self.transcribe_audio, audio, language, voice_profiles)
         finally:
             path.unlink(missing_ok=True)
 
-    def transcribe_audio(self, audio, hint: str | None) -> TranscriptResult:
+    def transcribe_audio(self, audio, hint: str | None, voice_profiles: list[dict] | None = None) -> TranscriptResult:
         """Phần lõi, nhận audio đã giải mã (numpy float32, 16 kHz mono)."""
         s = self.settings
         detected, probability, _ = self.model.detect_language(audio)
@@ -247,9 +249,13 @@ class WhisperTranscriber:
             words.extend(Word(a, b, t, language, index) for a, b, t in seg_words)
             previous = language
 
-        turns = self._turns(audio, words) if self.diarize and words else []
+        turns, centroids = self._turns(audio, words) if self.diarize and words else ([], {})
+        speaker_matches: dict = {}
         if turns:
-            segments = build_segments(words, turns, confidences)
+            label_of: dict[int, str] = {}
+            segments = build_segments(words, turns, confidences, labels_out=label_of)
+            if voice_profiles and centroids:
+                speaker_matches = self._match_voices(centroids, label_of, voice_profiles)
         else:
             segments = build_segments(words, [], confidences)
             for seg in segments:
@@ -263,19 +269,43 @@ class WhisperTranscriber:
             segments=segments,
             language=dominant,
             languages=breakdown,
+            speaker_matches=speaker_matches,
         )
 
     def _turns(self, audio, words: list[Word]):
-        """Lượt nói của từng người; lỗi thì vẫn trả transcript, chỉ không tách người."""
+        """Lượt nói của từng người kèm vân giọng từng người; lỗi thì vẫn trả
+        transcript, chỉ không tách người."""
         try:
             diarizer = self._diarizer or _load_diarizer()
-            turns = diarizer.turns(audio, words, SAMPLE_RATE)
+            if hasattr(diarizer, "diarize"):
+                turns, centroids = diarizer.diarize(audio, words, SAMPLE_RATE)
+            else:
+                turns, centroids = diarizer.turns(audio, words, SAMPLE_RATE), {}
             people = {t.speaker for t in turns if t.speaker >= 0}
             log.info("Tách người nói: %d khúc, %d người", len(turns), len(people))
-            return turns
+            return turns, centroids
         except Exception:  # noqa: BLE001 - tách người nói là phần thêm, không được làm hỏng phiên âm
             log.exception("Tách người nói lỗi, giữ một nhãn chung")
-            return []
+            return [], {}
+
+    def _match_voices(self, centroids: dict, label_of: dict[int, str], profiles: list[dict]) -> dict:
+        """Ghép "Người nói N" với người tham dự đã đăng ký giọng; lỗi thì bỏ qua, không hỏng phiên âm."""
+        try:
+            from app.worker import voice
+
+            by_label = {label_of[k]: c for k, c in centroids.items() if k in label_of}
+            matches = voice.match(by_label, profiles, voice.match_threshold())
+            log.info(
+                "Nhận ra theo giọng %d/%d người nói (%d người đã đăng ký giọng): %s",
+                len(matches),
+                len(by_label),
+                len(profiles),
+                {label: m["score"] for label, m in matches.items()},
+            )
+            return matches
+        except Exception:  # noqa: BLE001
+            log.exception("Ghép vân giọng lỗi, giữ nhãn Người nói N")
+            return {}
 
     def _retranscribe(self, clip, language: str) -> tuple[list[tuple[float, float, str]], float | None]:
         """Phiên âm lại một đoạn bằng đúng ngôn ngữ của nó; trả từ kèm mốc (tính từ đầu đoạn)."""

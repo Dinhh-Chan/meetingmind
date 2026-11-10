@@ -33,6 +33,9 @@ export class TranscriptSegmentModel extends Model implements TranscriptSegment {
     @Column({ type: DataType.STRING, allowNull: false })
     identityStatus: SpeakerIdentityStatus;
 
+    @Column({ type: DataType.FLOAT, allowNull: true })
+    identityScore?: number;
+
     @Column({ type: DataType.INTEGER, allowNull: false })
     startMs: number;
 

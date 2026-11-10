@@ -1,0 +1,46 @@
+import { Configuration } from "@config/configuration";
+import { ApiError } from "@config/exception/api-error";
+import { HttpService } from "@nestjs/axios";
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { lastValueFrom } from "rxjs";
+
+export interface VoiceEmbedding {
+    embedding: number[];
+    seconds: number;
+    model: string;
+}
+
+/** Gọi ai-service tính vân giọng từ các mẫu đọc (route nội bộ, X-Internal-Token). */
+@Injectable()
+export class VoiceAiClient {
+    private readonly logger = new Logger(VoiceAiClient.name);
+
+    constructor(
+        private readonly http: HttpService,
+        private readonly configService: ConfigService<Configuration>,
+    ) {}
+
+    async embed(samples: Buffer[]): Promise<VoiceEmbedding> {
+        const { serviceUrl, internalToken } = this.configService.get("ai", { infer: true });
+        try {
+            const res = await lastValueFrom(
+                this.http.post<VoiceEmbedding>(
+                    `${serviceUrl}/internal/voice/embedding`,
+                    { samples: samples.map((s) => s.toString("base64")) },
+                    { headers: { "X-Internal-Token": internalToken }, timeout: 120_000, maxBodyLength: Infinity },
+                ),
+            );
+            return res.data;
+        } catch (err) {
+            const response = (err as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
+            // Mẫu không đạt (quá ngắn, quá nhỏ, không đọc được): báo đúng lý do cho người dùng.
+            if (response?.status === 422 || response?.status === 413) {
+                const detail = typeof response.data?.detail === "string" ? response.data.detail : "mẫu không hợp lệ";
+                throw ApiError.BadRequest("error-voice-sample-invalid", { reason: detail });
+            }
+            this.logger.warn(`Tính vân giọng lỗi: ${response?.status ? `HTTP ${response.status}` : ((err as Error).message ?? "không rõ")}`);
+            throw ApiError.ServiceUnavailable("error-voice-unavailable");
+        }
+    }
+}

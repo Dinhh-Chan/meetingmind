@@ -109,6 +109,8 @@ export interface TranscriptionCompletedPayload {
     language?: string;
     /** Tỷ lệ thời lượng theo ngôn ngữ, ví dụ { vi: 0.8, en: 0.2 }. */
     languages?: Record<string, number>;
+    /** Nhãn người nói khớp vân giọng người tham dự đã đăng ký: { "Người nói 1": { userId, score } }. */
+    speakerMatches?: Record<string, { userId: string; score: number }>;
 }
 
 /** Một đoạn transcript gửi cho AI phân tích. */

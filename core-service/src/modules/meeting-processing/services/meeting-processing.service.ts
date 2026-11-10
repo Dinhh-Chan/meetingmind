@@ -30,7 +30,10 @@ import {
     ReviewItemType,
 } from "@module/review-item/common/constant";
 import { ReviewItemService } from "@module/review-item/services/review-item.service";
+import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
 import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
+import { UserService } from "@module/user/service/user.service";
+import { VoiceProfileService } from "@module/voice-profile/services/voice-profile.service";
 import { SpeakerIdentityStatus } from "@module/transcript-segment/common/constant";
 import { TranscriptSegmentService } from "@module/transcript-segment/services/transcript-segment.service";
 import { TranscriptVersionSource } from "@module/transcript-version/common/constant";
@@ -75,6 +78,9 @@ export class MeetingProcessingService {
         private readonly reviewBatchService: ReviewBatchService,
         private readonly reviewItemService: ReviewItemService,
         private readonly speakerAliasService: SpeakerAliasService,
+        private readonly meetingParticipantService: MeetingParticipantService,
+        private readonly voiceProfileService: VoiceProfileService,
+        private readonly userService: UserService,
         private readonly outboxService: OutboxService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
     ) {}
@@ -109,6 +115,14 @@ export class MeetingProcessingService {
             retryCount: 0,
         });
 
+        // Vân giọng của người tham dự đã đăng ký: AI dùng để gợi ý ai là "Người nói N".
+        const participants = await this.meetingParticipantService.getMany(null, {
+            meetingId: meeting._id,
+        });
+        const voiceProfiles = await this.voiceProfileService.profilesFor([
+            ...new Set(participants.map((p) => p.userId).filter(Boolean)),
+        ]);
+
         await this.outboxService.emit({
             aggregateType: "meeting",
             aggregateId: meeting._id,
@@ -121,6 +135,7 @@ export class MeetingProcessingService {
                 bucket: dto.bucket,
                 objectKey: dto.objectKey,
                 language: meeting.language,
+                voiceProfiles,
             },
         });
 
@@ -129,6 +144,33 @@ export class MeetingProcessingService {
         });
 
         return job;
+    }
+
+    /**
+     * Kết quả ghép vân giọng của AI, chỉ giữ người thật sự tham dự cuộc họp
+     * (AI chỉ nhận vân giọng của họ, kiểm lại cho chắc).
+     */
+    private async voiceMatches(
+        meetingId: string,
+        speakerMatches: TranscriptionCompletedPayload["speakerMatches"],
+    ) {
+        const result = new Map<string, { userId: string; score: number; displayName: string }>();
+        const entries = Object.entries(speakerMatches ?? {});
+        if (!entries.length) return result;
+        const participants = await this.meetingParticipantService.getMany(null, { meetingId });
+        const allowed = new Set(participants.map((p) => p.userId).filter(Boolean));
+        const users = await this.userService.getMany(
+            null,
+            { _id: { $in: entries.map(([, m]) => m.userId) } },
+            { enableDataPartition: false },
+        );
+        const nameOf = new Map(users.map((u) => [u._id, u.fullname || u.username]));
+        for (const [label, m] of entries) {
+            if (!allowed.has(m.userId) || !nameOf.has(m.userId)) continue;
+            result.set(label, { userId: m.userId, score: m.score, displayName: nameOf.get(m.userId) });
+        }
+        this.logger.log(`Gợi ý người nói theo giọng: ${result.size}/${entries.length} nhãn`);
+        return result;
     }
 
     /** Bước 7: nhận transcript từ AI, ghi thành phiên bản chính thức. */
@@ -165,16 +207,22 @@ export class MeetingProcessingService {
             isCurrent: true,
         });
 
+        const matches = await this.voiceMatches(meeting._id, payload.speakerMatches);
+
         let sequence = 0;
         for (const segment of payload.segments) {
             sequence += 1;
+            const match = matches.get(segment.speakerLabel);
             await this.transcriptSegmentService.create(null, {
                 workspaceId: meeting.workspaceId,
                 meetingId: meeting._id,
                 transcriptVersionId: version._id,
                 speakerLabel: segment.speakerLabel,
-                // STT chỉ tách được giọng, không biết đó là ai.
-                identityStatus: SpeakerIdentityStatus.UNKNOWN,
+                // STT chỉ tách được giọng; khớp vân giọng đã đăng ký thì là gợi ý,
+                // người dùng xác nhận hoặc đổi ở tab Transcript.
+                speakerUserId: match?.userId,
+                identityStatus: match ? SpeakerIdentityStatus.SUGGESTED : SpeakerIdentityStatus.UNKNOWN,
+                identityScore: match?.score,
                 startMs: segment.startMs,
                 endMs: segment.endMs,
                 text: segment.text,
@@ -183,6 +231,19 @@ export class MeetingProcessingService {
                 language: segment.language,
                 isOverlapping: segment.isOverlapping ?? false,
                 sequence,
+            });
+        }
+
+        // Tên gợi ý theo giọng đi kèm transcript sang AI phân tích (biên bản ghi
+        // tên người thay vì "Người nói N"); chưa ai xác nhận nên confirmedById trống.
+        for (const [speakerLabel, match] of matches) {
+            await this.speakerAliasService.create(null, {
+                workspaceId: meeting.workspaceId,
+                meetingId: meeting._id,
+                transcriptVersionId: version._id,
+                speakerLabel,
+                displayName: match.displayName,
+                userId: match.userId,
             });
         }
 

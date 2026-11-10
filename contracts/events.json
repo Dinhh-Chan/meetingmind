@@ -24,7 +24,8 @@
         "fileId": "string · files._id",
         "bucket": "string",
         "objectKey": "string",
-        "language": "string · vi | en"
+        "language": "string · vi | en",
+        "voiceProfiles": "array? · [{ userId, embedding: number[] }] vân giọng người tham dự đã đăng ký, để gợi ý ai là Người nói N"
       }
     },
     "transcription.completed": {
@@ -38,7 +39,8 @@
         "model": "string",
         "segments": "array · [{ speakerLabel, startMs, endMs, text, confidence, language?, isOverlapping? }]",
         "language": "string? · ngôn ngữ nói nhiều nhất, ISO 639-1",
-        "languages": "object? · tỷ lệ thời lượng theo ngôn ngữ, ví dụ { vi: 0.8, en: 0.2 }"
+        "languages": "object? · tỷ lệ thời lượng theo ngôn ngữ, ví dụ { vi: 0.8, en: 0.2 }",
+        "speakerMatches": "object? · { \"Người nói 1\": { userId, score } } nhãn khớp vân giọng (cosine ≥ ngưỡng, mỗi người một nhãn)"
       }
     },
     "transcription.failed": {

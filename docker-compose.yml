@@ -241,6 +241,10 @@ services:
       AI_RERANK_MODEL: ${AI_RERANK_MODEL:-bge-reranker-v2-m3}
       AI_QA_MODEL: ${AI_QA_MODEL:-GLM-5.2}
       AI_QA_FALLBACK_MODEL: ${AI_QA_FALLBACK_MODEL:-DeepSeek-V4.1-Flash}
+    # Model nhận giọng (sherpa-onnx) dùng chung với ai-worker cho đăng ký giọng nói:
+    # vân giọng lúc đăng ký và lúc họp phải ra từ cùng một model.
+    volumes:
+      - whisper-models:/root/.cache/huggingface
     ports:
       - "8000:8000"
 

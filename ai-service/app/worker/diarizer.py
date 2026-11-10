@@ -90,12 +90,14 @@ def build_segments(
     turns: list[Turn],
     confidences: dict[int, float | None],
     min_overlap_s: float = 0.3,
+    labels_out: dict[int, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Cắt lời thành đoạn theo người nói.
 
     Một đoạn Whisper trùm hai người (người này dứt lời, người kia nói ngay) bị
     cắt đôi đúng chỗ đổi người. Nhãn đặt theo thứ tự xuất hiện: "Người nói 1"
-    là người mở lời trước.
+    là người mở lời trước. Truyền labels_out để lấy bảng số người → nhãn (dùng
+    khi ghép vân giọng với người đã đăng ký).
     """
     regions = overlap_regions(turns)
     labels: dict[int, str] = {}
@@ -136,6 +138,8 @@ def build_segments(
         # Nói chồng đáng kể: đủ dài, hoặc chiếm phần lớn một đoạn ngắn.
         # bool(): mốc từ của faster-whisper là numpy.float64, so sánh ra numpy.bool.
         s["isOverlapping"] = bool(overlapped >= min_overlap_s or (end > start and overlapped / (end - start) >= 0.3))
+    if labels_out is not None:
+        labels_out.update(labels)
     return [s for s in segments if s["text"]]
 
 
@@ -313,9 +317,15 @@ class Diarizer:
         return np.array(self._extractor.compute(stream))
 
     def turns(self, audio, words: list[Word], sample_rate: int = 16000) -> list[Turn]:
+        return self.diarize(audio, words, sample_rate)[0]
+
+    def diarize(self, audio, words: list[Word], sample_rate: int = 16000):
+        """Lượt nói, kèm vân giọng trung bình của từng người (để nhận ra người đã đăng ký giọng)."""
+        import numpy as np
+
         windows = make_windows(words)
         if not windows:
-            return []
+            return [], {}
         embeddings = [self._embed(audio, w, sample_rate) for w in windows]
         labels = cluster(embeddings, self.threshold)
         labels = merge_small_clusters(embeddings, labels, [w.end - w.start for w in windows], self.min_speaker_s)
@@ -323,4 +333,6 @@ class Diarizer:
             overlapping = overlap_windows(embeddings, labels)
         else:
             overlapping = [False] * len(windows)
-        return turns_from_windows(windows, labels, overlapping)
+        x = _normalize(np.asarray(embeddings, dtype=np.float32))
+        centroids = {k: x[[i for i, label in enumerate(labels) if label == k]].mean(axis=0) for k in set(labels) if k >= 0}
+        return turns_from_windows(windows, labels, overlapping), centroids

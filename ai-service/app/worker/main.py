@@ -39,6 +39,8 @@ async def handle_transcription(
             bucket=payload["bucket"],
             object_key=payload["objectKey"],
             language=payload.get("language", "vi"),
+            # Vân giọng của người tham dự đã đăng ký: để nhận ra ai là "Người nói N".
+            voice_profiles=payload.get("voiceProfiles") or [],
         )
         out = c.envelope(
             c.TRANSCRIPTION_COMPLETED,
@@ -52,6 +54,7 @@ async def handle_transcription(
                 "segments": result.segments,
                 "language": result.language,
                 "languages": result.languages,
+                "speakerMatches": result.speaker_matches,
             },
         )
         routing_key = c.TRANSCRIPTION_COMPLETED

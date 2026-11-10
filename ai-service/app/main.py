@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi_sqlalchemy import DBSessionMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
-from app.api import api_knowledge
+from app.api import api_knowledge, api_voice
 from app.core.router import router
 from app.models import Base
 from app.core.database import engine
@@ -71,6 +71,8 @@ def get_application() -> FastAPI:
     application.include_router(router, prefix=settings.API_PREFIX)
     # Hỏi đáp nội bộ: ngoài tiền tố /api, xác thực bằng X-Internal-Token thay vì JWT người dùng.
     application.include_router(api_knowledge.router)
+    # Đăng ký giọng nói: Core gửi mẫu đọc, nhận vân giọng (cũng xác thực bằng X-Internal-Token).
+    application.include_router(api_voice.router)
     application.add_exception_handler(CustomException, custom_error_handler)
     application.add_exception_handler(ValidationException, validation_exception_handler)
     application.add_exception_handler(Exception, fastapi_error_handler)

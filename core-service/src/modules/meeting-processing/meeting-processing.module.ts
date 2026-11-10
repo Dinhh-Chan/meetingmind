@@ -1,3 +1,6 @@
+import { MeetingParticipantModule } from "@module/meeting-participant/meeting-participant.module";
+import { UserModule } from "@module/user/user.module";
+import { VoiceProfileModule } from "@module/voice-profile/voice-profile.module";
 import { KnowledgeModule } from "@module/knowledge/knowledge.module";
 import { MeetingMinutesModule } from "@module/meeting-minutes/meeting-minutes.module";
 import { MeetingModule } from "@module/meeting/meeting.module";
@@ -28,6 +31,9 @@ import { MeetingProcessingService } from "./services/meeting-processing.service"
         TranscriptVersionModule,
         MessagingModule,
         KnowledgeModule,
+        MeetingParticipantModule,
+        VoiceProfileModule,
+        UserModule,
     ],
     controllers: [MeetingProcessingController],
     providers: [
