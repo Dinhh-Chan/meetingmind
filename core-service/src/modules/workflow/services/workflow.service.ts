@@ -581,6 +581,21 @@ export class WorkflowService {
         return draft;
     }
 
+    /**
+     * Chạy lại bước xử lý bị lỗi của bản ghi mình (PM: của bất kỳ ai), dùng
+     * tệp đã lưu — không phải tải lại.
+     */
+    async retryProcessing(userId: string, meetingId: string) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_VIEW);
+        const anyRecorder = await this.permissionService.can(
+            userId,
+            meeting.workspaceId,
+            Permission.TRANSCRIPT_UPDATE,
+            { meetingId, projectId: meeting.projectId },
+        );
+        return this.meetingProcessingService.retryFailed(meeting, userId, anyRecorder);
+    }
+
     /* ------------------------------------------------------- thư ký */
 
     /**

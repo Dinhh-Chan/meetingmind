@@ -4,6 +4,7 @@ import {
     KnowledgeMeeting,
 } from "@module/knowledge/services/knowledge-index.service";
 import { MeetingMinutesService } from "@module/meeting-minutes/services/meeting-minutes.service";
+import { Meeting } from "@module/meeting/entities/meeting.entity";
 import { MeetingService } from "@module/meeting/services/meeting.service";
 import {
     MeetingStatus,
@@ -59,6 +60,8 @@ export interface StartTranscriptionDto {
     fileId?: string;
     /** Người ghi âm: transcript và biên bản nháp từ bản ghi này thuộc về người đó. */
     recordedById?: string;
+    /** Lần chạy lại sau lỗi: mỗi lần là một job mới cho cùng tệp. */
+    attempt?: number;
 }
 
 /**
@@ -98,8 +101,10 @@ export class MeetingProcessingService {
             throw ApiError.NotFound("error-meeting-not-found");
         }
 
-        // Khóa chống chạy trùng: cùng file thì chỉ phiên âm một lần.
-        const idempotencyKey = `${dto.meetingId}:transcribe:${dto.objectKey}`;
+        // Khóa chống chạy trùng: cùng file thì chỉ phiên âm một lần (mỗi lần thử lại một khóa).
+        const idempotencyKey =
+            `${dto.meetingId}:transcribe:${dto.objectKey}` +
+            (dto.attempt ? `:retry${dto.attempt}` : "");
         const existing = await this.processingJobService.getOne(null, {
             idempotencyKey,
         });
@@ -583,6 +588,49 @@ export class MeetingProcessingService {
             `Biên bản nháp v${minutesVersion.versionNo} + ${proposals.length} đề xuất cho ${meeting._id}`,
         );
         return { minutesVersion, batch };
+    }
+
+    /**
+     * Chạy lại bước lỗi gần nhất của bản ghi người này (`anyRecorder`: của bất
+     * kỳ ai): phiên âm lại tệp đã lưu, hoặc phân tích lại transcript đã có —
+     * không phải tải tệp lên lại.
+     */
+    async retryFailed(meeting: Meeting, userId: string, anyRecorder: boolean) {
+        const createdAt = (row: object) =>
+            new Date((row as { createdAt?: Date }).createdAt ?? 0).getTime();
+        const jobs = (
+            await this.processingJobService.getMany(null, { meetingId: meeting._id })
+        )
+            .filter(
+                (j) =>
+                    anyRecorder ||
+                    (j.payload?.recordedById ?? meeting.createdById) === userId,
+            )
+            .sort((a, b) => createdAt(b) - createdAt(a));
+        const last = jobs[0];
+        if (!last || last.status !== ProcessingJobStatus.FAILED) {
+            throw ApiError.BadRequest("error-nothing-to-retry");
+        }
+        if (last.type === ProcessingJobType.TRANSCRIBE) {
+            const { bucket, objectKey, recordedById } = last.payload ?? {};
+            return this.startTranscription({
+                meetingId: meeting._id,
+                bucket,
+                objectKey,
+                recordedById,
+                attempt: jobs.filter(
+                    (j) =>
+                        j.type === ProcessingJobType.TRANSCRIBE &&
+                        j.payload?.objectKey === objectKey,
+                ).length,
+            });
+        }
+        if (last.type === ProcessingJobType.SUMMARIZE && last.payload?.transcriptVersionId) {
+            return this.requestAnalysis(meeting, last.payload.transcriptVersionId, {
+                rerun: true,
+            });
+        }
+        throw ApiError.BadRequest("error-nothing-to-retry");
     }
 
     async onJobFailed(payload: { jobId: string; meetingId: string; error: string }) {

@@ -143,26 +143,34 @@ def _load_diarizer():
         return _diarizer
 
 
-def _load_model(settings: Settings):
+def is_cuda_error(err: BaseException) -> bool:
+    """Lỗi do GPU (driver, không thấy thiết bị, hết bộ nhớ GPU), không phải do bản ghi."""
+    return isinstance(err, RuntimeError) and "cuda" in str(err).lower()
+
+
+def _load_model(settings: Settings, force_cpu: bool = False):
     """Nạp một lần mỗi tiến trình: model vài trăm MB, nạp lại mỗi job rất chậm.
 
     Lần đầu faster-whisper tải model từ Hugging Face về ~/.cache/huggingface
     (gắn volume trong docker-compose để không tải lại khi dựng lại container).
+
+    Cấu hình GPU mà container không thấy GPU (driver lỗi, GPU bị lấy mất) thì
+    chạy CPU: chậm hơn nhưng bản ghi vẫn ra transcript thay vì báo lỗi.
     """
     global _model
     with _model_lock:
-        if _model is None:
+        if _model is None or force_cpu:
             from faster_whisper import WhisperModel
 
-            log.info(
-                "Nạp Whisper model=%s device=%s compute=%s",
-                settings.model,
-                settings.device,
-                settings.compute_type,
-            )
-            _model = WhisperModel(
-                settings.model, device=settings.device, compute_type=settings.compute_type
-            )
+            device, compute = ("cpu", "int8") if force_cpu else (settings.device, settings.compute_type)
+            log.info("Nạp Whisper model=%s device=%s compute=%s", settings.model, device, compute)
+            try:
+                _model = WhisperModel(settings.model, device=device, compute_type=compute)
+            except RuntimeError as err:
+                if device == "cpu" or not is_cuda_error(err):
+                    raise
+                log.warning("Không dùng được GPU (%s): chạy Whisper trên CPU", err)
+                _model = WhisperModel(settings.model, device="cpu", compute_type="int8")
         return _model
 
 
@@ -194,7 +202,16 @@ class WhisperTranscriber:
             from faster_whisper import decode_audio
 
             audio = await asyncio.to_thread(decode_audio, str(path), SAMPLE_RATE)
-            return await asyncio.to_thread(self.transcribe_audio, audio, language, voice_profiles)
+            try:
+                return await asyncio.to_thread(self.transcribe_audio, audio, language, voice_profiles)
+            except RuntimeError as err:
+                # GPU mất giữa chừng (model đã nạp lên GPU không dùng được nữa):
+                # nạp lại trên CPU và chạy lại bản ghi này một lần.
+                if not is_cuda_error(err) or self.settings.device == "cpu":
+                    raise
+                log.warning("GPU lỗi khi phiên âm (%s): chuyển Whisper sang CPU và chạy lại", err)
+                self._model = await asyncio.to_thread(_load_model, self.settings, True)
+                return await asyncio.to_thread(self.transcribe_audio, audio, language, voice_profiles)
         finally:
             path.unlink(missing_ok=True)
 

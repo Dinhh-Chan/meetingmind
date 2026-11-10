@@ -10,6 +10,7 @@ export type ErrorCode =
     | "error-minutes-status-invalid"
     | "error-reject-reason-required"
     | "error-deadline-past"
+    | "error-nothing-to-retry"
     | "error-minutes-already-approved"
     | "error-minutes-not-owner"
     | "error-user-not-participant"

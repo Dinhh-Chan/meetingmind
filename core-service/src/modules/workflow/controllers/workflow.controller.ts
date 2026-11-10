@@ -280,6 +280,12 @@ export class WorkflowController {
         return this.workflowService.getMeetingContent(user._id, id, record || undefined);
     }
 
+    /** Chạy lại bước xử lý bị lỗi của bản ghi, không phải tải tệp lại. */
+    @Post("meetings/:id/retry")
+    retryProcessing(@ReqUser() user: User, @Param("id") id: string) {
+        return this.workflowService.retryProcessing(user._id, id);
+    }
+
     /** Chỉ định người ghi âm chính (thư ký) của cuộc họp. */
     @Put("meetings/:id/recorder")
     setMeetingRecorder(@ReqUser() user: User, @Param("id") id: string, @Body() dto: RecorderBodyDto) {
