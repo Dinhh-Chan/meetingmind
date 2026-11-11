@@ -25,6 +25,7 @@ export type ErrorCode =
     | "error-recipient-no-access"
     | "error-minutes-already-approved"
     | "error-minutes-not-owner"
+    | "error-minutes-not-secretary"
     | "error-user-not-participant"
     | "error-password-not-set"
     | "error-voice-consent-required"

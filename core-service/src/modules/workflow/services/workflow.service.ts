@@ -417,13 +417,16 @@ export class WorkflowService {
                     !!record && open && (record.mine || granted.has(Permission.TRANSCRIPT_UPDATE)),
                 editMinutes:
                     !!record?.mine && open && status !== undefined && status !== MinutesVersionStatus.APPROVED,
-                submit: !personal && !!record?.mine && open && status === MinutesVersionStatus.DRAFT,
+                // Chỉ bản ghi của thư ký (người được chỉ định ghi âm) mới gửi duyệt;
+                // bản ghi của người khác chỉ để người đó xem, không vào luồng duyệt.
+                submit:
+                    !personal && !!record?.mine && !!record?.designated && open && status === MinutesVersionStatus.DRAFT,
                 approve:
                     !personal &&
                     open &&
                     granted.has(Permission.MINUTES_APPROVE) &&
                     (status === MinutesVersionStatus.PENDING_APPROVAL ||
-                        (status === MinutesVersionStatus.DRAFT && !!record?.mine)),
+                        (status === MinutesVersionStatus.DRAFT && !!record?.mine && !!record?.designated)),
                 reject:
                     !personal &&
                     open &&
@@ -487,6 +490,7 @@ export class WorkflowService {
         const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_VIEW);
         const { view, record, version } = await this.minutesFor(userId, meeting, minutesVersionId);
         if (!record.mine) throw ApiError.Forbidden("error-minutes-not-owner");
+        if (!record.designated) throw ApiError.Forbidden("error-minutes-not-secretary");
         if (view.approved) throw ApiError.BadRequest("error-minutes-already-approved");
         this.expectStatus(version.status, MinutesVersionStatus.DRAFT);
         return this.minutesVersionService.updateById(null, version._id, {
@@ -562,6 +566,8 @@ export class WorkflowService {
         const meeting = await this.meetingFor(userId, meetingId, Permission.MINUTES_APPROVE);
         const { view, record, version } = await this.minutesFor(userId, meeting, minutesVersionId);
         if (view.approved) throw ApiError.BadRequest("error-minutes-already-approved");
+        // Chỉ biên bản của thư ký vào luồng duyệt; thư ký là chính người duyệt thì duyệt thẳng bản nháp.
+        if (!record.designated) throw ApiError.Forbidden("error-minutes-not-secretary");
         if (record.mine) {
             this.expectStatus(
                 version.status,

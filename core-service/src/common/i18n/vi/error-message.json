@@ -41,6 +41,7 @@
     "error-recipient-no-access": "Người nhận chưa xem được cuộc họp này",
     "error-minutes-already-approved": "Cuộc họp đã có biên bản được duyệt",
     "error-minutes-not-owner": "Chỉ người ghi âm bản này mới sửa và gửi duyệt được biên bản của nó",
+    "error-minutes-not-secretary": "Chỉ biên bản của thư ký (người được chỉ định ghi âm) mới gửi duyệt và được duyệt",
     "error-user-not-participant": "Người này không có trong danh sách tham dự cuộc họp",
     "error-password-not-set": "Tài khoản này được tạo bằng Google nên chưa có mật khẩu. Bấm “Tiếp tục với Google”, rồi đặt mật khẩu ở Cài đặt › Tài khoản.",
     "error-voice-consent-required": "Cần đồng ý cho lưu vân giọng trước khi đăng ký",

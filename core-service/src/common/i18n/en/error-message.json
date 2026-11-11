@@ -33,6 +33,7 @@
     "error-recipient-no-access": "The recipient cannot view this meeting",
     "error-minutes-already-approved": "This meeting already has approved minutes",
     "error-minutes-not-owner": "Only the person who recorded this version can edit or submit its minutes",
+    "error-minutes-not-secretary": "Only the designated secretary's minutes can be submitted for and receive approval",
     "error-user-not-participant": "This person is not a participant of the meeting",
     "error-reject-reason-required": "A reason is required to reject",
     "error-password-not-set": "This account was created with Google and has no password yet. Continue with Google, then set a password in Settings › Account.",
