@@ -215,13 +215,36 @@ export class MeetingProcessingService {
             {} as any,
         );
         const versionNo = previous.length + 1;
-
-        // Mỗi người ghi có một phiên bản đang dùng; bản ghi của người khác giữ nguyên.
-        for (const old of previous.filter(
+        const mineCurrent = previous.filter(
             (v) =>
                 v.isCurrent &&
                 MeetingRecordService.recorderOf(v, meeting) === recordedById,
-        )) {
+        );
+
+        // Bản ghi không có lời nào (bấm ghi rồi dừng ngay, hoặc im lặng) không được
+        // thay transcript đang có của người ghi: giữ nguyên bản cũ và biên bản của nó.
+        if (!payload.segments.length && mineCurrent.length) {
+            this.logger.warn(
+                `Bản ghi rỗng cho ${meeting._id} (người ghi ${recordedById}): giữ transcript ${mineCurrent[0]._id}`,
+            );
+            await this.processingJobService.updateOne(
+                null,
+                { _id: payload.jobId },
+                {
+                    status: ProcessingJobStatus.SUCCEEDED,
+                    finishedAt: new Date(),
+                    result: {
+                        segments: 0,
+                        skipped: "empty-recording",
+                        transcriptVersionId: mineCurrent[0]._id,
+                    },
+                },
+            );
+            return mineCurrent[0];
+        }
+
+        // Mỗi người ghi có một phiên bản đang dùng; bản ghi của người khác giữ nguyên.
+        for (const old of mineCurrent) {
             await this.transcriptVersionService.updateById(null, old._id, {
                 isCurrent: false,
             });
