@@ -106,20 +106,25 @@ Kết quả gửi về Core có `language` từng đoạn, ngôn ngữ chính `l
 ### Tách người nói (họp trực tiếp, một micro)
 
 `diarizer.py`: cắt lời Whisper thành khúc ~1,5 s theo mốc từ, tính vector giọng (3D-Speaker qua sherpa-onnx,
-CPU), gộp cụm theo độ giống → "Người nói 1, 2…" theo thứ tự lên tiếng; một câu Whisper trùm hai người được cắt
+CPU), gộp cụm theo độ giống (chỉ khúc ≥ 1 s; khúc ngắn hơn như "alo", "ừ" theo người giống nhất) →
+"Người nói 1, 2…" theo thứ tự lên tiếng; một câu Whisper trùm hai người được cắt
 đúng chỗ đổi người. (Thử nghiệm) khúc giống người thứ hai cao bất thường → `isOverlapping`.
 
 Đo trên cuộc họp thử 4 người, 151 s, giọng FPT TTS (báo cáo nghiệm thu, `nghiem-thu/thuc-nghiem/`):
 đúng 4/4 người và 99,5 % thời gian nói ở bản sạch; có nhiễu thì tách thừa 1–3 cụm nhỏ, vẫn đúng 85–95 %.
 Đánh dấu nói chồng **không đạt** trên bộ này (báo nhầm 8–11 đoạn ở bản không có nói chồng, không bắt được
-đoạn chồng 1,2 s) nên mặc định tắt. Whisper chép giọng át và bỏ mất lời người nói chồng. **Chưa đo trên ghi
-âm thật.**
+đoạn chồng 1,2 s) nên mặc định tắt. Whisper chép giọng át và bỏ mất lời người nói chồng.
+
+Trên ghi âm thật (micro laptop, người đúng suy từ nội dung lời nói): cho khúc ngắn tham gia gộp cụm thì vài
+tiếng "alo" của một người tụ thành người nói thừa — cuộc nói chuyện 2 người, 57 s ra 3 người; buổi học qua
+Meet 2 người, 330 s ra 4 người. Chỉ gộp cụm khúc ≥ 1 s thì cả hai ra đúng 2 người, gán đúng mọi khúc.
 
 | Biến | Mặc định | |
 | --- | --- | --- |
 | `AI_DIARIZATION` | `1` | `0` để tắt (mọi đoạn là "Người nói 1") |
 | `AI_DIARIZATION_THRESHOLD` | `0.3` | ngưỡng gộp cụm; thấp → gộp nhiều người, cao → tách thừa |
 | `AI_DIARIZATION_MIN_SPEAKER_S` | `2.0` | "người" nói tổng ít hơn ngần này giây gộp vào người giống nhất |
+| `AI_DIARIZATION_MIN_WINDOW_S` | `1.0` | khúc ngắn hơn không tham gia gộp cụm (vân giọng nhiễu), chỉ theo người giống nhất |
 | `AI_DIARIZATION_OVERLAP` | `0` | `1` để bật đánh dấu nói chồng; mặc định tắt vì còn báo nhầm nhiều (xem báo cáo thực nghiệm) |
 
 | Biến | Mặc định | |

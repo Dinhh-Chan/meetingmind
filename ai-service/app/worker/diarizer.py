@@ -3,7 +3,8 @@
 Whisper chỉ chép lời, không phân biệt giọng. Cách làm: cắt lời Whisper thành
 khúc ~1,5 s theo ranh giới từ, tính vector giọng từng khúc bằng mô hình
 3D-Speaker (ONNX qua sherpa-onnx, CPU, không cần token), rồi gộp cụm theo độ
-giống nhau. Khúc giống gần ngang hai người được coi là nói chồng.
+giống nhau — chỉ khúc từ 1 s trở lên, khúc ngắn hơn theo người giống nhất.
+Khúc giống gần ngang hai người được coi là nói chồng.
 
 Không dùng mô hình phân đoạn pyannote: trên dữ liệu thử nó coi cả cửa sổ 10 s
 là một người, chỉ "đổi người" ở ranh giới cửa sổ, trong khi vector giọng tách
@@ -211,6 +212,33 @@ def cluster(embeddings, threshold: float, max_speakers: int = 20) -> list[int]:
     return labels
 
 
+def cluster_reliable(embeddings, durations: list[float], threshold: float, min_window_s: float) -> list[int]:
+    """Gộp cụm chỉ trên các khúc đủ dài; khúc ngắn theo cụm có tâm giống nhất.
+
+    Khúc ngắn ("alo", "ừ" dưới 1 s) cho vân giọng nhiễu, và vài khúc ngắn của
+    cùng một người dễ giống nhau hơn giống phần nói dài của chính người đó —
+    để chúng tham gia gộp cụm thì đẻ ra "người nói" thừa (bản ghi thật hai người
+    nói ra ba người). Không đủ hai khúc dài thì gộp cụm tất cả như cũ.
+    """
+    import numpy as np
+
+    reliable = [i for i, d in enumerate(durations) if d >= min_window_s]
+    if len(reliable) < 2:
+        return cluster(embeddings, threshold)
+    x = _normalize(np.asarray(embeddings, dtype=np.float32))
+    labels = np.full(len(x), -1)
+    labels[reliable] = cluster(x[reliable], threshold)
+    ks = sorted(set(labels[reliable].tolist()))
+    centroids = _normalize(np.stack([x[labels == k].mean(0) for k in ks]))
+    for i in np.flatnonzero(labels < 0):
+        labels[i] = ks[int(np.argmax(centroids @ x[i]))]
+    # Đánh số lại theo thứ tự xuất hiện, như cluster().
+    order: dict[int, int] = {}
+    for k in labels.tolist():
+        order.setdefault(k, len(order))
+    return [order[k] for k in labels.tolist()]
+
+
 def merge_small_clusters(embeddings, labels: list[int], durations: list[float], min_speaker_s: float) -> list[int]:
     """Cụm có tổng thời gian nói quá ít gộp vào cụm lớn giống nhất.
 
@@ -295,6 +323,7 @@ class Diarizer:
 
         self.threshold = threshold if threshold is not None else float(os.environ.get("AI_DIARIZATION_THRESHOLD", "0.3"))
         self.min_speaker_s = float(os.environ.get("AI_DIARIZATION_MIN_SPEAKER_S", "2.0"))
+        self.min_window_s = float(os.environ.get("AI_DIARIZATION_MIN_WINDOW_S", "1.0"))
         # Đánh dấu nói chồng mặc định tắt: thực nghiệm trên bản ghi 4 người cho
         # thấy ngưỡng tương đối báo nhầm 8–11 đoạn trên bản ghi không có nói
         # chồng và không bắt được đoạn chồng ngắn 1,2 s. Bật để thử nghiệm tiếp.
@@ -327,8 +356,9 @@ class Diarizer:
         if not windows:
             return [], {}
         embeddings = [self._embed(audio, w, sample_rate) for w in windows]
-        labels = cluster(embeddings, self.threshold)
-        labels = merge_small_clusters(embeddings, labels, [w.end - w.start for w in windows], self.min_speaker_s)
+        durations = [w.end - w.start for w in windows]
+        labels = cluster_reliable(embeddings, durations, self.threshold, self.min_window_s)
+        labels = merge_small_clusters(embeddings, labels, durations, self.min_speaker_s)
         if self.detect_overlap:
             overlapping = overlap_windows(embeddings, labels)
         else:

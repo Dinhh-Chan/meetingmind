@@ -12,6 +12,7 @@ from app.worker.diarizer import (
     Window,
     build_segments,
     cluster,
+    cluster_reliable,
     merge_small_clusters,
     make_windows,
     overlap_regions,
@@ -136,6 +137,24 @@ def test_qua_it_khuc_thi_khong_doan_noi_chong():
 def test_luot_noi_chong_sinh_vung_chong():
     turns = turns_from_windows([Window(0, 1), Window(1, 2)], [0, 1], [False, True])
     assert overlap_regions(turns) == [(1, 2)]
+
+
+def test_khuc_ngan_khong_tu_thanh_nguoi_noi_rieng():
+    # Vài tiếng "alo" ngắn của B giống nhau (cùng lệch kiểu) hơn giống phần B nói dài.
+    rng = np.random.default_rng(5)
+    a, b = _voice(1, 4), _voice(2, 4)
+    shift = 2.0 * rng.standard_normal(64)
+    short_b = [b[0] + shift + 0.3 * rng.standard_normal(64) for _ in range(3)]
+    emb = a[:2] + short_b + b + a[2:]
+    durations = [1.5, 1.5, 0.4, 0.6, 0.8] + [1.5] * 6
+    assert len(set(cluster(emb, threshold=0.5))) == 3
+    assert cluster_reliable(emb, durations, threshold=0.5, min_window_s=1.0) == [0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0]
+
+
+def test_qua_it_khuc_dai_thi_gop_cum_ca():
+    a, b = _voice(1, 2), _voice(2, 2)
+    emb = a + b
+    assert cluster_reliable(emb, [0.5, 1.5, 0.5, 0.5], threshold=0.5, min_window_s=1.0) == cluster(emb, threshold=0.5)
 
 
 def test_cum_qua_nho_gop_vao_nguoi_giong_nhat():
