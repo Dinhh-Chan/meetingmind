@@ -56,6 +56,7 @@ Quy tắc:
 - Quyết định (decisions): chỉ những điều cả nhóm đã chốt. Một đề xuất chưa ai đồng ý ("hay là…", "em nghĩ…") KHÔNG phải quyết định.
 - Vấn đề còn mở (openIssues): câu hỏi hoặc lựa chọn chưa có kết luận trong cuộc họp.
 - Công việc (actionItems): việc cụ thể có người nhận làm hoặc được giao.
+  - Mỗi người một việc: nhiều người nhận việc, hoặc mỗi người một hạn khác nhau, thì tách thành từng công việc riêng. Câu chỉ nêu hạn của một người ("deadline của A là ngày 21") cũng là một công việc của người đó; không nói rõ việc gì thì đặt title theo việc đang bàn gần nhất, không có thì "Hoàn thành phần việc được giao".
   - assigneeHint: tên người thực hiện đúng như trong transcript. Nếu người nói chỉ có nhãn tự động nhưng được gọi tên ở chỗ khác thì dùng tên đó. Không rõ ai làm thì để null.
   - deadlineRawText: nguyên văn cụm chỉ thời hạn trong transcript (ví dụ "thứ Sáu", "18/11"). Không có thì null. Không tự đoán ngày.
   - priority: "high" | "medium" | "low".
@@ -113,8 +114,17 @@ Dự án dùng mẫu biên bản gồm các mục theo thứ tự: {titles}.
 Thêm vào object JSON trường "sections": mỗi mục một phần tử {{"title": "<tên mục đúng như trên>", "content": "<nội dung>"}}, đúng thứ tự trên. Nội dung viết bằng {language}, ngắn gọn (gạch đầu dòng bắt đầu bằng "- " nếu có nhiều ý), chỉ dựa vào transcript. Mục không có thông tin thì content là "Không có"."""
 
 
+PEOPLE_PROMPT = """
+
+Người tham dự cuộc họp và thành viên dự án: {people}.
+Transcript hay ghi sai tên người (đảo thứ tự họ tên, sai dấu, "Mi"/"My"). assigneeHint ứng với một người trong danh sách trên thì ghi ĐÚNG tên trong danh sách; không ứng với ai thì giữ tên như transcript."""
+
+
 def build_messages(
-    segments: list[dict[str, Any]], language: str | None, template_sections: list[str] | None = None
+    segments: list[dict[str, Any]],
+    language: str | None,
+    template_sections: list[str] | None = None,
+    people: list[str] | None = None,
 ) -> list[dict[str, str]]:
     name = LANGUAGE_NAMES.get((language or "vi").split("-")[0], "ngôn ngữ chính của cuộc họp")
     lines = [f"[{s['sequence']}] {s.get('speaker') or 'Không rõ'}: {s['text']}" for s in segments]
@@ -122,6 +132,9 @@ def build_messages(
     titles = [t.strip() for t in template_sections or [] if t and t.strip()]
     if titles:
         system += TEMPLATE_PROMPT.format(titles="; ".join(f"“{t}”" for t in titles), language=name)
+    names = [n.strip() for n in people or [] if n and n.strip()]
+    if names:
+        system += PEOPLE_PROMPT.format(people="; ".join(names))
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": "Transcript cuộc họp:\n\n" + "\n".join(lines)},
@@ -267,6 +280,7 @@ class LlmAnalyzer:
         language: str,
         segments: list[dict[str, Any]] | None = None,
         template_sections: list[str] | None = None,
+        people: list[str] | None = None,
     ) -> AnalysisResult:
         segments = [s for s in segments or [] if str(s.get("text") or "").strip()]
         if not segments:
@@ -274,7 +288,7 @@ class LlmAnalyzer:
             log.warning("Transcript %s rỗng, bỏ qua LLM", transcript_version_id)
             return AnalysisResult(run_id=str(uuid.uuid4()), model="none")
 
-        messages = build_messages(segments, language, template_sections)
+        messages = build_messages(segments, language, template_sections, people)
         models = [m for m in (self.settings.model, self.settings.fallback_model) if m]
         errors: list[str] = []
         async with httpx.AsyncClient(

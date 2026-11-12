@@ -95,6 +95,8 @@ async def handle_analysis(
             language=payload.get("language", "vi"),
             segments=payload.get("segments") or [],
             template_sections=payload.get("templateSections") or None,
+            # Tên người tham dự và thành viên dự án: để AI ghi đúng tên người thực hiện.
+            people=payload.get("people") or None,
         )
         out = c.envelope(
             c.ANALYSIS_COMPLETED,

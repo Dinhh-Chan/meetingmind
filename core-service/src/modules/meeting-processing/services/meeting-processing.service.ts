@@ -34,6 +34,7 @@ import { ReviewItemService } from "@module/review-item/services/review-item.serv
 import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
 import { MeetingRecordService } from "@module/meeting-record/meeting-record.service";
 import { MinutesTemplateService } from "@module/minutes-template/services/minutes-template.service";
+import { ProjectMemberService } from "@module/project-member/services/project-member.service";
 import { ProjectService } from "@module/project/services/project.service";
 import { SpeakerAliasService } from "@module/speaker-alias/services/speaker-alias.service";
 import { UserService } from "@module/user/service/user.service";
@@ -44,6 +45,7 @@ import { TranscriptSegmentService } from "@module/transcript-segment/services/tr
 import { TranscriptVersionSource } from "@module/transcript-version/common/constant";
 import { TranscriptVersionService } from "@module/transcript-version/services/transcript-version.service";
 import { Injectable, Logger } from "@nestjs/common";
+import { PersonRef, matchPerson, resolveDeadline } from "../common/task-hints";
 
 /**
  * Phụ đề Google Meet ghi chính người đang xem là "You"/"Bạn" (theo ngôn ngữ
@@ -73,6 +75,10 @@ export interface StartTranscriptionDto {
  * Core ra lệnh và ghi kết quả; AI chỉ tính toán rồi trả về. AI không ghi thẳng
  * vào bảng nghiệp vụ nào — xem ARCHITECTURE.md mục 3.4.
  */
+/** Ngày (YYYY-MM-DD) theo giờ Việt Nam. */
+const vnDay = (d: Date | string | number) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(d));
+
 @Injectable()
 export class MeetingProcessingService {
     private readonly logger = new Logger(MeetingProcessingService.name);
@@ -95,6 +101,7 @@ export class MeetingProcessingService {
         private readonly outboxService: OutboxService,
         private readonly knowledgeIndexService: KnowledgeIndexService,
         private readonly projectService: ProjectService,
+        private readonly projectMemberService: ProjectMemberService,
         private readonly minutesTemplateService: MinutesTemplateService,
     ) {}
 
@@ -452,6 +459,7 @@ export class MeetingProcessingService {
                 language: meeting.language,
                 segments: await this.analysisSegments(transcriptVersionId),
                 templateSections: template?.sections ?? undefined,
+                people: (await this.peopleOf(meeting)).map((p) => p.name),
             },
         });
 
@@ -460,6 +468,36 @@ export class MeetingProcessingService {
         });
 
         return job;
+    }
+
+    /**
+     * Người có thể được giao việc trong cuộc họp: người tham dự và thành viên dự
+     * án, kèm tên hiển thị.
+     */
+    private async peopleOf(
+        meeting: Pick<Meeting, "_id" | "workspaceId"> & { projectId?: string | null },
+    ): Promise<PersonRef[]> {
+        const [participants, members] = await Promise.all([
+            this.meetingParticipantService.getMany(null, { meetingId: meeting._id }),
+            meeting.projectId
+                ? this.projectMemberService.getMany(null, {
+                      workspaceId: meeting.workspaceId,
+                      projectId: meeting.projectId,
+                  })
+                : [],
+        ]);
+        const ids = [
+            ...new Set(
+                [...participants.map((p) => p.userId), ...members.map((m) => m.userId)].filter(Boolean),
+            ),
+        ];
+        if (!ids.length) return [];
+        const users = await this.userService.getMany(null, { _id: { $in: ids } }, {
+            enableDataPartition: false,
+        } as any);
+        return users
+            .map((u) => ({ userId: u._id, name: u.fullname || u.username }))
+            .filter((p) => !!p.name);
     }
 
     /**
@@ -595,11 +633,29 @@ export class MeetingProcessingService {
             aiRunId: payload.runId,
         });
 
-        const proposals = [
-            ...(payload.actionItems ?? []).map((item) => ({
-                type: ReviewItemType.ACTION_ITEM,
-                payload: item as unknown as Record<string, any>,
-            })),
+        // Điền sẵn cho người duyệt: tên AI gợi ý → tài khoản, cụm chỉ hạn → ngày
+        // cụ thể tính từ ngày họp. Bản gốc của AI vẫn giữ ở originalPayload.
+        const people = await this.peopleOf(meeting);
+        const meetingDay = vnDay(
+            meeting.actualStartAt ??
+                meeting.scheduledStartAt ??
+                (meeting as unknown as { createdAt?: Date }).createdAt ??
+                Date.now(),
+        );
+        const proposals: { type: ReviewItemType; payload: Record<string, any>; original?: Record<string, any> }[] = [
+            ...(payload.actionItems ?? []).map((item) => {
+                const assigneeId = matchPerson(item.assigneeHint, people);
+                const deadline = resolveDeadline(item.deadlineRawText, meetingDay);
+                return {
+                    type: ReviewItemType.ACTION_ITEM,
+                    original: item as unknown as Record<string, any>,
+                    payload: {
+                        ...(item as unknown as Record<string, any>),
+                        ...(assigneeId ? { assigneeId } : {}),
+                        ...(deadline ? { deadline } : {}),
+                    },
+                };
+            }),
             ...(payload.decisions ?? []).map((item) => ({
                 type: ReviewItemType.DECISION,
                 payload: item as unknown as Record<string, any>,
@@ -616,7 +672,7 @@ export class MeetingProcessingService {
                 reviewBatchId: batch._id,
                 type: proposal.type,
                 // Giữ bản gốc để đối chiếu với nội dung người dùng sửa.
-                originalPayload: proposal.payload,
+                originalPayload: proposal.original ?? proposal.payload,
                 payload: proposal.payload,
                 status: ReviewItemStatus.PENDING,
             });

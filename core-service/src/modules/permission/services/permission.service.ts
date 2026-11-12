@@ -1,6 +1,7 @@
 import { ApiError } from "@config/exception/api-error";
 import { MeetingAccessRole } from "@module/meeting-access/common/constant";
 import { MeetingAccessService } from "@module/meeting-access/services/meeting-access.service";
+import { MeetingParticipantService } from "@module/meeting-participant/services/meeting-participant.service";
 import { MeetingAccessScope } from "@module/meeting/common/constant";
 import { Meeting } from "@module/meeting/entities/meeting.entity";
 import { MeetingService } from "@module/meeting/services/meeting.service";
@@ -21,6 +22,34 @@ export interface PermissionScope {
     projectId?: string;
     meetingId?: string;
 }
+
+/** Quyền trên một cuộc họp của dự án mà chỉ người tham dự (hoặc người tạo) mới có. */
+const ATTENDEE_ONLY_PERMISSIONS: readonly Permission[] = [
+    Permission.MEETING_VIEW,
+    Permission.AUDIO_LISTEN,
+    Permission.TRANSCRIPT_VIEW,
+    Permission.MINUTES_VIEW_APPROVED,
+    Permission.RECORDING_CREATE,
+    Permission.MINUTES_EXPORT_FILE,
+];
+
+/** Khách dự cuộc họp của dự án mình không thuộc: chỉ xem cuộc họp và biên bản đã duyệt. */
+const GUEST_PERMISSIONS: readonly Permission[] = [
+    Permission.MEETING_VIEW,
+    Permission.MINUTES_VIEW_APPROVED,
+];
+
+/**
+ * Người duyệt của cuộc họp (chọn lúc tạo cuộc họp): duyệt biên bản và đề xuất AI
+ * của cuộc họp đó như PM, để cuộc họp của dự án chưa có PM vẫn có người duyệt.
+ */
+const MEETING_APPROVER_PERMISSIONS: readonly Permission[] = [
+    Permission.MINUTES_VIEW_DRAFT,
+    Permission.MINUTES_APPROVE,
+    Permission.REVIEW_UPDATE,
+    Permission.REVIEW_APPROVE,
+    Permission.TASK_ASSIGN,
+];
 
 /**
  * Quyền mà thành viên project được thực hiện trên **cuộc họp do chính mình tạo**,
@@ -54,6 +83,7 @@ export class PermissionService {
         private readonly projectMemberService: ProjectMemberService,
         private readonly meetingAccessService: MeetingAccessService,
         private readonly meetingService: MeetingService,
+        private readonly meetingParticipantService: MeetingParticipantService,
     ) {}
 
     /** Vai trò workspace, chỉ tính membership `active`. `invited` chưa có quyền. */
@@ -143,6 +173,25 @@ export class PermissionService {
                     granted.add(p),
                 );
             }
+            // Cuộc họp trong dự án là của người tham dự: thành viên dự án không dự
+            // (và không tạo) cuộc họp thì không thấy nó. PM và Owner/Admin vẫn thấy
+            // mọi cuộc họp của dự án để duyệt biên bản, đề xuất.
+            if (meeting && meeting.projectId && projectRole !== ProjectMemberRole.PM) {
+                const attends =
+                    meeting.createdById === userId ||
+                    !!(await this.meetingParticipantService.getOne(null, {
+                        meetingId: meeting._id,
+                        userId,
+                    }));
+                if (!attends) {
+                    ATTENDEE_ONLY_PERMISSIONS.forEach((p) => granted.delete(p));
+                } else if (!projectRole) {
+                    // Khách (dự họp nhưng không thuộc dự án): chỉ xem biên bản đã duyệt.
+                    GUEST_PERMISSIONS.forEach((p) => granted.add(p));
+                } else if (await this.isMeetingApprover(userId, meeting)) {
+                    MEETING_APPROVER_PERMISSIONS.forEach((p) => granted.add(p));
+                }
+            }
         }
 
         if (meeting && meeting.accessScope === MeetingAccessScope.RESTRICTED) {
@@ -167,6 +216,21 @@ export class PermissionService {
         }
 
         return granted;
+    }
+
+    /**
+     * Người duyệt của một cuộc họp trong dự án: người được chọn lúc tạo cuộc họp;
+     * không chọn ai mà dự án cũng chưa có PM thì là người tạo cuộc họp.
+     */
+    private async isMeetingApprover(userId: string, meeting: Meeting): Promise<boolean> {
+        if (meeting.approverId) return meeting.approverId === userId;
+        if (meeting.createdById !== userId) return false;
+        const pm = await this.projectMemberService.getOne(null, {
+            workspaceId: meeting.workspaceId,
+            projectId: meeting.projectId,
+            role: ProjectMemberRole.PM,
+        });
+        return !pm;
     }
 
     async can(

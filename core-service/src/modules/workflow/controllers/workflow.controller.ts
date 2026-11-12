@@ -88,6 +88,11 @@ export class CreateMeetingBodyDto {
     @IsOptional()
     @IsString()
     recorderId?: string;
+
+    /** Người duyệt biên bản và đề xuất AI, phải nằm trong danh sách tham dự. */
+    @IsOptional()
+    @IsString()
+    approverId?: string;
 }
 
 export class ReviewEditBodyDto {
@@ -123,6 +128,17 @@ export class ProjectMemberBodyDto {
     @IsEnum(ProjectMemberRole)
     role: ProjectMemberRole;
 
+    @IsOptional()
+    @IsEnum(ProjectDiscipline)
+    discipline?: ProjectDiscipline | null;
+}
+
+export class ProjectMemberPatchDto {
+    @IsOptional()
+    @IsEnum(ProjectMemberRole)
+    role?: ProjectMemberRole;
+
+    /** null: bỏ vai trò chuyên môn. */
     @IsOptional()
     @IsEnum(ProjectDiscipline)
     discipline?: ProjectDiscipline | null;
@@ -360,6 +376,12 @@ export class WorkflowController {
         return this.workflowService.setMeetingRecorder(user._id, id, dto.userId ?? null);
     }
 
+    /** Chỉ định người duyệt biên bản và đề xuất AI của cuộc họp. */
+    @Put("meetings/:id/approver")
+    setMeetingApprover(@ReqUser() user: User, @Param("id") id: string, @Body() dto: RecorderBodyDto) {
+        return this.workflowService.setMeetingApprover(user._id, id, dto.userId ?? null);
+    }
+
     /* biên bản */
 
     @Post("meetings/:id/minutes/submit")
@@ -541,6 +563,23 @@ export class WorkflowController {
     @Post("projects/:id/members")
     addProjectMember(@ReqUser() user: User, @Param("id") id: string, @Body() dto: ProjectMemberBodyDto) {
         return this.workflowService.addProjectMember(user._id, id, dto);
+    }
+
+    /** Người tạo dự án đổi quyền / vai trò chuyên môn của thành viên. */
+    @Put("projects/:id/members/:userId")
+    updateProjectMember(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Param("userId") memberUserId: string,
+        @Body() dto: ProjectMemberPatchDto,
+    ) {
+        return this.workflowService.updateProjectMember(user._id, id, memberUserId, dto);
+    }
+
+    /** Người tạo dự án xoá thành viên khỏi dự án. */
+    @Delete("projects/:id/members/:userId")
+    removeProjectMember(@ReqUser() user: User, @Param("id") id: string, @Param("userId") memberUserId: string) {
+        return this.workflowService.removeProjectMember(user._id, id, memberUserId);
     }
 
     @Post("invites/accept")

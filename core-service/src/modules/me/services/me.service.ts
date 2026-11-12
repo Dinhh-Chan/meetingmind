@@ -512,6 +512,8 @@ export class MeService {
                 }
                 return {
                     ...meeting,
+                    // Người này duyệt được biên bản, đề xuất AI của cuộc họp (PM, người duyệt được chọn…).
+                    canApprove: !!view?.seeAll,
                     minutesStatus,
                     latestJob: job
                         ? { type: job.type, status: job.status, error: job.error }

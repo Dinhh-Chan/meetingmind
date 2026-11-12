@@ -109,6 +109,8 @@ export interface CreateMeetingInput {
     participantIds?: string[];
     /** Người ghi âm chính (thư ký): transcript của người này ai tham dự cũng xem được. */
     recorderId?: string;
+    /** Người duyệt biên bản và đề xuất AI của cuộc họp, phải nằm trong danh sách tham dự. */
+    approverId?: string;
 }
 
 export interface TaskPatch {
@@ -229,6 +231,9 @@ export class WorkflowService {
         if (input.recorderId && !participantIds.includes(input.recorderId)) {
             throw ApiError.BadRequest("error-user-not-participant");
         }
+        if (input.approverId && !participantIds.includes(input.approverId)) {
+            throw ApiError.BadRequest("error-user-not-participant");
+        }
         const members = await this.workspaceMemberService.getMany(null, {
             workspaceId: input.workspaceId,
             userId: { $in: participantIds },
@@ -286,6 +291,7 @@ export class WorkflowService {
                     : MeetingStatus.SCHEDULED,
             scheduledStartAt: start,
             scheduledEndAt: end,
+            approverId: input.approverId || undefined,
             createdById: userId,
         });
 
@@ -403,7 +409,11 @@ export class WorkflowService {
                 minutesStatus: r.minutes?.status ?? null,
             })),
             selectedId: record?.transcript._id ?? null,
-            transcript: [...segments].sort((a, b) => a.sequence - b.sequence),
+            // Khách chỉ xem biên bản: không có quyền xem transcript thì không trả lời nói.
+            transcript:
+                record?.mine || granted.has(Permission.TRANSCRIPT_VIEW)
+                    ? [...segments].sort((a, b) => a.sequence - b.sequence)
+                    : [],
             aliases: aliases.map((a) => ({
                 speakerLabel: a.speakerLabel,
                 displayName: a.displayName,
@@ -925,6 +935,21 @@ export class WorkflowService {
                 await this.meetingProcessingService.indexTranscript(meeting, own.transcript._id);
             }
         }
+        return this.getMeetingInfo(userId, meetingId);
+    }
+
+    /**
+     * Chỉ định người duyệt của cuộc họp (duyệt biên bản và đề xuất AI) trong số
+     * người tham dự; `null` thì bỏ chỉ định (PM dự án, hoặc người tạo cuộc họp
+     * khi dự án chưa có PM).
+     */
+    async setMeetingApprover(userId: string, meetingId: string, approverId: string | null) {
+        const meeting = await this.meetingFor(userId, meetingId, Permission.MEETING_UPDATE);
+        if (approverId) {
+            const participant = await this.meetingParticipantService.getOne(null, { meetingId, userId: approverId });
+            if (!participant) throw ApiError.BadRequest("error-user-not-participant");
+        }
+        await this.meetingService.updateById(null, meeting._id, { approverId: approverId ?? null } as any);
         return this.getMeetingInfo(userId, meetingId);
     }
 
@@ -1639,6 +1664,75 @@ export class WorkflowService {
             userId: input.userId,
             ...patch,
         });
+    }
+
+    /**
+     * Sửa / xoá thành viên dự án là việc của người tạo dự án (Owner/Admin
+     * workspace cũng làm được, để dự án không kẹt khi người tạo rời đi).
+     */
+    private async projectForOwner(userId: string, projectId: string) {
+        const project = await this.projectService.getById(null, projectId);
+        if (!project || project.deletedAt) throw ApiError.NotFound("error-project-not-found");
+        if (project.createdById !== userId) {
+            const admin = await this.permissionService.can(userId, project.workspaceId, Permission.PROJECT_PM_MANAGE);
+            if (!admin) throw ApiError.Forbidden("error-project-owner-only");
+        }
+        return project;
+    }
+
+    /** Đổi quyền (PM/Member/Viewer) và vai trò chuyên môn của một thành viên dự án. */
+    async updateProjectMember(
+        userId: string,
+        projectId: string,
+        memberUserId: string,
+        input: { role?: ProjectMemberRole; discipline?: ProjectDiscipline | null },
+    ) {
+        const project = await this.projectForOwner(userId, projectId);
+        const member = await this.projectMemberService.getOne(null, {
+            workspaceId: project.workspaceId,
+            projectId,
+            userId: memberUserId,
+        });
+        if (!member) throw ApiError.NotFound("error-project-member-not-found");
+        // Người tạo dự án luôn giữ quyền quản lý dự án của mình.
+        if (memberUserId === project.createdById && input.role && input.role !== ProjectMemberRole.PM) {
+            throw ApiError.BadRequest("error-project-creator-locked");
+        }
+        if (input.role && input.role !== member.role) {
+            await this.activityLogService.record({
+                workspaceId: project.workspaceId,
+                actorId: userId,
+                type: ActivityType.PERMISSION_GRANTED,
+                target: `${await this.nameOf(memberUserId)} → ${ROLE_LABEL[input.role] ?? input.role} · ${project.name}`,
+                projectId,
+            });
+        }
+        return this.projectMemberService.updateById(null, member._id, {
+            ...(input.role ? { role: input.role } : {}),
+            // null: bỏ vai trò chuyên môn.
+            ...(input.discipline !== undefined ? { discipline: input.discipline } : {}),
+        });
+    }
+
+    /** Xoá một thành viên khỏi dự án (task đã giao vẫn giữ nguyên). */
+    async removeProjectMember(userId: string, projectId: string, memberUserId: string) {
+        const project = await this.projectForOwner(userId, projectId);
+        if (memberUserId === project.createdById) throw ApiError.BadRequest("error-project-creator-locked");
+        const member = await this.projectMemberService.getOne(null, {
+            workspaceId: project.workspaceId,
+            projectId,
+            userId: memberUserId,
+        });
+        if (!member) throw ApiError.NotFound("error-project-member-not-found");
+        await this.activityLogService.record({
+            workspaceId: project.workspaceId,
+            actorId: userId,
+            type: ActivityType.PERMISSION_GRANTED,
+            target: `${await this.nameOf(memberUserId)} → rời dự án · ${project.name}`,
+            projectId,
+        });
+        await this.projectMemberService.deleteById(null, member._id);
+        return { removed: true };
     }
 
     /** Nhận lời mời qua email sau khi đã đăng nhập / đăng ký. */

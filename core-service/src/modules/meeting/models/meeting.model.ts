@@ -62,6 +62,9 @@ export class MeetingModel extends Model implements Meeting {
     @Column({ type: DataType.STRING, allowNull: true })
     processingStatus?: ProcessingStatus;
 
+    @Column({ type: DataType.STRING, allowNull: true })
+    approverId?: string;
+
     @Column({ type: DataType.STRING, allowNull: false })
     createdById: string;
 

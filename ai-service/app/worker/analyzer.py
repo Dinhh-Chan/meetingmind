@@ -33,6 +33,7 @@ class Analyzer(Protocol):
         language: str,
         segments: list[dict[str, Any]] | None = None,
         template_sections: list[str] | None = None,
+        people: list[str] | None = None,
     ) -> AnalysisResult: ...
 
 
@@ -51,6 +52,7 @@ class StubAnalyzer:
         language: str,
         segments: list[dict[str, Any]] | None = None,
         template_sections: list[str] | None = None,
+        people: list[str] | None = None,
     ) -> AnalysisResult:
         log.warning("Đang dùng StubAnalyzer (AI_LLM chưa bật)")
         return AnalysisResult(

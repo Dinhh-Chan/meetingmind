@@ -1,4 +1,5 @@
 import { MeetingAccessModule } from "@module/meeting-access/meeting-access.module";
+import { MeetingParticipantModule } from "@module/meeting-participant/meeting-participant.module";
 import { MeetingModule } from "@module/meeting/meeting.module";
 import { ProjectMemberModule } from "@module/project-member/project-member.module";
 import { WorkspaceMemberModule } from "@module/workspace-member/workspace-member.module";
@@ -17,6 +18,7 @@ import { PermissionService } from "./services/permission.service";
         WorkspaceMemberModule,
         ProjectMemberModule,
         MeetingAccessModule,
+        MeetingParticipantModule,
         MeetingModule,
     ],
     providers: [PermissionService, PermissionGuard],

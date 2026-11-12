@@ -126,6 +126,15 @@ export class Meeting implements BaseEntity {
     processingStatus?: ProcessingStatus;
 
     /**
+     * Người duyệt biên bản và đề xuất AI của cuộc họp (chọn lúc tạo). Trống thì
+     * PM dự án duyệt; dự án chưa có PM thì người tạo cuộc họp duyệt.
+     */
+    @IsOptional()
+    @IsString()
+    @EntityDefinition.field({ label: "Người duyệt" })
+    approverId?: string;
+
+    /**
      * Người tạo
      */
     @IsString()

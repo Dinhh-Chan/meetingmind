@@ -132,6 +132,8 @@ export interface AnalysisRequestedPayload {
     language: string;
     /** AI không đọc DB của Core, nên transcript đi kèm lệnh. */
     segments: AnalysisSegment[];
+    /** Tên người tham dự và thành viên dự án: để AI ghi đúng tên người thực hiện. */
+    people?: string[];
 }
 
 export interface ProposedDecision {

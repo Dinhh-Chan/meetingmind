@@ -257,3 +257,15 @@ def test_mau_bien_ban_dua_vao_prompt_va_giu_dung_thu_tu_muc():
 def test_khong_co_mau_thi_khong_them_muc():
     assert "sections" not in build_messages(SEGMENTS, "vi")[0]["content"]
     assert normalize({"summary": "x"}, SEGMENTS)["sections"] == []
+
+
+def test_danh_sach_nguoi_tham_du_dua_vao_prompt():
+    system = build_messages(SEGMENTS, "vi", None, ["Trà My Hoàng Nguyễn", " ", "My Hoàng"])[0]["content"]
+    assert "Trà My Hoàng Nguyễn; My Hoàng" in system
+    assert "ĐÚNG tên trong danh sách" in system
+    assert "Người tham dự cuộc họp" not in build_messages(SEGMENTS, "vi")[0]["content"]
+
+
+def test_prompt_yeu_cau_tach_viec_theo_tung_nguoi():
+    system = build_messages(SEGMENTS, "vi")[0]["content"]
+    assert "Mỗi người một việc" in system
