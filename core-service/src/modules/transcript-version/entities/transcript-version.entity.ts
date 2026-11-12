@@ -65,7 +65,16 @@ export class TranscriptVersion implements BaseEntity {
     recordedById?: string;
 
     /**
-     * Là phiên bản đang dùng (của người ghi âm đó)
+     * Tệp ghi âm nguồn (objectKey): mỗi lần ghi âm là một bản ghi riêng của
+     * người ghi ("Bản ghi 1, 2…"), bản mới không thay bản cũ.
+     */
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Tệp ghi âm nguồn" })
+    recordingKey?: string;
+
+    /**
+     * Là phiên bản đang dùng (của bản ghi âm đó)
      */
     @IsBoolean()
     @EntityDefinition.field({ label: "Là phiên bản đang dùng", required: true })

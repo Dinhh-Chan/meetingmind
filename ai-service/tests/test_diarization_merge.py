@@ -70,6 +70,9 @@ def test_doi_ngon_ngu_cung_nguoi_noi_tach_doan():
 def test_cau_bia_quen_thuoc():
     assert is_hallucination("Hãy đăng ký kênh để không bỏ lỡ video mới")
     assert is_hallucination("Cảm ơn các bạn đã theo dõi")
+    assert is_hallucination("Cảm ơn các bạn, hẹn gặp lại trong video tiếp theo!")
+    assert is_hallucination("Hẹn gặp lại các bạn trong những video sau")
+    assert not is_hallucination("Hẹn gặp lại mọi người ở buổi họp tuần sau")
     assert not is_hallucination("Cảm ơn mọi người, buổi họp kết thúc")
 
 

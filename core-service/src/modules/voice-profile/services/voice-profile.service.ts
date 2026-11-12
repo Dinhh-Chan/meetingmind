@@ -141,6 +141,36 @@ export class VoiceProfileService extends BaseService<VoiceProfile, VoiceProfileR
         return best;
     }
 
+    /**
+     * Ghép nhiều giọng (tâm giọng của từng "Người nói N" lúc ghi trực tiếp) với
+     * người đã đăng ký giọng, như ghép sau cuộc họp: xét cặp giống nhất trước,
+     * mỗi người ứng với một giọng. Tâm của nhiều câu ổn định hơn từng câu lẻ nên
+     * nhận ra người mà so từng câu không qua ngưỡng.
+     */
+    async matchMany(voices: Record<string, number[]>, userIds: string[]) {
+        const profiles = await this.profilesFor(userIds);
+        const threshold = Number(process.env.AI_VOICE_MATCH_THRESHOLD ?? 0.5);
+        const norm = (v: number[]) => Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
+        const pairs: { key: string; userId: string; score: number }[] = [];
+        for (const [key, vector] of Object.entries(voices)) {
+            for (const p of profiles) {
+                if (!p.embedding || p.embedding.length !== vector.length) continue;
+                const dot = p.embedding.reduce((s, x, i) => s + x * vector[i], 0);
+                pairs.push({ key, userId: p.userId, score: dot / (norm(vector) * norm(p.embedding)) });
+            }
+        }
+        pairs.sort((a, b) => b.score - a.score);
+        const matches: Record<string, { userId: string; score: number }> = {};
+        const used = new Set<string>();
+        for (const { key, userId, score } of pairs) {
+            if (score < threshold) break;
+            if (matches[key] || used.has(userId)) continue;
+            matches[key] = { userId, score: Math.round(score * 1000) / 1000 };
+            used.add(userId);
+        }
+        return matches;
+    }
+
     /** Vân giọng của các thành viên (màn admin), không kèm vector. */
     async listFor(userIds: string[]) {
         if (!userIds.length) return [];

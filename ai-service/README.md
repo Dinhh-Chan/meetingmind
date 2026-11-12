@@ -96,12 +96,30 @@ def downgrade() -> None:
 Nhận diện ngôn ngữ **theo từng đoạn**, nên cuộc họp nói lẫn Việt – Anh vẫn đúng:
 
 1. Chọn ngôn ngữ chính cho cả bài (dưới ngưỡng tin cậy thì theo `meetings.language` Core gửi, mặc định `vi`).
-2. Phiên âm có lọc khoảng lặng.
+2. Phiên âm có lọc khoảng lặng (Silero VAD). Silero giữ dưới 60 % lượng âm thanh có năng lượng (tiếng phát qua
+   loa bị khử vọng, người nói xa micro) thì cắt theo năng lượng thay vì để mất lời: `speech_regions.py`,
+   `AI_VAD_FALLBACK_RATIO`. Bản ghi thật 296 s từng ra transcript rỗng, nay ra ~240 từ.
 3. Mỗi đoạn ≥ 1,5 s được nhận diện lại; khác ngôn ngữ chính và đủ chắc thì phiên âm lại đoạn đó bằng
    ngôn ngữ của nó. Đoạn ngắn hơn theo ngôn ngữ đoạn trước.
 
 Kết quả gửi về Core có `language` từng đoạn, ngôn ngữ chính `language` và tỷ lệ `languages`
 (ví dụ `{ "vi": 0.6, "en": 0.4 }`).
+
+### Phiên âm trực tiếp (ghi âm trên trình duyệt)
+
+`POST /internal/voice/live-window`: vài giây một lần trình duyệt gửi phần âm thanh chưa chốt (tối đa ~28 s),
+`live_transcribe.transcribe_window` chép lời như bản chính thức và trả các câu kèm mốc; trình duyệt chốt câu đã
+nói xong, câu đang nói hiện dần. Người nói của từng câu nhận bằng `/internal/voice/utterance` (vân giọng).
+Cách cũ (`/live-utterance`, trình duyệt tự cắt câu theo năng lượng) còn giữ cho bản giao diện cũ.
+
+Đo trên một video cuộc họp mô phỏng 8 phút (thu xa micro, đếm 20 cụm từ nghe rõ): cắt câu theo năng lượng đúng
+4/20, 308 từ; cửa sổ trượt 12/20, 516 từ; bản chính thức 12/20, 643 từ. Whisper `large-v3` không hơn
+`large-v3-turbo` trên video này (13/20, chậm 3,5 lần).
+
+| Biến | Mặc định | |
+| --- | --- | --- |
+| `AI_LIVE_WHISPER_MODEL` / `_DEVICE` / `_COMPUTE_TYPE` | theo `AI_WHISPER_*` | model riêng cho phiên âm trực tiếp |
+| `AI_LIVE_WINDOW_BEAM_SIZE` | `5` | beam khi chép cửa sổ |
 
 ### Tách người nói (họp trực tiếp, một micro)
 

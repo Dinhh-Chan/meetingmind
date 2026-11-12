@@ -1,8 +1,16 @@
-"""Phiên âm trực tiếp từng câu khi ghi âm trên trình duyệt.
+"""Phiên âm trực tiếp khi ghi âm trên trình duyệt.
 
-Trình duyệt tự cắt câu theo khoảng lặng rồi gửi lên; ở đây chép lời câu đó
-bằng Whisper (không tách người nói — mỗi câu là một người, nhận người bằng vân
-giọng ở voice.py). Bản chính thức vẫn phiên âm lại cả bản ghi sau khi kết thúc.
+Hai cách:
+- transcribe_window (đang dùng): vài giây một lần trình duyệt gửi phần âm thanh
+  chưa chốt (tối đa ~28 s); ở đây chép lời như bản chính thức (lọc tiếng nói
+  bằng Silero, xem speech_regions.py) và trả các câu kèm mốc. Trình duyệt chốt
+  câu đã nói xong, câu đang nói hiện dần.
+- transcribe (cũ): trình duyệt tự cắt câu theo năng lượng rồi gửi từng câu.
+  Đo trên video cuộc họp thật: cắt theo năng lượng làm mất hơn nửa lời (đúng
+  4/20 cụm từ kiểm tra so với 12/20 của cửa sổ trượt và của bản chính thức).
+
+Không tách người nói ở đây: nhận người bằng vân giọng từng câu (voice.py). Bản
+chính thức vẫn phiên âm lại cả bản ghi sau khi kết thúc.
 """
 
 from __future__ import annotations
@@ -10,6 +18,7 @@ from __future__ import annotations
 import os
 import threading
 
+from app.worker.speech_regions import speech_filter
 from app.worker.whisper_transcriber import Settings, _load_model, is_hallucination
 
 _lock = threading.Lock()
@@ -44,3 +53,20 @@ def transcribe(audio, language: str | None = "vi") -> tuple[str, str | None]:
         parts = [seg.text.strip() for seg in segments]
     text = " ".join(p for p in parts if p and not is_hallucination(p))
     return text.strip(), getattr(info, "language", language)
+
+
+def transcribe_window(audio, language: str | None = "vi") -> list[tuple[float, float, str]]:
+    """Các câu (bắt đầu, kết thúc, chữ) trong một cửa sổ âm thanh, đã bỏ câu bịa."""
+    s = settings()
+    beam = int(os.environ.get("AI_LIVE_WINDOW_BEAM_SIZE", "5"))
+    with _lock:
+        model = _load_model(s)
+        segments, _ = model.transcribe(
+            audio,
+            language=language or None,
+            beam_size=beam,
+            condition_on_previous_text=False,
+            **speech_filter(audio),
+        )
+        found = [(round(float(seg.start), 2), round(float(seg.end), 2), seg.text.strip()) for seg in segments]
+    return [(a, b, text) for a, b, text in found if text and not is_hallucination(text)]

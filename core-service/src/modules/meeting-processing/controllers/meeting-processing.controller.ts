@@ -161,6 +161,47 @@ export class MeetingProcessingController {
         return this.meetingProcessingService.liveUtterance(meetingId, file.buffer);
     }
 
+    /**
+     * Ghi âm trên trình duyệt, phiên âm kiểu cửa sổ trượt: phần âm thanh chưa
+     * chốt (wav, tối đa ~30 giây) → các câu kèm mốc thời gian.
+     */
+    @Post("live-window")
+    @RequirePermission(Permission.RECORDING_CREATE)
+    @UseInterceptors(
+        FileInterceptor("audio", {
+            storage: multer.memoryStorage(),
+            limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+        }),
+    )
+    async liveWindow(
+        @UploadedFile() file: Express.Multer.File,
+        @Headers("x-meeting-id") meetingId: string,
+    ) {
+        if (!file?.buffer?.length || !meetingId) {
+            throw ApiError.BadRequest("error-voice-sample-invalid", { reason: "thiếu đoạn âm thanh" });
+        }
+        return this.meetingProcessingService.liveWindow(meetingId, file.buffer);
+    }
+
+    /**
+     * Ghi âm trực tiếp: tâm giọng của từng "Người nói N" → người tham dự đã đăng
+     * ký giọng khớp (vân giọng mẫu không rời máy chủ).
+     */
+    @Post("live-voices")
+    @RequirePermission(Permission.RECORDING_CREATE)
+    async matchLiveVoices(
+        @Headers("x-meeting-id") meetingId: string,
+        @Body() body: { voices?: Record<string, number[]> },
+    ) {
+        const voices = Object.entries(body?.voices ?? {}).filter(
+            ([, v]) => Array.isArray(v) && v.length > 0 && v.length <= 2048 && v.every((x) => Number.isFinite(x)),
+        );
+        if (!meetingId || !voices.length || voices.length > 20) {
+            throw ApiError.BadRequest("error-voice-sample-invalid", { reason: "thiếu vân giọng" });
+        }
+        return this.meetingProcessingService.matchLiveVoices(meetingId, Object.fromEntries(voices));
+    }
+
     /* ------------------------------------------- transcript trực tiếp */
 
     /**

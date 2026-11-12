@@ -35,6 +35,7 @@ export type MeetingPhase =
     | "scheduled"
     | "processing"
     | "failed"
+    | "draft"
     | "pending_review"
     | "completed";
 
@@ -496,14 +497,16 @@ export class MeService {
                         (j) => view?.seeAll || (j.payload?.recordedById ?? meeting.createdById) === userId,
                     ),
                 );
-                let phase = derivePhase(meeting, minutesStatus, job?.status);
+                // Bản nháp chỉ vào luồng duyệt khi là của thư ký (người được chỉ định ghi âm).
+                const lead = view?.approved ? undefined : view?.records.find((r) => r.minutes);
+                let phase = derivePhase(meeting, minutesStatus, job?.status, !!lead?.designated);
                 if (!minutesStatus && !job) {
                     // Chưa có bản ghi nào của mình: theo tình trạng chung của cuộc
                     // họp, nhưng không báo lỗi xử lý bản ghi của người khác.
                     const any = latest(meetingJobs);
                     phase = derivePhase(
                         meeting,
-                        hasMinutes.has(meeting._id) ? MinutesVersionStatus.DRAFT : undefined,
+                        hasMinutes.has(meeting._id) ? MinutesVersionStatus.PENDING_APPROVAL : undefined,
                         any?.status === ProcessingJobStatus.FAILED ? ProcessingJobStatus.SUCCEEDED : any?.status,
                     );
                 }
@@ -525,6 +528,7 @@ function derivePhase(
     meeting: Meeting,
     minutesStatus: string | undefined,
     jobStatus: string | undefined,
+    designated = false,
 ): MeetingPhase {
     // Buổi họp trực tiếp chỉ sang "ended" khi phiên âm xong; đã có job nghĩa
     // là bản ghi đã tải lên, đang chờ hoặc đang xử lý chứ không còn "sắp tới".
@@ -533,6 +537,9 @@ function derivePhase(
     if (minutesStatus === "approved") return "completed";
     // Ghi âm cá nhân (không thuộc dự án) không có bước duyệt: có biên bản là xong.
     if (minutesStatus && !meeting.projectId) return "completed";
+    // Bản nháp: của thư ký thì còn chờ gửi duyệt; của người khác chỉ để người đó
+    // xem, không có bước duyệt nên coi như xong.
+    if (minutesStatus === MinutesVersionStatus.DRAFT) return designated ? "draft" : "completed";
     if (minutesStatus) return "pending_review";
     return "processing";
 }

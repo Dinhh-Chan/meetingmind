@@ -24,6 +24,8 @@ export interface MeetingRecord {
     minutes: MinutesVersion | null;
     /** Người ghi là thư ký — người được chỉ định ghi âm của cuộc họp. */
     designated: boolean;
+    /** Lần ghi âm thứ mấy của người ghi này trong cuộc họp (từ 1). */
+    recordingNo: number;
     /** Transcript nguồn của biên bản đã duyệt. */
     official: boolean;
     mine: boolean;
@@ -162,10 +164,11 @@ export class MeetingRecordService {
             }
         }
 
-        // Mỗi người ghi một transcript đang dùng, cộng transcript nguồn của bản đã duyệt.
+        // Mỗi lần ghi âm của mỗi người một transcript đang dùng (bản cũ chưa ghi
+        // tệp nguồn thì gộp theo người ghi), cộng transcript nguồn của bản đã duyệt.
         const byRecorder = new Map<string, TranscriptVersion>();
         for (const t of transcripts) {
-            const key = MeetingRecordService.recorderOf(t, meeting) ?? "";
+            const key = `${MeetingRecordService.recorderOf(t, meeting) ?? ""}|${t.recordingKey ?? ""}`;
             const prev = byRecorder.get(key);
             const better =
                 !prev ||
@@ -178,6 +181,15 @@ export class MeetingRecordService {
         if (officialSource && !candidates.some((t) => t._id === officialSource)) {
             const source = transcripts.find((t) => t._id === officialSource);
             if (source) candidates.push(source);
+        }
+
+        // Thứ tự lần ghi của từng người ("Bản ghi 2, 3…"), tính trên mọi bản của người đó.
+        const recordingNo = new Map<string, number>();
+        const seen = new Map<string, number>();
+        for (const t of [...candidates].sort((a, b) => createdAtOf(a) - createdAtOf(b))) {
+            const who = MeetingRecordService.recorderOf(t, meeting) ?? "";
+            seen.set(who, (seen.get(who) ?? 0) + 1);
+            recordingNo.set(t._id, seen.get(who));
         }
 
         const records: MeetingRecord[] = [];
@@ -206,6 +218,7 @@ export class MeetingRecordService {
                 designated: isDesignated,
                 official,
                 mine,
+                recordingNo: recordingNo.get(transcript._id) ?? 1,
             });
         }
 

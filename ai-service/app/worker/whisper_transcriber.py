@@ -4,7 +4,8 @@ Whisper chỉ nhận diện ngôn ngữ một lần ở 30 giây đầu rồi gi
 ngôn ngữ đó. Cuộc họp nói lẫn Việt – Anh thì câu tiếng Anh bị ép giải mã như
 tiếng Việt và ra chữ vô nghĩa (hoặc bị dịch). Nên làm hai lượt:
 
-1. Chọn ngôn ngữ chính cho cả bài, phiên âm có lọc khoảng lặng (VAD).
+1. Chọn ngôn ngữ chính cho cả bài, phiên âm có lọc khoảng lặng (VAD, xem
+   speech_regions.py).
 2. Với từng đoạn đủ dài, nhận diện lại ngôn ngữ trên chính đoạn audio đó; nếu
    khác ngôn ngữ chính và đủ chắc thì phiên âm lại đoạn đó bằng ngôn ngữ của nó.
 
@@ -23,6 +24,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.worker.diarizer import Diarizer, Word, build_segments
+from app.worker.speech_regions import speech_filter
 from app.worker.storage import download_to_temp
 from app.worker.transcriber import TranscriptResult
 
@@ -34,7 +36,7 @@ SPEAKER_LABEL = "Người nói 1"
 # Câu Whisper hay bịa ra ở đoạn im lặng hoặc ồn: học từ phụ đề video trên mạng.
 HALLUCINATIONS = re.compile(
     r"(đăng ký kênh|subscribe|ghiền mì gõ|like và share|bấm chuông|"
-    r"hẹn gặp lại (các bạn|quý vị) trong (những|các) video|thanks for watching|"
+    r"hẹn gặp lại[^.!?]{0,30}video|thanks for watching|"
     r"cảm ơn các bạn đã (theo dõi|xem video))",
     re.IGNORECASE,
 )
@@ -229,7 +231,7 @@ class WhisperTranscriber:
         )
 
         first_pass, info = self.model.transcribe(
-            audio, language=base, beam_size=s.beam_size, vad_filter=True, **DECODE
+            audio, language=base, beam_size=s.beam_size, **speech_filter(audio), **DECODE
         )
         # Không nhận diện được và Core không gợi ý: lấy ngôn ngữ Whisper tự chọn.
         base = base or info.language

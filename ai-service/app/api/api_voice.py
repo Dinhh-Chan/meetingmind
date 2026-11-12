@@ -58,6 +58,18 @@ class LiveUtteranceResponse(BaseModel):
     seconds: float
 
 
+class LiveSegment(BaseModel):
+    # Giây, tính từ đầu đoạn âm thanh gửi lên.
+    start: float
+    end: float
+    text: str
+
+
+class LiveWindowResponse(BaseModel):
+    segments: List[LiveSegment]
+    seconds: float
+
+
 class UtteranceResponse(BaseModel):
     # Trống khi câu quá ít giọng nói để nhận người.
     embedding: List[float] | None
@@ -114,3 +126,16 @@ def live_utterance(body: LiveUtteranceRequest) -> LiveUtteranceResponse:
     result = voice.embed_utterance(audio) if text else None
     vector, seconds = result if result else (None, 0.0)
     return LiveUtteranceResponse(text=text, language=language, embedding=vector, seconds=seconds)
+
+
+@router.post("/live-window", response_model=LiveWindowResponse)
+def live_window(body: LiveUtteranceRequest) -> LiveWindowResponse:
+    """Phiên âm trực tiếp kiểu cửa sổ trượt: chép lời phần âm thanh chưa chốt, trả các câu kèm mốc."""
+    from app.worker import live_transcribe
+
+    audio = _decode(body.audio)
+    segments = live_transcribe.transcribe_window(audio, body.language)
+    return LiveWindowResponse(
+        segments=[LiveSegment(start=a, end=b, text=text) for a, b, text in segments],
+        seconds=round(len(audio) / voice.SAMPLE_RATE, 2),
+    )

@@ -215,6 +215,8 @@ export class MeetingProcessingService {
             {} as any,
         );
         const versionNo = previous.length + 1;
+        // Tệp ghi âm của lần này: mỗi lần ghi là một bản ghi riêng của người ghi.
+        const recordingKey: string | undefined = job?.payload?.objectKey;
         const mineCurrent = previous.filter(
             (v) =>
                 v.isCurrent &&
@@ -243,8 +245,11 @@ export class MeetingProcessingService {
             return mineCurrent[0];
         }
 
-        // Mỗi người ghi có một phiên bản đang dùng; bản ghi của người khác giữ nguyên.
-        for (const old of mineCurrent) {
+        // Chỉ thay phiên bản cũ của chính tệp ghi âm này (xử lý lại); các lần ghi
+        // khác của người này và bản ghi của người khác giữ nguyên.
+        for (const old of mineCurrent.filter(
+            (v) => !!recordingKey && v.recordingKey === recordingKey,
+        )) {
             await this.transcriptVersionService.updateById(null, old._id, {
                 isCurrent: false,
             });
@@ -257,6 +262,7 @@ export class MeetingProcessingService {
             source: TranscriptVersionSource.STT,
             aiRunId: payload.runId,
             recordedById,
+            recordingKey,
             isCurrent: true,
         });
 
@@ -711,6 +717,25 @@ export class MeetingProcessingService {
             ...new Set(participants.map((p) => p.userId).filter(Boolean)),
         ]);
         return { text, embedding, seconds, match };
+    }
+
+    /**
+     * Phiên âm trực tiếp kiểu cửa sổ trượt: phần âm thanh chưa chốt → các câu
+     * kèm mốc. Người nói của từng câu nhận sau bằng identifyLiveSpeaker.
+     */
+    async liveWindow(meetingId: string, audio: Buffer) {
+        const meeting = await this.meetingService.getOne(null, { _id: meetingId });
+        return this.voiceAiClient.transcribeWindow(audio, meeting?.language);
+    }
+
+    /** Ghép tâm giọng của từng người nói lúc ghi trực tiếp với người tham dự đã đăng ký giọng. */
+    async matchLiveVoices(meetingId: string, voices: Record<string, number[]>) {
+        const participants = await this.meetingParticipantService.getMany(null, { meetingId });
+        return {
+            matches: await this.voiceProfileService.matchMany(voices, [
+                ...new Set(participants.map((p) => p.userId).filter(Boolean)),
+            ]),
+        };
     }
 
     async onJobFailed(payload: { jobId: string; meetingId: string; error: string }) {

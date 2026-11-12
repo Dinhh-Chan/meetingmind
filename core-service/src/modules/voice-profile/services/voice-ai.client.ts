@@ -67,6 +67,29 @@ export class VoiceAiClient {
         }
     }
 
+    /** Cửa sổ âm thanh chưa chốt lúc ghi trực tiếp → các câu kèm mốc (giây từ đầu cửa sổ). */
+    async transcribeWindow(
+        audio: Buffer,
+        language?: string,
+    ): Promise<{ segments: { start: number; end: number; text: string }[]; seconds: number }> {
+        const { serviceUrl, internalToken } = this.configService.get("ai", { infer: true });
+        try {
+            const res = await lastValueFrom(
+                this.http.post<{ segments: { start: number; end: number; text: string }[]; seconds: number }>(
+                    `${serviceUrl}/internal/voice/live-window`,
+                    { audio: audio.toString("base64"), language: language || "vi" },
+                    { headers: { "X-Internal-Token": internalToken }, timeout: 60_000, maxBodyLength: Infinity },
+                ),
+            );
+            return res.data;
+        } catch (err) {
+            const status = (err as { response?: { status?: number } })?.response?.status;
+            if (status === 422 || status === 413) return { segments: [], seconds: 0 };
+            this.logger.warn(`Phiên âm cửa sổ trực tiếp lỗi: ${status ? `HTTP ${status}` : ((err as Error).message ?? "không rõ")}`);
+            throw ApiError.ServiceUnavailable("error-voice-unavailable");
+        }
+    }
+
     async embed(samples: Buffer[]): Promise<VoiceEmbedding> {
         const { serviceUrl, internalToken } = this.configService.get("ai", { infer: true });
         try {

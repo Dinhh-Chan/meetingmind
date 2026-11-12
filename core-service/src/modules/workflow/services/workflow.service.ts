@@ -397,6 +397,7 @@ export class WorkflowService {
                 source: r.transcript.source,
                 createdAt: (r.transcript as unknown as { createdAt?: Date }).createdAt,
                 designated: r.designated,
+                recordingNo: r.recordingNo,
                 official: r.official,
                 mine: r.mine,
                 minutesStatus: r.minutes?.status ?? null,
@@ -869,10 +870,18 @@ export class WorkflowService {
             meetingId,
             type: ProcessingJobType.TRANSCRIBE,
         });
-        const job = jobs.find((j) => j.result?.transcriptVersionId === record.transcript._id);
-        const objectKey: string | undefined = job?.payload?.objectKey;
+        // Tệp nguồn ghi ngay trên transcript; bản cũ chưa ghi thì dò theo lệnh phiên âm.
+        const key = record.transcript.recordingKey;
+        const job = key
+            ? jobs.find((j) => j.payload?.objectKey === key)
+            : jobs.find(
+                  (j) =>
+                      j.result?.transcriptVersionId === record.transcript._id &&
+                      j.result?.skipped !== "empty-recording",
+              );
+        const objectKey: string | undefined = key ?? job?.payload?.objectKey;
         if (!objectKey) throw ApiError.NotFound("error-audio-not-found");
-        const bucket: string | undefined = job.payload.bucket;
+        const bucket: string | undefined = job?.payload?.bucket;
         const stat = await this.minioService.statObject(objectKey, bucket);
         return {
             stream: await this.minioService.getObject(objectKey, bucket),

@@ -13,10 +13,17 @@ jest.mock("p-limit", () => ({ __esModule: true, default: () => (fn: () => unknow
 describe("MeetingRecordService", () => {
     const meeting = { _id: "m1", workspaceId: "w1", projectId: "p1", createdById: "creator" };
 
-    const transcript = (id: string, recordedById: string | undefined, versionNo: number, isCurrent = true) => ({
+    const transcript = (
+        id: string,
+        recordedById: string | undefined,
+        versionNo: number,
+        isCurrent = true,
+        recordingKey?: string,
+    ) => ({
         _id: id,
         meetingId: "m1",
         recordedById,
+        recordingKey,
         versionNo,
         isCurrent,
         createdAt: new Date(2026, 10, 10, 9, versionNo),
@@ -68,6 +75,22 @@ describe("MeetingRecordService", () => {
         const view = await recordsOf("bob");
         expect(view.records).toEqual([]);
         expect(MeetingRecordService.minutesStatusOf(view)).toBeUndefined();
+    });
+
+    it("mỗi lần ghi âm là một bản ghi riêng, xử lý lại cùng tệp thì chỉ lấy bản đang dùng", async () => {
+        const recordsOf = setup({
+            transcripts: [
+                transcript("t1", "alice", 1, false, "a.webm"),
+                transcript("t2", "alice", 2, true, "a.webm"),
+                transcript("t3", "alice", 3, true, "b.webm"),
+            ],
+        });
+        const view = await recordsOf("alice");
+        // Mới nhất đứng trước; đánh số theo thứ tự ghi.
+        expect(view.records.map((r) => [r.transcript._id, r.recordingNo])).toEqual([
+            ["t3", 2],
+            ["t2", 1],
+        ]);
     });
 
     it("người ghi chỉ xem bản của mình, kèm biên bản nháp", async () => {
