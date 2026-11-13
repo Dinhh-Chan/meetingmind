@@ -111,23 +111,30 @@ Kết quả gửi về Core có `language` từng đoạn, ngôn ngữ chính `l
 được PhoWhisper nghe lại và ghép với lời Whisper theo từng từ (`refine.py`): từ tiếng Việt lấy của PhoWhisper
 khi nó tự tin hơn Whisper ở đúng cụm đó; câu, dấu câu, chữ hoa, mốc thời gian, số và từ tiếng Anh giữ của
 Whisper. Dùng cho cả bản chính thức lẫn phiên âm trực tiếp, nên chữ lúc ghi và sau khi xử lý khớp nhau hơn.
-Cần GPU (thêm ~3 GB bộ nhớ GPU, chậm hơn ~1,6 lần); để trống thì tắt.
+Cần GPU; để trống thì tắt.
 
-Tỷ lệ sai từ (WER) trên 300 câu VIVOS test, bản sạch / bản thêm ồn 10 dB và giảm âm lượng:
+Tỷ lệ sai từ (WER) trên 300 câu VIVOS test qua đúng pipeline này, bản sạch / bản thêm ồn 10 dB và giảm âm
+lượng, và số cụm từ kiểm tra nghe ra trên video cuộc họp mô phỏng 8 phút (thu xa micro):
 
-| | sạch | có ồn |
-| --- | --- | --- |
-| Whisper `large-v3-turbo` | 9,35 % | 11,89 % |
-| Whisper `large-v3` | 9,22 % | 10,68 % |
-| PhoWhisper-large một mình | 4,94 % | 6,08 % |
-| ghép, luôn thay | 5,44 % | 6,74 % |
-| ghép, chỉ thay khi tự tin hơn (mặc định) | 5,28 % | 6,24 % |
+| | sạch | có ồn | video họp |
+| --- | --- | --- | --- |
+| Whisper `large-v3-turbo` một mình | 8,68 % | 11,22 % | 12/20 |
+| ghép với PhoWhisper-large (mặc định) | 5,31 % | 5,94 % | 15/20 |
 
-PhoWhisper một mình sai ít từ nhất trên câu đọc, nhưng không dùng thay được: viết thường, không dấu câu,
+Các lựa chọn đã đo và bỏ (cùng 300 câu, lần đo trước, ồn sinh khác nên chỉ so trong từng dòng):
+Whisper `large-v3` 9,22 % / 10,68 % (turbo lần đó 9,35 / 11,89) — không đáng chậm 3,5 lần; PhoWhisper-large một
+mình 4,94 % / 6,08 % — sai ít từ nhất trên câu đọc nhưng không dùng thay được: viết thường, không dấu câu,
 không ngắt câu (mỗi 30 s một đoạn nên phiên âm trực tiếp không chốt được câu), viết số và từ tiếng Anh thành
-chữ ("đét lai"), hay bịa ở chỗ không có tiếng nói. Trên video cuộc họp mô phỏng (thu xa micro): turbo đúng
-12/20 cụm từ kiểm tra, ghép đúng 15/20 và giữ được số ("542,8 triệu gói") cùng ký hiệu ("2A", "GBT"). VIVOS
-là câu đọc, không phải lời họp tự nhiên — chưa có bộ ghi âm họp thật có lời chuẩn để đo.
+chữ ("đét lai"), hay bịa ở chỗ không có tiếng nói. Bản ghép giữ số của Whisper ("542,8", "613", "2015" trên
+video họp). Luôn thay từ thay vì chỉ thay khi PhoWhisper tự tin hơn thì kém hơn (5,44 % so với 5,28 %), đòi
+tự tin hơn hẳn 0,1 cũng kém (6,58 %).
+
+Giới hạn: VIVOS là câu đọc, không phải lời họp tự nhiên — chưa có bộ ghi âm họp thật có lời chuẩn để đo. Âm
+thanh quá kém thì cả hai mô hình cùng đoán sai ("Để phiên năng trực tiếp" trong một bản ghi micro laptop vẫn
+sai sau khi ghép).
+
+Chi phí trên RTX 5880: video 478 s phiên âm 13 s → 25 s; một cửa sổ phiên âm trực tiếp trung vị 0,13 s →
+0,41 s (lớn nhất 0,87 s, vẫn dưới nhịp gửi 3 s); mỗi tiến trình nạp cả hai mô hình dùng ~6 GB bộ nhớ GPU.
 
 Chuyển model: `ct2-transformers-converter --model vinai/PhoWhisper-large --output_dir phowhisper-large-ct2
 --copy_files tokenizer.json preprocessor_config.json --quantization float16`, đặt vào volume `whisper-models`.
