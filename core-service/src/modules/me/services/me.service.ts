@@ -36,6 +36,7 @@ export type MeetingPhase =
     | "processing"
     | "failed"
     | "draft"
+    | "awaiting_minutes"
     | "pending_review"
     | "completed";
 
@@ -491,24 +492,24 @@ export class MeService {
                 records.set(meeting._id, view);
                 const minutesStatus = MeetingRecordService.minutesStatusOf(view) as string | undefined;
                 const meetingJobs = jobs.filter((j) => j.meetingId === meeting._id);
-                // Job của bản ghi mình (người duyệt: mọi bản ghi).
+                // Chỉ job của bản ghi mình: tiến trình xử lý (và lỗi) bản ghi của người
+                // khác là việc của người đó, kể cả với người duyệt.
                 const job = latest(
                     meetingJobs.filter(
-                        (j) => view?.seeAll || (j.payload?.recordedById ?? meeting.createdById) === userId,
+                        (j) => (j.payload?.recordedById ?? meeting.createdById) === userId,
                     ),
                 );
                 // Bản nháp chỉ vào luồng duyệt khi là của thư ký (người được chỉ định ghi âm).
                 const lead = view?.approved ? undefined : view?.records.find((r) => r.minutes);
                 let phase = derivePhase(meeting, minutesStatus, job?.status, !!lead?.designated);
                 if (!minutesStatus && !job) {
-                    // Chưa có bản ghi nào của mình: theo tình trạng chung của cuộc
-                    // họp, nhưng không báo lỗi xử lý bản ghi của người khác.
-                    const any = latest(meetingJobs);
-                    phase = derivePhase(
-                        meeting,
-                        hasMinutes.has(meeting._id) ? MinutesVersionStatus.PENDING_APPROVAL : undefined,
-                        any?.status === ProcessingJobStatus.FAILED ? ProcessingJobStatus.SUCCEEDED : any?.status,
-                    );
+                    // Mình chưa ghi gì và chưa có biên bản nào xem được: cuộc họp chưa
+                    // ai ghi thì còn "sắp tới"; đã có người ghi (đang xử lý, nháp hay
+                    // chờ duyệt — mình không xem được chi tiết) thì là "chờ biên bản".
+                    phase =
+                        meetingJobs.length || hasMinutes.has(meeting._id) || meeting.status !== MeetingStatus.SCHEDULED
+                            ? "awaiting_minutes"
+                            : "scheduled";
                 }
                 return {
                     ...meeting,
@@ -536,6 +537,8 @@ function derivePhase(
     // là bản ghi đã tải lên, đang chờ hoặc đang xử lý chứ không còn "sắp tới".
     if (meeting.status === MeetingStatus.SCHEDULED && !jobStatus) return "scheduled";
     if (jobStatus === ProcessingJobStatus.FAILED) return "failed";
+    // Bản ghi mới của mình đang xử lý: báo tiến trình kể cả khi đã có bản ghi cũ.
+    if (jobStatus === ProcessingJobStatus.QUEUED || jobStatus === ProcessingJobStatus.RUNNING) return "processing";
     if (minutesStatus === "approved") return "completed";
     // Ghi âm cá nhân (không thuộc dự án) không có bước duyệt: có biên bản là xong.
     if (minutesStatus && !meeting.projectId) return "completed";
