@@ -3,8 +3,10 @@
 Whisper chỉ chép lời, không phân biệt giọng. Cách làm: cắt lời Whisper thành
 khúc ~1,5 s theo ranh giới từ, tính vector giọng từng khúc bằng mô hình
 3D-Speaker (ONNX qua sherpa-onnx, CPU, không cần token), rồi gộp cụm theo độ
-giống nhau — chỉ khúc từ 1 s trở lên, khúc ngắn hơn theo người giống nhất.
-Khúc giống gần ngang hai người được coi là nói chồng.
+giống nhau. Làm hai tầng: gộp cụm trên khúc dài ~3 s (vân giọng ổn định hơn hẳn
+khúc 1,5 s) để có tâm giọng từng người, rồi mới soi từng khúc ~1,5 s — khúc nhỏ
+chỉ đổi sang người khác khi giống người đó vượt trội, từ lẻ cuối câu theo câu
+chứa nó. Khúc giống gần ngang hai người được coi là nói chồng.
 
 Không dùng mô hình phân đoạn pyannote: trên dữ liệu thử nó coi cả cửa sổ 10 s
 là một người, chỉ "đổi người" ở ranh giới cửa sổ, trong khi vector giọng tách
@@ -239,6 +241,73 @@ def cluster_reliable(embeddings, durations: list[float], threshold: float, min_w
     return [order[k] for k in labels.tolist()]
 
 
+def settle_lone_windows(
+    embeddings, labels: list[int], windows: list[Window], min_window_s: float, margin: float = 0.05, near_s: float = 1.5
+) -> list[int]:
+    """Khúc ngắn đứng riêng (câu cảm thán "ừ", "thôi!") mà giống hai người ngang nhau
+    thì theo người vừa nói sát bên, thay vì chọn bừa theo vân giọng nhiễu."""
+    import numpy as np
+
+    if len(set(labels)) < 2:
+        return labels
+    x = _normalize(np.asarray(embeddings, dtype=np.float32))
+    lab = np.array(labels)
+    long = np.array([w.end - w.start >= min_window_s for w in windows])
+    ks = sorted(set(labels))
+    centroids = _normalize(np.stack([x[(lab == k) & long].mean(0) if ((lab == k) & long).any() else x[lab == k].mean(0) for k in ks]))
+    out = list(labels)
+    for i, w in enumerate(windows):
+        if long[i]:
+            continue
+        scores = np.sort(centroids @ x[i])[::-1]
+        if scores[0] - scores[1] >= margin:
+            continue
+        gaps = [
+            (min(abs(windows[j].end - w.start), abs(windows[j].start - w.end)), j)
+            for j in (i - 1, i + 1)
+            if 0 <= j < len(windows) and long[j]
+        ]
+        if gaps and min(gaps)[0] <= near_s:
+            out[i] = labels[min(gaps)[1]]
+    return out
+
+
+def refine_windows(
+    fine: list[Window], fine_embeddings: list, coarse: list[Window], coarse_labels: list[int], centroids, min_window_s: float, margin: float
+) -> list[int]:
+    """Nhãn từng khúc nhỏ từ kết quả gộp cụm trên khúc dài.
+
+    Khúc nhỏ mặc định theo khúc dài chứa nó. Khúc đủ dài (≥ min_window_s) được
+    đổi sang người khác khi vân giọng của nó giống người đó hơn người của khúc
+    dài ít nhất `margin` — bắt chỗ đổi người giữa một câu Whisper mà không để
+    vân giọng nhiễu của khúc ngắn xé vụn câu. `fine_embeddings[i]` là None với
+    khúc ngắn (không cần tính). `centroids`: nhãn → tâm giọng đã chuẩn hoá.
+    """
+    import numpy as np
+
+    keys = sorted(centroids)
+    matrix = np.stack([centroids[k] for k in keys])
+    labels: list[int] = []
+    for w, e in zip(fine, fine_embeddings):
+        mid = (w.start + w.end) / 2
+        holder = next((i for i, c in enumerate(coarse) if c.start - 1e-6 <= mid <= c.end + 1e-6), None)
+        if holder is None:
+            holder = min(range(len(coarse)), key=lambda i: abs((coarse[i].start + coarse[i].end) / 2 - mid))
+        label = coarse_labels[holder]
+        if e is not None and w.end - w.start >= min_window_s:
+            v = np.asarray(e, dtype=np.float32)
+            scores = matrix @ (v / max(float(np.linalg.norm(v)), 1e-9))
+            best = int(np.argmax(scores))
+            if keys[best] != label and scores[best] - scores[keys.index(label)] >= margin:
+                label = keys[best]
+        labels.append(label)
+    # Đánh số lại theo thứ tự xuất hiện.
+    order: dict[int, int] = {}
+    for k in labels:
+        order.setdefault(k, len(order))
+    return [order[k] for k in labels]
+
+
 def merge_small_clusters(embeddings, labels: list[int], durations: list[float], min_speaker_s: float) -> list[int]:
     """Cụm có tổng thời gian nói quá ít gộp vào cụm lớn giống nhất.
 
@@ -324,6 +393,10 @@ class Diarizer:
         self.threshold = threshold if threshold is not None else float(os.environ.get("AI_DIARIZATION_THRESHOLD", "0.3"))
         self.min_speaker_s = float(os.environ.get("AI_DIARIZATION_MIN_SPEAKER_S", "2.0"))
         self.min_window_s = float(os.environ.get("AI_DIARIZATION_MIN_WINDOW_S", "1.0"))
+        # Tầng một gộp cụm trên khúc dài bấy nhiêu giây; khúc nhỏ phải giống người
+        # khác hơn bấy nhiêu mới tách khỏi khúc dài chứa nó.
+        self.coarse_s = float(os.environ.get("AI_DIARIZATION_COARSE_S", "3.0"))
+        self.switch_margin = float(os.environ.get("AI_DIARIZATION_SWITCH_MARGIN", "0.15"))
         # Đánh dấu nói chồng mặc định tắt: thực nghiệm trên bản ghi 4 người cho
         # thấy ngưỡng tương đối báo nhầm 8–11 đoạn trên bản ghi không có nói
         # chồng và không bắt được đoạn chồng ngắn 1,2 s. Bật để thử nghiệm tiếp.
@@ -355,14 +428,38 @@ class Diarizer:
         windows = make_windows(words)
         if not windows:
             return [], {}
-        embeddings = [self._embed(audio, w, sample_rate) for w in windows]
-        durations = [w.end - w.start for w in windows]
-        labels = cluster_reliable(embeddings, durations, self.threshold, self.min_window_s)
-        labels = merge_small_clusters(embeddings, labels, durations, self.min_speaker_s)
+        # Tầng một: khúc dài cho tâm giọng ổn định của từng người.
+        coarse = make_windows(words, target_s=self.coarse_s, max_gap_s=0.8)
+        coarse_emb = [self._embed(audio, w, sample_rate) for w in coarse]
+        coarse_dur = [w.end - w.start for w in coarse]
+        coarse_labels = cluster_reliable(coarse_emb, coarse_dur, self.threshold, self.min_window_s)
+        coarse_labels = merge_small_clusters(coarse_emb, coarse_labels, coarse_dur, self.min_speaker_s)
+        coarse_labels = settle_lone_windows(coarse_emb, coarse_labels, coarse, self.min_window_s)
+        x = _normalize(np.asarray(coarse_emb, dtype=np.float32))
+        lab = np.array(coarse_labels)
+        long = np.array([d >= self.min_window_s for d in coarse_dur])
+        speaker_centroids = {
+            k: _normalize(x[(lab == k) & long if ((lab == k) & long).any() else lab == k].mean(0, keepdims=True))[0]
+            for k in sorted(set(coarse_labels))
+        }
+        # Tầng hai: soi từng khúc nhỏ để bắt chỗ đổi người giữa câu.
+        embeddings = [
+            self._embed(audio, w, sample_rate) if w.end - w.start >= self.min_window_s else None for w in windows
+        ]
+        labels = refine_windows(
+            windows, embeddings, coarse, coarse_labels, speaker_centroids, self.min_window_s, self.switch_margin
+        )
         if self.detect_overlap:
-            overlapping = overlap_windows(embeddings, labels)
+            filled = [e if e is not None else self._embed(audio, w, sample_rate) for e, w in zip(embeddings, windows)]
+            overlapping = overlap_windows(filled, labels)
         else:
             overlapping = [False] * len(windows)
-        x = _normalize(np.asarray(embeddings, dtype=np.float32))
-        centroids = {k: x[[i for i, label in enumerate(labels) if label == k]].mean(axis=0) for k in set(labels) if k >= 0}
+        # Vân giọng từng người theo nhãn cuối cùng, tính trên khúc đủ dài của người đó.
+        by_label: dict[int, list] = {}
+        for label, e in zip(labels, embeddings):
+            if e is not None:
+                by_label.setdefault(label, []).append(e)
+        centroids = {
+            k: _normalize(np.asarray(v, dtype=np.float32)).mean(axis=0) for k, v in by_label.items()
+        }
         return turns_from_windows(windows, labels, overlapping), centroids

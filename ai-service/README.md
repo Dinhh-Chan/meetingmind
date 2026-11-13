@@ -105,6 +105,39 @@ Nhận diện ngôn ngữ **theo từng đoạn**, nên cuộc họp nói lẫn 
 Kết quả gửi về Core có `language` từng đoạn, ngôn ngữ chính `language` và tỷ lệ `languages`
 (ví dụ `{ "vi": 0.6, "en": 0.4 }`).
 
+### Lượt sửa từ tiếng Việt (ghép hai mô hình)
+
+Đặt `AI_WHISPER_REFINE_MODEL` (đường dẫn model CTranslate2 của `vinai/PhoWhisper-large`) thì mỗi câu tiếng Việt
+được PhoWhisper nghe lại và ghép với lời Whisper theo từng từ (`refine.py`): từ tiếng Việt lấy của PhoWhisper
+khi nó tự tin hơn Whisper ở đúng cụm đó; câu, dấu câu, chữ hoa, mốc thời gian, số và từ tiếng Anh giữ của
+Whisper. Dùng cho cả bản chính thức lẫn phiên âm trực tiếp, nên chữ lúc ghi và sau khi xử lý khớp nhau hơn.
+Cần GPU (thêm ~3 GB bộ nhớ GPU, chậm hơn ~1,6 lần); để trống thì tắt.
+
+Tỷ lệ sai từ (WER) trên 300 câu VIVOS test, bản sạch / bản thêm ồn 10 dB và giảm âm lượng:
+
+| | sạch | có ồn |
+| --- | --- | --- |
+| Whisper `large-v3-turbo` | 9,35 % | 11,89 % |
+| Whisper `large-v3` | 9,22 % | 10,68 % |
+| PhoWhisper-large một mình | 4,94 % | 6,08 % |
+| ghép, luôn thay | 5,44 % | 6,74 % |
+| ghép, chỉ thay khi tự tin hơn (mặc định) | 5,28 % | 6,24 % |
+
+PhoWhisper một mình sai ít từ nhất trên câu đọc, nhưng không dùng thay được: viết thường, không dấu câu,
+không ngắt câu (mỗi 30 s một đoạn nên phiên âm trực tiếp không chốt được câu), viết số và từ tiếng Anh thành
+chữ ("đét lai"), hay bịa ở chỗ không có tiếng nói. Trên video cuộc họp mô phỏng (thu xa micro): turbo đúng
+12/20 cụm từ kiểm tra, ghép đúng 15/20 và giữ được số ("542,8 triệu gói") cùng ký hiệu ("2A", "GBT"). VIVOS
+là câu đọc, không phải lời họp tự nhiên — chưa có bộ ghi âm họp thật có lời chuẩn để đo.
+
+Chuyển model: `ct2-transformers-converter --model vinai/PhoWhisper-large --output_dir phowhisper-large-ct2
+--copy_files tokenizer.json preprocessor_config.json --quantization float16`, đặt vào volume `whisper-models`.
+
+| Biến | Mặc định | |
+| --- | --- | --- |
+| `AI_WHISPER_REFINE_MODEL` | (trống) | đường dẫn model tiếng Việt; trống là tắt lượt sửa |
+| `AI_WHISPER_REFINE_MARGIN` | `0` | PhoWhisper phải tự tin hơn Whisper bấy nhiêu mới thay từ; `none` là luôn thay |
+| `AI_WHISPER_REFINE_BEAM_SIZE` | `5` | beam của lượt sửa |
+
 ### Phiên âm trực tiếp (ghi âm trên trình duyệt)
 
 `POST /internal/voice/live-window`: vài giây một lần trình duyệt gửi phần âm thanh chưa chốt (tối đa ~28 s),
@@ -123,10 +156,17 @@ Cách cũ (`/live-utterance`, trình duyệt tự cắt câu theo năng lượng
 
 ### Tách người nói (họp trực tiếp, một micro)
 
-`diarizer.py`: cắt lời Whisper thành khúc ~1,5 s theo mốc từ, tính vector giọng (3D-Speaker qua sherpa-onnx,
-CPU), gộp cụm theo độ giống (chỉ khúc ≥ 1 s; khúc ngắn hơn như "alo", "ừ" theo người giống nhất) →
-"Người nói 1, 2…" theo thứ tự lên tiếng; một câu Whisper trùm hai người được cắt
-đúng chỗ đổi người. (Thử nghiệm) khúc giống người thứ hai cao bất thường → `isOverlapping`.
+`diarizer.py` tính vector giọng (3D-Speaker ERes2Net qua sherpa-onnx, CPU) trên các khúc cắt theo mốc từ của
+Whisper và gộp cụm theo độ giống → "Người nói 1, 2…" theo thứ tự lên tiếng. Làm hai tầng:
+
+1. **Khúc dài ~3 s** (`AI_DIARIZATION_COARSE_S`): gộp cụm để biết có mấy người và tâm giọng từng người. Chỉ
+   khúc ≥ 1 s tham gia gộp cụm; khúc ngắn hơn ("alo", "ừ") theo người giống nhất; câu cảm thán đứng riêng mà
+   giống hai người ngang nhau thì theo người vừa nói sát bên.
+2. **Khúc nhỏ ~1,5 s**: mặc định theo khúc dài chứa nó, chỉ đổi sang người khác khi giống người đó hơn ít nhất
+   `AI_DIARIZATION_SWITCH_MARGIN` — vẫn cắt được một câu Whisper trùm hai người mà không để vân giọng nhiễu
+   của khúc ngắn xé vụn câu.
+
+(Thử nghiệm) khúc giống người thứ hai cao bất thường → `isOverlapping`.
 
 Đo trên cuộc họp thử 4 người, 151 s, giọng FPT TTS (báo cáo nghiệm thu, `nghiem-thu/thuc-nghiem/`):
 đúng 4/4 người và 99,5 % thời gian nói ở bản sạch; có nhiễu thì tách thừa 1–3 cụm nhỏ, vẫn đúng 85–95 %.
@@ -137,12 +177,25 @@ Trên ghi âm thật (micro laptop, người đúng suy từ nội dung lời n�
 tiếng "alo" của một người tụ thành người nói thừa — cuộc nói chuyện 2 người, 57 s ra 3 người; buổi học qua
 Meet 2 người, 330 s ra 4 người. Chỉ gộp cụm khúc ≥ 1 s thì cả hai ra đúng 2 người, gán đúng mọi khúc.
 
+Gộp cụm thẳng trên khúc 1,5 s vẫn tách thừa khi nhiều người nói xen nhau: bản ghi thử của QA 643 s (nhiều người
+nói xen nhau) ra 12 "người", đổi người 49 lần, 11 đoạn chỉ một từ; buổi học qua Meet 2 người có lúc ra 3 người (đúng 97 % thời
+lượng). Hai tầng: 8 người, đổi người 26 lần, 4 đoạn một từ; buổi học đúng 2 người, 100 % thời lượng; cuộc nói
+chuyện 2 người giữ nguyên 100 %. Bản ghi của QA không có nhãn người nói nên chỉ đo được mức xé vụn, không
+đo được tỷ lệ gán đúng.
+
+Đã thử thay mô hình vân giọng (tỷ lệ nhầm EER trên 35 người của VIVOS, khúc 1,5 s / 3 s có ồn): ERes2Net-base
+đang dùng 10,2 % / 4,5 %; ERes2Net-large 10,0 / 3,7; ERes2NetV2 9,2 / 3,5; CAM++ 10,9 / 5,7; TitaNet-large
+15,9 / 7,2; WeSpeaker ResNet293 29,0 / 23,8. Chênh không đáng kể nên giữ mô hình đang dùng; phần cải thiện đến
+từ khúc dài hơn (EER giảm hơn nửa khi khúc từ 1,5 s lên 3 s), không phải từ mô hình.
+
 | Biến | Mặc định | |
 | --- | --- | --- |
 | `AI_DIARIZATION` | `1` | `0` để tắt (mọi đoạn là "Người nói 1") |
 | `AI_DIARIZATION_THRESHOLD` | `0.3` | ngưỡng gộp cụm; thấp → gộp nhiều người, cao → tách thừa |
 | `AI_DIARIZATION_MIN_SPEAKER_S` | `2.0` | "người" nói tổng ít hơn ngần này giây gộp vào người giống nhất |
 | `AI_DIARIZATION_MIN_WINDOW_S` | `1.0` | khúc ngắn hơn không tham gia gộp cụm (vân giọng nhiễu), chỉ theo người giống nhất |
+| `AI_DIARIZATION_COARSE_S` | `3.0` | độ dài khúc ở tầng gộp cụm |
+| `AI_DIARIZATION_SWITCH_MARGIN` | `0.15` | khúc nhỏ phải giống người khác hơn bấy nhiêu mới tách khỏi khúc dài chứa nó |
 | `AI_DIARIZATION_OVERLAP` | `0` | `1` để bật đánh dấu nói chồng; mặc định tắt vì còn báo nhầm nhiều (xem báo cáo thực nghiệm) |
 
 | Biến | Mặc định | |

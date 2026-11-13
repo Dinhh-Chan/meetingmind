@@ -4,8 +4,6 @@ from types import SimpleNamespace
 
 import numpy as np
 
-import numpy as np
-
 from app.worker.diarizer import (
     Turn,
     Word,
@@ -14,6 +12,8 @@ from app.worker.diarizer import (
     cluster,
     cluster_reliable,
     merge_small_clusters,
+    refine_windows,
+    settle_lone_windows,
     make_windows,
     overlap_regions,
     overlap_windows,
@@ -177,3 +177,31 @@ def test_doan_ra_chuyen_duoc_json_khi_moc_la_numpy():
     segs = build_segments(ws, turns, {0: None})
     json.dumps(segs)
     assert segs[0]["isOverlapping"] is True
+
+
+def _unit(v):
+    return v / np.linalg.norm(v)
+
+
+def test_khuc_nho_theo_khuc_dai_tru_khi_giong_nguoi_khac_vuot_troi():
+    a, b = _voice(1, 3), _voice(2, 3)
+    centroids = {0: _unit(np.mean(a, axis=0)), 1: _unit(np.mean(b, axis=0))}
+    coarse = [Window(0, 3), Window(3, 6)]
+    fine = [Window(0, 1.5), Window(1.5, 3), Window(3, 4.5), Window(4.5, 4.8), Window(4.8, 6)]
+    noisy = (a[2] + b[2]) / 2
+    # Khúc 2 thuộc khúc dài của A nhưng là giọng B rõ ràng: đổi. Khúc 4 ngắn (không vân giọng): theo khúc dài.
+    # Khúc 5 lẫn hai giọng, không vượt trội về ai: giữ theo khúc dài.
+    labels = refine_windows(fine, [a[0], b[0], b[1], None, noisy], coarse, [0, 1], centroids, 1.0, 0.15)
+    assert labels == [0, 1, 1, 1, 1]
+
+
+def test_cau_cam_than_khong_ro_giong_theo_nguoi_noi_sat_ben():
+    a, b = _voice(1, 3), _voice(2, 3)
+    unclear = (a[0] + b[0]) / 2 + 0.05 * np.random.default_rng(6).standard_normal(64)
+    emb = [a[0], a[1], unclear, b[0], b[1]]
+    windows = [Window(0, 3), Window(3, 6), Window(6.2, 6.6), Window(9, 12), Window(12, 15)]
+    # Gán bừa cho B; khúc này sát lượt của A (cách 0,2 s) và xa lượt của B (2,4 s).
+    assert settle_lone_windows(emb, [0, 0, 1, 1, 1], windows, 1.0, margin=0.3) == [0, 0, 0, 1, 1]
+    # Giống rõ một người thì giữ.
+    clear = [a[0], a[1], b[2], b[0], b[1]]
+    assert settle_lone_windows(clear, [0, 0, 1, 1, 1], windows, 1.0) == [0, 0, 1, 1, 1]

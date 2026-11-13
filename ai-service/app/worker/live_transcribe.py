@@ -18,8 +18,9 @@ from __future__ import annotations
 import os
 import threading
 
+from app.worker import refine
 from app.worker.speech_regions import speech_filter
-from app.worker.whisper_transcriber import Settings, _load_model, is_hallucination
+from app.worker.whisper_transcriber import SAMPLE_RATE, Settings, _load_model, is_hallucination
 
 _lock = threading.Lock()
 
@@ -59,6 +60,8 @@ def transcribe_window(audio, language: str | None = "vi") -> list[tuple[float, f
     """Các câu (bắt đầu, kết thúc, chữ) trong một cửa sổ âm thanh, đã bỏ câu bịa."""
     s = settings()
     beam = int(os.environ.get("AI_LIVE_WINDOW_BEAM_SIZE", "5"))
+    # Cùng lượt sửa từ tiếng Việt như bản chính thức, để chữ lúc ghi và sau khi xử lý khớp nhau.
+    polish = refine.enabled() and (language or "vi") == "vi"
     with _lock:
         model = _load_model(s)
         segments, _ = model.transcribe(
@@ -66,7 +69,29 @@ def transcribe_window(audio, language: str | None = "vi") -> list[tuple[float, f
             language=language or None,
             beam_size=beam,
             condition_on_previous_text=False,
+            # Lượt sửa cần mốc và độ tự tin từng từ.
+            word_timestamps=polish,
             **speech_filter(audio),
         )
-        found = [(round(float(seg.start), 2), round(float(seg.end), 2), seg.text.strip()) for seg in segments]
-    return [(a, b, text) for a, b, text in found if text and not is_hallucination(text)]
+        found = [
+            (round(float(seg.start), 2), round(float(seg.end), 2), seg.text.strip(), list(seg.words or []) if polish else [])
+            for seg in segments
+        ]
+    out: list[tuple[float, float, str]] = []
+    pad = int(0.15 * SAMPLE_RATE)
+    for start, end, text, words in found:
+        if not text or is_hallucination(text):
+            continue
+        if words:
+            a0 = max(0, int(start * SAMPLE_RATE) - pad)
+            merged = refine.refine_words(
+                audio[a0 : int(end * SAMPLE_RATE) + pad],
+                a0 / SAMPLE_RATE,
+                [(float(w.start), float(w.end), w.word) for w in words],
+                s.device,
+                s.compute_type,
+                [float(getattr(w, "probability", 1.0)) for w in words],
+            )
+            text = "".join(t for _, _, t in merged).strip() or text
+        out.append((start, end, text))
+    return out

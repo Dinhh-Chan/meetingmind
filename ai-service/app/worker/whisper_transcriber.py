@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.worker.diarizer import Diarizer, Word, build_segments
+from app.worker import refine
 from app.worker.speech_regions import speech_filter
 from app.worker.storage import download_to_temp
 from app.worker.transcriber import TranscriptResult
@@ -253,16 +254,27 @@ class WhisperTranscriber:
             language = choose_segment_language(base, previous, duration, guess, s)
 
             seg_words = [(w.start, w.end, w.word) for w in (seg.words or [])] or [(seg.start, seg.end, " " + text)]
+            # Độ tự tin từng từ của Whisper, để lượt sửa chỉ thay khi mô hình tiếng Việt chắc hơn.
+            seg_probs = [float(getattr(w, "probability", 1.0)) for w in (seg.words or [])] or None
             confidence = confidence_of(seg.avg_logprob)
             if language != base:
                 redo_words, redo_conf = self._retranscribe(clip, language)
                 if redo_words:
                     # Mốc của lần phiên âm lại tính từ đầu đoạn cắt.
                     seg_words = [(seg.start + a, seg.start + b, t) for a, b, t in redo_words]
+                    seg_probs = None
                     confidence = redo_conf
                 else:
                     # Phiên âm lại không ra chữ: giữ bản lượt đầu và ngôn ngữ chính.
                     language = base
+
+            if language == "vi" and refine.enabled():
+                # Mô hình chuyên tiếng Việt nghe lại câu này và sửa từ sai (refine.py).
+                pad = int(0.15 * SAMPLE_RATE)
+                a0 = max(0, int(seg.start * SAMPLE_RATE) - pad)
+                seg_words = refine.refine_words(
+                    audio[a0 : int(seg.end * SAMPLE_RATE) + pad], a0 / SAMPLE_RATE, seg_words, s.device, s.compute_type, seg_probs
+                )
 
             confidences[index] = confidence
             words.extend(Word(a, b, t, language, index) for a, b, t in seg_words)
