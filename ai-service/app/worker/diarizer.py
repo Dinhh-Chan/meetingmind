@@ -416,6 +416,10 @@ class Diarizer:
         stream = self._extractor.create_stream()
         stream.accept_waveform(sample_rate, audio[a:b])
         stream.input_finished()
+        # Khúc quá ngắn hoặc mốc hỏng: không đủ khung để tính, trả vector không
+        # (không giống ai) thay vì làm hỏng cả lượt tách người nói.
+        if b - a < int(0.2 * sample_rate) or not self._extractor.is_ready(stream):
+            return np.zeros(self._extractor.dim, dtype=np.float32)
         return np.array(self._extractor.compute(stream))
 
     def turns(self, audio, words: list[Word], sample_rate: int = 16000) -> list[Turn]:

@@ -78,3 +78,10 @@ def test_bien_do_am_cho_thay_ca_khi_kem_tu_tin_hon_mot_chut():
     refined = words("phiên âm trực tiếp")
     assert text(merge_words(base, refined, [0.9, 0.6, 0.9, 0.9], [0.9, 0.55, 0.9, 0.9], margin=-0.1)) == "phiên âm trực tiếp"
     assert text(merge_words(base, refined, [0.9, 0.6, 0.9, 0.9], [0.9, 0.55, 0.9, 0.9], margin=0.0)) == "phiên năng trực tiếp"
+
+
+def test_moc_tu_khong_lui_va_nam_trong_cau():
+    from app.worker.refine import in_order
+
+    mixed = [(1.0, 1.4, " một"), (0.6, 0.9, " hai"), (1.2, 1.1, " ba"), (2.6, 3.4, " bốn")]
+    assert in_order(mixed, 1.0, 3.0) == [(1.0, 1.4, " một"), (1.4, 1.4, " hai"), (1.4, 1.4, " ba"), (2.6, 3.0, " bốn")]

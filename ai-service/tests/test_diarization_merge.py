@@ -205,3 +205,27 @@ def test_cau_cam_than_khong_ro_giong_theo_nguoi_noi_sat_ben():
     # Giống rõ một người thì giữ.
     clear = [a[0], a[1], b[2], b[0], b[1]]
     assert settle_lone_windows(clear, [0, 0, 1, 1, 1], windows, 1.0) == [0, 0, 1, 1, 1]
+
+
+class _TinyExtractor:
+    dim = 4
+
+    def create_stream(self):
+        return SimpleNamespace(accept_waveform=lambda rate, audio: None, input_finished=lambda: None)
+
+    def is_ready(self, stream):
+        return False
+
+    def compute(self, stream):
+        raise AssertionError("không được tính khi chưa đủ khung")
+
+
+def test_khuc_rong_hoac_qua_ngan_tra_vector_khong():
+    from app.worker.diarizer import Diarizer
+
+    d = Diarizer.__new__(Diarizer)
+    d._extractor = _TinyExtractor()
+    audio = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
+    # Mốc lộn (kết thúc trước bắt đầu) và khúc nằm ngoài bản ghi.
+    assert d._embed(audio, Window(1.5, 1.0), SAMPLE_RATE).tolist() == [0.0] * 4
+    assert d._embed(audio, Window(5.0, 6.0), SAMPLE_RATE).tolist() == [0.0] * 4

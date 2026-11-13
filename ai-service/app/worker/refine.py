@@ -142,6 +142,22 @@ def merge_words(
     return out
 
 
+def in_order(words: list[WordT], lo: float, hi: float) -> list[WordT]:
+    """Mốc từng từ nằm trong [lo, hi] và không lùi.
+
+    Từ lấy của mô hình tiếng Việt mang mốc của mô hình đó, có thể lệch ra ngoài câu
+    hoặc đè lên từ Whisper đứng cạnh; mốc lộn xộn làm khúc tách người nói rỗng.
+    """
+    out: list[WordT] = []
+    prev = lo
+    for a, b, t in words:
+        a = min(max(a, prev), hi)
+        b = min(max(b, a), hi)
+        out.append((a, b, t))
+        prev = b
+    return out
+
+
 # ---------- Model ----------
 
 _model = None
@@ -196,7 +212,8 @@ def refine_words(
             )
             found = [w for seg in segments for w in (seg.words or [])]
         refined = [(offset + float(w.start), offset + float(w.end), w.word) for w in found]
-        return merge_words(base, refined, base_probs, [float(w.probability) for w in found], margin())
+        merged = merge_words(base, refined, base_probs, [float(w.probability) for w in found], margin())
+        return in_order(merged, min(a for a, _, _ in base), max(b for _, b, _ in base))
     except Exception:  # noqa: BLE001 - lượt sửa là phần thêm, không được làm hỏng phiên âm
         log.exception("Lượt sửa từ tiếng Việt lỗi, giữ lời Whisper")
         return base
