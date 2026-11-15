@@ -56,8 +56,28 @@ def transcribe(audio, language: str | None = "vi") -> tuple[str, str | None]:
     return text.strip(), getattr(info, "language", language)
 
 
+# Trùng quy tắc chốt câu của trình duyệt (commitWindow trong live-speaker.ts): câu
+# kết thúc trước cuối cửa sổ ít nhất GUARD giây là đã nói xong; cửa sổ dài tối đa
+# mà chưa chốt được gì thì chốt hết trừ câu cuối.
+COMMIT_GUARD_S = 1.0
+MAX_WINDOW_S = 28.0
+
+
+def will_commit(segments: list[tuple[float, float, str]], window_s: float) -> list[bool]:
+    """Câu nào trình duyệt sẽ chốt từ lần trả lời này."""
+    final = [b <= window_s - COMMIT_GUARD_S for _, b, _ in segments]
+    if not any(final) and segments and window_s >= MAX_WINDOW_S - 0.1:
+        final = [i < len(segments) - 1 for i in range(len(segments))] if len(segments) > 1 else [True]
+    return final
+
+
 def transcribe_window(audio, language: str | None = "vi") -> list[tuple[float, float, str]]:
-    """Các câu (bắt đầu, kết thúc, chữ) trong một cửa sổ âm thanh, đã bỏ câu bịa."""
+    """Các câu (bắt đầu, kết thúc, chữ) trong một cửa sổ âm thanh, đã bỏ câu bịa.
+
+    Lượt sửa từ tiếng Việt chỉ chạy cho câu sắp được chốt: câu đang nói dở còn
+    được gửi lại ở lần sau, sửa nó mỗi lần làm một cửa sổ 28 s mất 5–7 s thay vì
+    dưới 1 s. Câu đã chốt không được gửi lại nên mỗi câu chỉ sửa một lần.
+    """
     s = settings()
     beam = int(os.environ.get("AI_LIVE_WINDOW_BEAM_SIZE", "5"))
     # Cùng lượt sửa từ tiếng Việt như bản chính thức, để chữ lúc ghi và sau khi xử lý khớp nhau.
@@ -77,12 +97,12 @@ def transcribe_window(audio, language: str | None = "vi") -> list[tuple[float, f
             (round(float(seg.start), 2), round(float(seg.end), 2), seg.text.strip(), list(seg.words or []) if polish else [])
             for seg in segments
         ]
+    found = [x for x in found if x[2] and not is_hallucination(x[2])]
+    final = will_commit([(a, b, t) for a, b, t, _ in found], len(audio) / SAMPLE_RATE)
     out: list[tuple[float, float, str]] = []
     pad = int(0.15 * SAMPLE_RATE)
-    for start, end, text, words in found:
-        if not text or is_hallucination(text):
-            continue
-        if words:
+    for (start, end, text, words), done in zip(found, final):
+        if words and done:
             a0 = max(0, int(start * SAMPLE_RATE) - pad)
             merged = refine.refine_words(
                 audio[a0 : int(end * SAMPLE_RATE) + pad],

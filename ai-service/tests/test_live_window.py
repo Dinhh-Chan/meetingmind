@@ -60,3 +60,33 @@ def test_cua_so_qua_luot_sua_tu_tieng_viet_khi_bat(monkeypatch):
     # Tiếng Anh thì không qua lượt sửa.
     live_transcribe.transcribe_window(np.zeros(16000 * 4, dtype=np.float32), "en")
     assert model.calls[1]["word_timestamps"] is False
+
+
+def test_cau_nao_se_duoc_chot_giong_trinh_duyet():
+    segs = [(0.0, 3.0, "a"), (3.5, 8.6, "b"), (9.0, 9.8, "c")]
+    # Cửa sổ 10 s: câu kết thúc trước giây thứ 9 là xong.
+    assert live_transcribe.will_commit(segs, 10.0) == [True, True, False]
+    # Cửa sổ 28 s mà chưa câu nào xong: chốt hết trừ câu cuối.
+    assert live_transcribe.will_commit([(0.0, 27.5, "a"), (27.6, 28.0, "b")], 28.0) == [True, False]
+    assert live_transcribe.will_commit([(0.0, 27.9, "a")], 28.0) == [True]
+    assert live_transcribe.will_commit([], 28.0) == []
+
+
+def test_cau_dang_noi_do_khong_qua_luot_sua(monkeypatch):
+    w = lambda a, b, t: SimpleNamespace(start=a, end=b, word=t, probability=0.5)
+
+    class TwoSegments(FakeModel):
+        def transcribe(self, audio, **kw):
+            return iter([
+                SimpleNamespace(start=0.5, end=2.0, text=" xong rồi", words=[w(0.5, 1.0, " xong"), w(1.0, 2.0, " rồi")]),
+                SimpleNamespace(start=2.5, end=3.8, text=" đang nói", words=[w(2.5, 3.0, " đang"), w(3.0, 3.8, " nói")]),
+            ]), SimpleNamespace(language="vi")
+
+    calls = []
+    monkeypatch.setattr(live_transcribe, "_load_model", lambda s: TwoSegments())
+    monkeypatch.setattr(live_transcribe, "speech_filter", lambda audio: {"vad_filter": True})
+    monkeypatch.setattr(live_transcribe.refine, "enabled", lambda: True)
+    monkeypatch.setattr(live_transcribe.refine, "refine_words", lambda clip, off, base, *a: calls.append(base) or base)
+    out = live_transcribe.transcribe_window(np.zeros(16000 * 4, dtype=np.float32), "vi")
+    assert [t for _, _, t in out] == ["xong rồi", "đang nói"]
+    assert len(calls) == 1 and calls[0][0][2] == " xong"
