@@ -13,7 +13,7 @@ import os
 import aio_pika
 
 from app.worker import contracts as c
-from app.worker import knowledge_indexer, knowledge_store
+from app.worker import gpu_watch, knowledge_indexer, knowledge_store
 from app.worker.analyzer import get_analyzer
 from app.worker.transcriber import get_transcriber
 
@@ -241,6 +241,8 @@ async def main() -> None:
                         await handler(message, channel)
                     except Exception:  # noqa: BLE001 - một tin lỗi không được làm sập worker
                         log.exception("Xử lý %s lỗi", env.get("eventType"))
+                # Tin đã ack: mất GPU thì khởi động lại bây giờ để việc sau chạy GPU.
+                gpu_watch.restart_if_lost()
 
 
 if __name__ == "__main__":

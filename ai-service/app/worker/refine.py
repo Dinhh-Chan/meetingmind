@@ -216,7 +216,13 @@ def refine_words(
         refined = [(offset + float(w.start), offset + float(w.end), w.word) for w in found]
         merged = merge_words(base, refined, base_probs, [float(w.probability) for w in found], margin())
         return in_order(merged, min(a for a, _, _ in base), max(b for _, b, _ in base))
-    except Exception:  # noqa: BLE001 - lượt sửa là phần thêm, không được làm hỏng phiên âm
-        log.exception("Lượt sửa từ tiếng Việt lỗi, giữ lời Whisper")
+    except Exception as err:  # noqa: BLE001 - lượt sửa là phần thêm, không được làm hỏng phiên âm
+        if isinstance(err, RuntimeError) and "cuda" in str(err).lower():
+            from app.worker import gpu_watch
+
+            gpu_watch.mark_lost(err)
+            log.warning("Lượt sửa từ tiếng Việt cần GPU (%s), giữ lời Whisper", err)
+        else:
+            log.exception("Lượt sửa từ tiếng Việt lỗi, giữ lời Whisper")
         return base
 

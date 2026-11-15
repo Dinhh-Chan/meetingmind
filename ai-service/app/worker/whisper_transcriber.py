@@ -23,6 +23,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from app.worker import gpu_watch
 from app.worker.diarizer import Diarizer, Word, build_segments
 from app.worker import refine
 from app.worker.speech_regions import speech_filter
@@ -173,6 +174,7 @@ def _load_model(settings: Settings, force_cpu: bool = False):
                 if device == "cpu" or not is_cuda_error(err):
                     raise
                 log.warning("Không dùng được GPU (%s): chạy Whisper trên CPU", err)
+                gpu_watch.mark_lost(err)
                 _model = WhisperModel(settings.model, device="cpu", compute_type="int8")
         return _model
 
@@ -213,6 +215,7 @@ class WhisperTranscriber:
                 if not is_cuda_error(err) or self.settings.device == "cpu":
                     raise
                 log.warning("GPU lỗi khi phiên âm (%s): chuyển Whisper sang CPU và chạy lại", err)
+                gpu_watch.mark_lost(err)
                 self._model = await asyncio.to_thread(_load_model, self.settings, True)
                 return await asyncio.to_thread(self.transcribe_audio, audio, language, voice_profiles)
         finally:

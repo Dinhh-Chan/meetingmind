@@ -9,6 +9,7 @@ import base64
 import binascii
 import os
 import tempfile
+import threading
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -133,8 +134,21 @@ def live_window(body: LiveUtteranceRequest) -> LiveWindowResponse:
     """Phiên âm trực tiếp kiểu cửa sổ trượt: chép lời phần âm thanh chưa chốt, trả các câu kèm mốc."""
     from app.worker import live_transcribe
 
+    from app.worker import gpu_watch
+
     audio = _decode(body.audio)
-    segments = live_transcribe.transcribe_window(audio, body.language)
+    try:
+        segments = live_transcribe.transcribe_window(audio, body.language)
+    except RuntimeError as err:
+        if "cuda" not in str(err).lower():
+            raise
+        gpu_watch.mark_lost(err)
+        segments = None
+    if gpu_watch.lost:
+        # Container mất GPU: trả lời xong rồi khởi động lại để lấy lại GPU (gpu_watch.py).
+        threading.Timer(1.0, gpu_watch.restart_if_lost).start()
+    if segments is None:
+        raise HTTPException(status_code=503, detail="GPU tạm thời không dùng được, đang khởi động lại")
     return LiveWindowResponse(
         segments=[LiveSegment(start=a, end=b, text=text) for a, b, text in segments],
         seconds=round(len(audio) / voice.SAMPLE_RATE, 2),

@@ -22,7 +22,29 @@ from app.utils.exception_handler import (
 )
 
 logging.config.fileConfig(settings.LOGGING_CONFIG_FILE, disable_existing_loggers=False)
-Base.metadata.create_all(bind=engine)
+
+
+def _create_tables(attempts: int = 30, delay_s: float = 2.0) -> None:
+    """Tạo bảng, chờ Postgres nếu nó chưa sẵn sàng (máy chủ vừa khởi động lại).
+
+    Trước đây lỗi kết nối ở đây làm tiến trình chết ngay khi import; chạy kèm
+    --reload thì vỏ uvicorn vẫn sống nên container "Up" mà không phục vụ gì,
+    phiên âm trực tiếp và đăng ký giọng tắt hẳn hai ngày. Phiên âm và nhận giọng
+    không cần DB, nên hết lượt chờ thì vẫn chạy tiếp.
+    """
+    import time
+
+    for attempt in range(1, attempts + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except Exception as err:  # noqa: BLE001
+            logging.getLogger("app").warning("Chưa kết nối được Postgres (lần %d/%d): %s", attempt, attempts, err)
+            time.sleep(delay_s)
+    logging.getLogger("app").error("Không tạo được bảng; vẫn chạy các API không cần DB")
+
+
+_create_tables()
 
 
 @asynccontextmanager
