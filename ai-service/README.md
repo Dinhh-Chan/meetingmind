@@ -203,6 +203,7 @@ từ khúc dài hơn (EER giảm hơn nửa khi khúc từ 1,5 s lên 3 s), khô
 | `AI_DIARIZATION_MIN_WINDOW_S` | `1.0` | khúc ngắn hơn không tham gia gộp cụm (vân giọng nhiễu), chỉ theo người giống nhất |
 | `AI_DIARIZATION_COARSE_S` | `3.0` | độ dài khúc ở tầng gộp cụm |
 | `AI_DIARIZATION_SWITCH_MARGIN` | `0.15` | khúc nhỏ phải giống người khác hơn bấy nhiêu mới tách khỏi khúc dài chứa nó |
+| `AI_VOICE_MATCH_THRESHOLD` | `0.4` | cosine tối thiểu để gắn "Người nói N" với người đã đăng ký giọng (cả core lúc ghi trực tiếp). Đo trên micro laptop: đúng người 0,40–0,73, người khác ≤ 0,32; ngưỡng cũ 0,5 bỏ sót người nói ít |
 | `AI_DIARIZATION_OVERLAP` | `0` | `1` để bật đánh dấu nói chồng; mặc định tắt vì còn báo nhầm nhiều (xem báo cáo thực nghiệm) |
 
 | Biến | Mặc định | |

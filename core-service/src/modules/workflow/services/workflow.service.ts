@@ -984,7 +984,13 @@ export class WorkflowService {
         const payload: Record<string, unknown> = { ...(item.payload as Record<string, unknown>), ...edit };
         const title = String(payload.title ?? "").trim();
         if (!title) throw ApiError.BadRequest("error-review-title-required");
-        if (item.type === ReviewItemType.ACTION_ITEM) assertDeadlineNotPast(payload.deadline);
+        if (item.type === ReviewItemType.ACTION_ITEM) {
+            // Task chỉ thành việc chính thức khi đã rõ ai làm và hạn khi nào; thiếu
+            // thì người duyệt phải sửa đề xuất (hoặc yêu cầu làm rõ) trước.
+            if (!payload.assigneeId) throw ApiError.BadRequest("error-review-assignee-required");
+            if (!payload.deadline) throw ApiError.BadRequest("error-review-deadline-required");
+            assertDeadlineNotPast(payload.deadline);
+        }
 
         const patch: Record<string, unknown> = {
             status: ReviewItemStatus.APPROVED,

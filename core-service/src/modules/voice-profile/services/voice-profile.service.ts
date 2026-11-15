@@ -122,11 +122,12 @@ export class VoiceProfileService extends BaseService<VoiceProfile, VoiceProfileR
 
     /**
      * Người (trong danh sách) có vân giọng đã xác nhận giống câu nói nhất, nếu
-     * đủ giống. Cùng ngưỡng với ghép giọng sau cuộc họp (AI_VOICE_MATCH_THRESHOLD).
+     * đủ giống. Một câu lẻ (1–3 s) nhiễu hơn tâm giọng của nhiều câu nên giữ
+     * ngưỡng chặt hơn (AI_VOICE_UTTERANCE_THRESHOLD).
      */
     async identify(embedding: number[], userIds: string[]) {
         const profiles = await this.profilesFor(userIds);
-        const threshold = Number(process.env.AI_VOICE_MATCH_THRESHOLD ?? 0.5);
+        const threshold = Number(process.env.AI_VOICE_UTTERANCE_THRESHOLD ?? 0.5);
         const norm = (v: number[]) => Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
         const a = norm(embedding);
         let best: { userId: string; score: number } | null = null;
@@ -145,11 +146,12 @@ export class VoiceProfileService extends BaseService<VoiceProfile, VoiceProfileR
      * Ghép nhiều giọng (tâm giọng của từng "Người nói N" lúc ghi trực tiếp) với
      * người đã đăng ký giọng, như ghép sau cuộc họp: xét cặp giống nhất trước,
      * mỗi người ứng với một giọng. Tâm của nhiều câu ổn định hơn từng câu lẻ nên
-     * nhận ra người mà so từng câu không qua ngưỡng.
+     * nhận ra người mà so từng câu không qua ngưỡng. Cùng ngưỡng với ghép giọng
+     * sau cuộc họp (AI_VOICE_MATCH_THRESHOLD, xem ai-service/app/worker/voice.py).
      */
     async matchMany(voices: Record<string, number[]>, userIds: string[]) {
         const profiles = await this.profilesFor(userIds);
-        const threshold = Number(process.env.AI_VOICE_MATCH_THRESHOLD ?? 0.5);
+        const threshold = Number(process.env.AI_VOICE_MATCH_THRESHOLD ?? 0.4);
         const norm = (v: number[]) => Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
         const pairs: { key: string; userId: string; score: number }[] = [];
         for (const [key, vector] of Object.entries(voices)) {

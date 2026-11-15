@@ -58,6 +58,8 @@
     "error-google-email-unverified": "Email Google chưa được xác minh",
     "error-review-item-not-found": "Không tìm thấy đề xuất",
     "error-review-title-required": "Đề xuất cần có tiêu đề",
+    "error-review-assignee-required": "Chọn người thực hiện trước khi duyệt task",
+    "error-review-deadline-required": "Chọn deadline trước khi duyệt task",
     "error-review-already-approved": "Đề xuất đã được duyệt",
     "error-comment-empty": "Bình luận trống",
     "error-note-empty": "Ghi chú trống",

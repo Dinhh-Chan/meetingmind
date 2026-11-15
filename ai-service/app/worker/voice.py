@@ -34,8 +34,13 @@ _lock = threading.Lock()
 
 
 def match_threshold() -> float:
-    """Cosine tối thiểu để coi là cùng một người; dưới mức này giữ "Người nói N"."""
-    return float(os.environ.get("AI_VOICE_MATCH_THRESHOLD", "0.5"))
+    """Cosine tối thiểu để coi là cùng một người; dưới mức này giữ "Người nói N".
+
+    Đo trên bản ghi thật ở 5880 (micro laptop, 2–10 s lời mỗi người): đúng người
+    0,40–0,73 so với mẫu đã đăng ký; người khác chắc chắn (buổi học qua Meet, các
+    giọng khác trong bản ghi QA) cao nhất 0,32. Ngưỡng cũ 0,5 bỏ sót người nói ít.
+    """
+    return float(os.environ.get("AI_VOICE_MATCH_THRESHOLD", "0.4"))
 
 
 def _extractor_instance():

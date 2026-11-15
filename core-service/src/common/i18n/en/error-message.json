@@ -51,6 +51,8 @@
     "error-google-email-unverified": "The Google email is not verified",
     "error-review-item-not-found": "Review item not found",
     "error-review-title-required": "Review item title is required",
+    "error-review-assignee-required": "Choose who will do this task before approving",
+    "error-review-deadline-required": "Set a deadline for this task before approving",
     "error-review-already-approved": "Review item already approved",
     "error-comment-empty": "Comment is empty",
     "error-note-empty": "Note is empty",

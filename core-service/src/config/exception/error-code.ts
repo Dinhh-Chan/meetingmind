@@ -40,6 +40,8 @@ export type ErrorCode =
     | "error-google-email-unverified"
     | "error-review-item-not-found"
     | "error-review-title-required"
+    | "error-review-assignee-required"
+    | "error-review-deadline-required"
     | "error-review-already-approved"
     | "error-comment-empty"
     | "error-note-empty"

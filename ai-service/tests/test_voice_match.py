@@ -80,3 +80,11 @@ def test_cau_qua_ngan_khong_tinh_van_giong():
 
     short = np.random.default_rng(1).normal(0, 0.3, int(0.5 * voice.SAMPLE_RATE)).astype(np.float32)
     assert voice.embed_utterance(short) is None
+
+
+def test_nguong_mac_dinh_hop_voi_micro_laptop(monkeypatch):
+    # Đúng người nói ít trên micro laptop chỉ đạt 0,40–0,49 so với mẫu đăng ký.
+    monkeypatch.delenv("AI_VOICE_MATCH_THRESHOLD", raising=False)
+    assert voice.match_threshold() == 0.4
+    monkeypatch.setenv("AI_VOICE_MATCH_THRESHOLD", "0.55")
+    assert voice.match_threshold() == 0.55
