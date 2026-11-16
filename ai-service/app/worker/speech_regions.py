@@ -66,6 +66,33 @@ def energy_regions(
     return [(round(a, 2), round(b, 2)) for a, b in merged]
 
 
+def speech_probe(audio, seconds: float = 30.0):
+    """Tối đa `seconds` giây đầu tiên CÓ tiếng nói, để nhận ngôn ngữ chính của bài.
+
+    Whisper nhận ngôn ngữ bằng 30 giây đầu. Bản ghi bot Meet mở đầu bằng 40 giây im
+    lặng (chưa ai bật mic) làm nó chọn tiếng Anh cho cả cuộc họp tiếng Việt. Không
+    tìm thấy vùng có tiếng thì trả nguyên `audio`.
+    """
+    import numpy as np
+
+    try:
+        regions = energy_regions(audio)
+    except Exception:  # noqa: BLE001 - chỉ là bước chọn mẫu
+        return audio
+    need = int(seconds * SAMPLE_RATE)
+    parts, total = [], 0
+    for start, end in regions:
+        part = audio[int(start * SAMPLE_RATE) : int(end * SAMPLE_RATE)][: need - total]
+        parts.append(part)
+        total += len(part)
+        if total >= need:
+            break
+    # Dưới 3 giây thì không hơn gì đoán: để Whisper nghe cả đoạn đầu như trước.
+    if total < 3 * SAMPLE_RATE:
+        return audio
+    return np.concatenate(parts)
+
+
 def silero_seconds(audio) -> float:
     from faster_whisper.vad import VadOptions, get_speech_timestamps
 

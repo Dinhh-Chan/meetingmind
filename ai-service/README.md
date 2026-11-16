@@ -95,55 +95,101 @@ def downgrade() -> None:
 
 Nhận diện ngôn ngữ **theo từng đoạn**, nên cuộc họp nói lẫn Việt – Anh vẫn đúng:
 
-1. Chọn ngôn ngữ chính cho cả bài (dưới ngưỡng tin cậy thì theo `meetings.language` Core gửi, mặc định `vi`).
+0. Bản ghi bị đục thì cân bằng âm sắc trước (xem mục dưới); tách người nói vẫn nghe âm thanh gốc.
+1. Chọn ngôn ngữ chính cho cả bài trên tối đa 30 giây đầu **có tiếng nói** (`speech_probe`), không phải 30 giây
+   đầu của tệp: bản ghi bot mở đầu bằng 40 giây lặng từng bị chọn nhầm tiếng Anh cho cả cuộc họp. Dưới ngưỡng
+   tin cậy 0,8 thì theo `meetings.language` Core gửi, mặc định `vi`.
 2. Phiên âm có lọc khoảng lặng (Silero VAD). Silero giữ dưới 60 % lượng âm thanh có năng lượng (tiếng phát qua
    loa bị khử vọng, người nói xa micro) thì cắt theo năng lượng thay vì để mất lời: `speech_regions.py`,
    `AI_VAD_FALLBACK_RATIO`. Bản ghi thật 296 s từng ra transcript rỗng, nay ra ~240 từ.
-3. Mỗi đoạn ≥ 1,5 s được nhận diện lại; khác ngôn ngữ chính và đủ chắc thì phiên âm lại đoạn đó bằng
-   ngôn ngữ của nó. Đoạn ngắn hơn theo ngôn ngữ đoạn trước.
+3. Mỗi đoạn ≥ 3 s được nhận diện lại; khác ngôn ngữ chính, đủ chắc (≥ 0,9) và thuộc danh sách được phép
+   (`vi,en`) thì phiên âm lại đoạn đó bằng ngôn ngữ của nó. Bản chép lại bị bỏ, giữ ngôn ngữ chính, khi nó
+   ra chữ có dấu tiếng Việt (câu Việt xen thuật ngữ Anh bị nhận nhầm) hoặc chỉ vài chữ cho cả đoạn dài (câu
+   bịa như "How about the game?" cho 18 giây). Đoạn ngắn hơn theo ngôn ngữ đoạn trước. Ngưỡng cũ (1,5 s; 0,7)
+   cho nhầm nhiều ở âm thanh kém: đoạn tiếng Việt 1,5 s bị nhận là tiếng Indonesia với xác suất 0,99, một
+   bản ghi bot có lần 39 % thời lượng bị gán tiếng Anh.
 
 Kết quả gửi về Core có `language` từng đoạn, ngôn ngữ chính `language` và tỷ lệ `languages`
 (ví dụ `{ "vi": 0.6, "en": 0.4 }`).
 
+### Cân bằng âm sắc bản ghi bị đục
+
+`equalize.py`: so phổ dài hạn của phần có tiếng với phổ tiếng nói chuẩn (đo trên VIVOS); khi ít nhất hai dải
+trong 1–4 kHz hụt từ 6 dB thì nâng các dải hụt (tối đa 18 dB) trước khi nhận dạng. Một bản ghi bot Google Meet
+(người đọc kịch bản qua Meet) hụt 11–17 dB ở 1–2 kHz và 3–4 kHz; đường truyền không lỗi (36–46 kbps, mất gói
+0,1 %) nên tiếng đã đục từ phía người nói (micro hoặc xử lý âm thanh của Meet). Cân bằng lại giúp bản ghép
+giảm sai từ từ ~68 % xuống ~60 % trên bản ghi đó. Bản ghi bình thường không bị đụng tới; `AI_EQUALIZE=0` để
+tắt. Chưa dùng cho phiên âm trực tiếp (cửa sổ quá ngắn để ước lượng phổ).
+
+Cùng bản ghi đó, toàn bộ thay đổi của đợt này (gipformer, cân bằng âm sắc, nhận ngôn ngữ trên phần có tiếng,
+siết đổi ngôn ngữ từng đoạn) đưa tỷ lệ sai từ so với kịch bản từ 90,6 % xuống 57,7 %. Người đọc có nói khác
+kịch bản vài câu nên con số tuyệt đối cao hơn thực tế; phần còn sai chủ yếu là thuật ngữ tiếng Anh (record,
+sprint, backend, Swagger).
+
 ### Lượt sửa từ tiếng Việt (ghép hai mô hình)
 
-Đặt `AI_WHISPER_REFINE_MODEL` (đường dẫn model CTranslate2 của `vinai/PhoWhisper-large`) thì mỗi câu tiếng Việt
-được PhoWhisper nghe lại và ghép với lời Whisper theo từng từ (`refine.py`): từ tiếng Việt lấy của PhoWhisper
-khi nó tự tin hơn Whisper ở đúng cụm đó; câu, dấu câu, chữ hoa, mốc thời gian, số và từ tiếng Anh giữ của
-Whisper. Dùng cho cả bản chính thức lẫn phiên âm trực tiếp, nên chữ lúc ghi và sau khi xử lý khớp nhau hơn.
-Cần GPU; để trống thì tắt.
+Đặt `AI_WHISPER_REFINE_MODEL` thì mỗi câu tiếng Việt được một mô hình chuyên tiếng Việt nghe lại và ghép với
+lời Whisper theo từng từ (`refine.py`): từ tiếng Việt lấy của mô hình tiếng Việt; câu, dấu câu, chữ hoa, mốc
+thời gian, số và từ tiếng Anh giữ của Whisper. Dùng cho cả bản chính thức lẫn phiên âm trực tiếp, nên chữ lúc
+ghi và sau khi xử lý khớp nhau hơn. Để trống thì tắt. Hai loại mô hình, nhận theo tệp trong thư mục:
 
-Tỷ lệ sai từ (WER) trên 300 câu VIVOS test qua đúng pipeline này, bản sạch / bản thêm ồn 10 dB và giảm âm
-lượng, và số cụm từ kiểm tra nghe ra trên video cuộc họp mô phỏng 8 phút (thu xa micro):
+- **Zipformer transducer qua sherpa-onnx, chạy CPU** (`encoder.onnx`, `decoder.onnx`, `joiner.onnx`,
+  `tokens.txt`) — đang dùng `g-group-ai-lab/gipformer1.5-68M-rnnt` (68 triệu tham số, giấy phép MIT). Chỗ hai
+  bên khác nhau thì luôn lấy từ của mô hình này.
+- **Whisper tinh chỉnh bằng CTranslate2, chạy GPU** (ví dụ `vinai/PhoWhisper-large`) — chỉ thay khi mô hình
+  tiếng Việt tự tin hơn Whisper ở đúng cụm đó.
 
-| | sạch | có ồn | video họp |
-| --- | --- | --- | --- |
-| Whisper `large-v3-turbo` một mình | 8,68 % | 11,22 % | 12/20 |
-| ghép với PhoWhisper-large (mặc định) | 5,31 % | 5,94 % | 15/20 |
+Tỷ lệ sai từ (WER) trên 300 câu VIVOS test qua đúng pipeline này: bản sạch, và bản cắt mọi tần số trên 4 kHz
+(như âm thanh bot Google Meet thu được) có thêm ồn 10 dB:
 
-Các lựa chọn đã đo và bỏ (cùng 300 câu, lần đo trước, ồn sinh khác nên chỉ so trong từng dòng):
-Whisper `large-v3` 9,22 % / 10,68 % (turbo lần đó 9,35 / 11,89) — không đáng chậm 3,5 lần; PhoWhisper-large một
-mình 4,94 % / 6,08 % — sai ít từ nhất trên câu đọc nhưng không dùng thay được: viết thường, không dấu câu,
-không ngắt câu (mỗi 30 s một đoạn nên phiên âm trực tiếp không chốt được câu), viết số và từ tiếng Anh thành
-chữ ("đét lai"), hay bịa ở chỗ không có tiếng nói. Bản ghép giữ số của Whisper ("542,8", "613", "2015" trên
-video họp). Luôn thay từ thay vì chỉ thay khi PhoWhisper tự tin hơn thì kém hơn (5,44 % so với 5,28 %), đòi
-tự tin hơn hẳn 0,1 cũng kém (6,58 %).
+| | sạch | 4 kHz + ồn |
+| --- | --- | --- |
+| Whisper `large-v3-turbo` một mình | 8,68 % | 12,09 % |
+| ghép với PhoWhisper-large, biên độ 0 | 5,31 % | 6,28 % |
+| ghép với gipformer 1.0, luôn thay | 4,71 % | 5,54 % |
+| ghép với gipformer 1.0, biên độ 0 | 5,84 % | 6,74 % |
+| ghép với gipformer 1.5, luôn thay (đang dùng) | 4,74 % | 5,71 % |
+| ghép với `coflar-ai/viet-asr` (int8), luôn thay | 12,29 % | 14,22 % |
+
+Gipformer 1.0 và 1.5 ngang nhau trên câu đọc; chọn 1.5 vì bảng của tác giả cho thấy nó hơn hẳn ở lời nói theo
+lĩnh vực (công nghệ 27,5 % so với 36,6 %, giáo dục 23,3 % so với 29,8 %) — số của tác giả, nhóm chưa đo lại.
+Trên một bản ghi bot Meet rất khó nghe, gipformer ra câu có nghĩa ở chỗ PhoWhisper đoán sai hẳn ("Bản chất
+thì nó sẽ là ghi âm lại và đẩy lên trên để nó xử lý" so với "Bản trong tình huống bác sĩ là đi âm lại…").
+`erax-ai/EraX-WoW-Turbo-V1.1-CT2` thay cho turbo thì hỏng (lặp chữ, WER trên 300 %). Riêng việc cắt tần số trên
+4 kHz gần như không làm tăng lỗi (turbo 8,68 % → 9,12 %).
+
+Các lựa chọn đã đo và bỏ ở lần đo trước (ồn sinh khác nên chỉ so trong từng dòng): Whisper `large-v3` 9,22 % /
+10,68 % (turbo lần đó 9,35 / 11,89) — không đáng chậm 3,5 lần; PhoWhisper-large một mình 4,94 % / 6,08 % nhưng
+viết thường, không dấu câu, không ngắt câu, viết số và từ tiếng Anh thành chữ, hay bịa ở chỗ không có tiếng
+nói. Với PhoWhisper, luôn thay kém hơn chỉ thay khi tự tin hơn (5,44 % so với 5,28 %); với gipformer thì ngược
+lại (bảng trên) vì độ tự tin của transducer không cùng thang đo với Whisper.
+
+Mốc thời gian từng từ luôn theo Whisper (từ thay thế chia đều khoảng thời gian của cụm nó thay), và ranh giới
+các khúc tách người nói lấy từ lời Whisper trước lượt sửa: đổi mô hình sửa từ không làm đổi kết quả tách người
+nói (dùng mốc và từ của gipformer, buổi học 2 người từng ra 3 người). Với transducer, khi nó nghe ra dài gấp
+mấy lần Whisper trong cùng đoạn (Whisper chép cụt ở âm thanh kém) thì lấy lời của nó; PhoWhisper thì không,
+vì hay bịa ở chỗ không có tiếng nói.
+
+Khi Whisper kẹt vòng lặp ở âm thanh kém ("em cứ nổi loại, em cứ nổi loại, em cứ nổi loại") mà mô hình tiếng
+Việt nghe ra câu ngắn hơn hẳn và không lặp thì lấy lời của mô hình tiếng Việt.
 
 Giới hạn: VIVOS là câu đọc, không phải lời họp tự nhiên — chưa có bộ ghi âm họp thật có lời chuẩn để đo. Âm
-thanh quá kém thì cả hai mô hình cùng đoán sai ("Để phiên năng trực tiếp" trong một bản ghi micro laptop vẫn
-sai sau khi ghép).
+thanh quá kém thì cả hai mô hình cùng đoán sai.
 
-Chi phí trên RTX 5880: video 478 s phiên âm 13 s → 25 s; một cửa sổ phiên âm trực tiếp trung vị 0,13 s →
-0,41 s (lớn nhất 0,87 s, vẫn dưới nhịp gửi 3 s); mỗi tiến trình nạp cả hai mô hình dùng ~6 GB bộ nhớ GPU.
+Chi phí trên máy 5880: gipformer chạy CPU 8 luồng, thêm khoảng 0,13 s mỗi câu (PhoWhisper trên GPU: 0,27 s) và
+không tốn bộ nhớ GPU (PhoWhisper: ~3 GB mỗi tiến trình).
 
-Chuyển model: `ct2-transformers-converter --model vinai/PhoWhisper-large --output_dir phowhisper-large-ct2
---copy_files tokenizer.json preprocessor_config.json --quantization float16`, đặt vào volume `whisper-models`.
+Cài mô hình: tải `encoder.onnx`, `decoder.onnx`, `joiner.onnx`, `tokens.txt` của
+`g-group-ai-lab/gipformer1.5-68M-rnnt` vào một thư mục trong volume `whisper-models`.
 
 | Biến | Mặc định | |
 | --- | --- | --- |
-| `AI_WHISPER_REFINE_MODEL` | (trống) | đường dẫn model tiếng Việt; trống là tắt lượt sửa |
-| `AI_WHISPER_REFINE_MARGIN` | `0` | PhoWhisper phải tự tin hơn Whisper bấy nhiêu mới thay từ; `none` là luôn thay |
-| `AI_WHISPER_REFINE_BEAM_SIZE` | `5` | beam của lượt sửa |
+| `AI_WHISPER_REFINE_MODEL` | (trống) | thư mục mô hình tiếng Việt; trống là tắt lượt sửa |
+| `AI_WHISPER_REFINE_MARGIN` | theo loại mô hình | mô hình tiếng Việt phải tự tin hơn Whisper bấy nhiêu mới thay từ; `none` là luôn thay. Mặc định: transducer luôn thay, PhoWhisper `0` |
+| `AI_WHISPER_REFINE_BEAM_SIZE` | `5` (PhoWhisper) / `4` (transducer) | beam của lượt sửa |
+| `AI_WHISPER_REFINE_THREADS` | `8` | số luồng CPU của mô hình transducer |
+| `AI_WHISPER_REFINE_INT8` | `0` | `1` để dùng bản lượng tử hoá `*.int8.onnx` |
+| `AI_WHISPER_LANGUAGES` | `vi,en` | một đoạn chỉ được đổi sang các ngôn ngữ này (ngoài ngôn ngữ chính); buổi học tiếng Việt từng có 3,5 % thời lượng bị nhận nhầm thành tiếng Tây Ban Nha / Indonesia |
 
 ### Phiên âm trực tiếp (ghi âm trên trình duyệt)
 
@@ -210,8 +256,10 @@ từ khúc dài hơn (EER giảm hơn nửa khi khúc từ 1,5 s lên 3 s), khô
 | --- | --- | --- |
 | `AI_WHISPER_MODEL` | `small` | `medium`, `large-v3` nghe tiếng Việt tốt hơn, chậm hơn nhiều trên CPU |
 | `AI_WHISPER_DEVICE` / `AI_WHISPER_COMPUTE_TYPE` | `cpu` / `int8` | có GPU thì `cuda` / `float16` |
-| `AI_WHISPER_SEGMENT_MIN_PROB` | `0.7` | ngưỡng để đổi ngôn ngữ một đoạn |
-| `AI_WHISPER_MIN_DETECT_SECONDS` | `1.5` | đoạn ngắn hơn không nhận diện riêng |
+| `AI_WHISPER_BASE_MIN_PROB` | `0.8` | dưới ngưỡng này ngôn ngữ chính theo cuộc họp |
+| `AI_WHISPER_SEGMENT_MIN_PROB` | `0.9` | ngưỡng để đổi ngôn ngữ một đoạn |
+| `AI_WHISPER_MIN_DETECT_SECONDS` | `3.0` | đoạn ngắn hơn không nhận diện riêng |
+| `AI_EQUALIZE` | `1` | `0` để tắt cân bằng âm sắc bản ghi bị đục |
 
 Model tải từ Hugging Face lần đầu, lưu ở volume `whisper-models`. Test: `python -m pytest tests`.
 

@@ -24,9 +24,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.worker import gpu_watch
+from app.worker.equalize import equalize
 from app.worker.diarizer import Diarizer, Word, build_segments
 from app.worker import refine
-from app.worker.speech_regions import speech_filter
+from app.worker.speech_regions import speech_filter, speech_probe
 from app.worker.storage import download_to_temp
 from app.worker.transcriber import TranscriptResult
 
@@ -38,7 +39,7 @@ SPEAKER_LABEL = "Người nói 1"
 # Câu Whisper hay bịa ra ở đoạn im lặng hoặc ồn: học từ phụ đề video trên mạng.
 HALLUCINATIONS = re.compile(
     r"(đăng ký kênh|subscribe|ghiền mì gõ|like và share|bấm chuông|"
-    r"hẹn gặp lại[^.!?]{0,30}video|thanks for watching|"
+    r"gặp lại[^.!?]{0,40}video|thanks for watching|"
     r"cảm ơn các bạn đã (theo dõi|xem video))",
     re.IGNORECASE,
 )
@@ -54,12 +55,20 @@ class Settings:
     device: str = "auto"
     compute_type: str = "int8"
     beam_size: int = 5
-    # Ngôn ngữ chính: dưới ngưỡng này thì tin ngôn ngữ cuộc họp do Core gửi.
-    base_min_prob: float = 0.5
-    # Đổi ngôn ngữ một đoạn chỉ khi chắc chắn: đoạn ngắn hay bị đoán nhầm.
-    segment_min_prob: float = 0.7
+    # Ngôn ngữ chính: dưới ngưỡng này thì tin ngôn ngữ cuộc họp do Core gửi. Lời nói thật
+    # 30 giây thường được trên 0,9; âm thanh kém cho kết quả lưng chừng thì không đủ để
+    # bỏ ngôn ngữ người dùng đã chọn cho cuộc họp.
+    base_min_prob: float = 0.8
+    # Đổi ngôn ngữ một đoạn chỉ khi chắc chắn: đoạn ngắn hay bị đoán nhầm. Đo trên bản
+    # ghi thật: đoạn tiếng Việt 1,5–2,8 s bị nhận là tiếng Indonesia (0,99), Tây Ban Nha
+    # (0,70), Anh (0,74); tiếng Anh thật (khúc 2 s) được 0,87–0,97.
+    segment_min_prob: float = 0.9
     # Đoạn ngắn hơn ngần này không đủ âm thanh để nhận diện ngôn ngữ.
-    min_detect_seconds: float = 1.5
+    min_detect_seconds: float = 3.0
+    # Một đoạn chỉ được đổi sang các ngôn ngữ này (ngoài ngôn ngữ chính của bài).
+    # Buổi học tiếng Việt qua Meet từng có 3,5 % thời lượng bị nhận là tiếng Tây Ban
+    # Nha / Indonesia rồi bị chép lại bằng tiếng đó.
+    languages: tuple[str, ...] = ("vi", "en")
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -72,6 +81,9 @@ class Settings:
             base_min_prob=float(env("AI_WHISPER_BASE_MIN_PROB", str(cls.base_min_prob))),
             segment_min_prob=float(env("AI_WHISPER_SEGMENT_MIN_PROB", str(cls.segment_min_prob))),
             min_detect_seconds=float(env("AI_WHISPER_MIN_DETECT_SECONDS", str(cls.min_detect_seconds))),
+            languages=tuple(
+                x.strip().lower() for x in env("AI_WHISPER_LANGUAGES", ",".join(cls.languages)).split(",") if x.strip()
+            ),
         )
 
 
@@ -102,15 +114,35 @@ def choose_segment_language(
 
     - Đoạn quá ngắn: giữ ngôn ngữ đoạn trước — người nói thường không đổi tiếng
       giữa chừng một câu ngắn.
-    - Đủ dài và nhận diện chắc chắn: dùng kết quả nhận diện.
-    - Nhận diện không chắc: về ngôn ngữ chính.
+    - Đủ dài và nhận diện chắc chắn: dùng kết quả nhận diện, nếu đó là ngôn ngữ
+      chính hoặc ngôn ngữ được phép xen vào (mặc định Việt, Anh).
+    - Nhận diện không chắc hoặc ra ngôn ngữ lạ: về ngôn ngữ chính.
     """
     if duration_s < settings.min_detect_seconds or guess is None:
         return previous
     language, probability = guess
-    if probability >= settings.segment_min_prob:
+    if probability >= settings.segment_min_prob and (language == base or language in settings.languages):
         return language
     return base
+
+
+_VIETNAMESE_MARKS = set("ăâđêôơưàảãáạằẳẵắặầẩẫấậèẻẽéẹềểễếệìỉĩíịòỏõóọồổỗốộờởỡớợùủũúụừửữứựỳỷỹýỵ")
+# Lời nói thật hiếm khi dưới ngần này từ mỗi giây trên cả một đoạn.
+MIN_WORDS_PER_SECOND = 1.0
+
+
+def plausible_switch(language: str, base: str, words: list[tuple[float, float, str]], duration_s: float) -> bool:
+    """Bản chép lại bằng ngôn ngữ khác ngôn ngữ chính có đáng tin không.
+
+    Hai dấu hiệu Whisper nhận nhầm ngôn ngữ ở âm thanh kém, thấy trên bản ghi bot Meet:
+    - chép "bằng tiếng Anh" mà ra chữ có dấu tiếng Việt ("Và chốt task cho cái sprint
+      này"): câu tiếng Việt xen thuật ngữ tiếng Anh;
+    - cả đoạn dài chỉ ra vài chữ ("How about the game?" cho 18 giây): câu bịa.
+    """
+    text = "".join(t for _, _, t in words).lower()
+    if language != "vi" and base == "vi" and any(ch in _VIETNAMESE_MARKS for ch in text):
+        return False
+    return len(text.split()) >= MIN_WORDS_PER_SECOND * duration_s
 
 
 def language_breakdown(segments: list[dict[str, Any]]) -> dict[str, float]:
@@ -224,7 +256,12 @@ class WhisperTranscriber:
     def transcribe_audio(self, audio, hint: str | None, voice_profiles: list[dict] | None = None) -> TranscriptResult:
         """Phần lõi, nhận audio đã giải mã (numpy float32, 16 kHz mono)."""
         s = self.settings
-        detected, probability, _ = self.model.detect_language(audio)
+        # Bản ghi bị đục (bot Meet có buổi mất dải 1–4 kHz) được cân bằng lại cho phần
+        # nhận dạng chữ; tách người nói vẫn nghe âm thanh gốc (equalize.py).
+        original = audio
+        audio, _ = equalize(audio)
+        # Nhận ngôn ngữ chính trên phần có tiếng nói, không phải 30 giây đầu (có thể lặng).
+        detected, probability, _ = self.model.detect_language(speech_probe(audio))
         base = choose_base_language(detected, probability, hint, s.base_min_prob)
         log.info(
             "Ngôn ngữ nhận diện: %s (%.2f), gợi ý: %s → ngôn ngữ chính: %s",
@@ -241,6 +278,10 @@ class WhisperTranscriber:
         base = base or info.language
 
         words: list[Word] = []
+        # Từ của Whisper trước lượt sửa: ranh giới các khúc tách người nói lấy theo đây,
+        # để đổi mô hình sửa từ không làm đổi kết quả tách người nói (với gipformer, buổi
+        # học 2 người từng ra 3 người chỉ vì ranh giới từ xê dịch).
+        heard: list[Word] = []
         confidences: dict[int, float | None] = {}
         previous = base
         for index, seg in enumerate(first_pass):
@@ -262,6 +303,10 @@ class WhisperTranscriber:
             confidence = confidence_of(seg.avg_logprob)
             if language != base:
                 redo_words, redo_conf = self._retranscribe(clip, language)
+                if redo_words and not plausible_switch(language, base, redo_words, duration):
+                    # Chép lại bằng ngôn ngữ kia mà ra chữ tiếng Việt, hoặc chỉ vài chữ cho cả
+                    # một đoạn dài: đoạn này thật ra là ngôn ngữ chính, Whisper nhận nhầm.
+                    redo_words, language = [], base
                 if redo_words:
                     # Mốc của lần phiên âm lại tính từ đầu đoạn cắt.
                     seg_words = [(seg.start + a, seg.start + b, t) for a, b, t in redo_words]
@@ -271,6 +316,7 @@ class WhisperTranscriber:
                     # Phiên âm lại không ra chữ: giữ bản lượt đầu và ngôn ngữ chính.
                     language = base
 
+            heard.extend(Word(a, b, t, language, index) for a, b, t in seg_words)
             if language == "vi" and refine.enabled():
                 # Mô hình chuyên tiếng Việt nghe lại câu này và sửa từ sai (refine.py).
                 pad = int(0.15 * SAMPLE_RATE)
@@ -283,7 +329,7 @@ class WhisperTranscriber:
             words.extend(Word(a, b, t, language, index) for a, b, t in seg_words)
             previous = language
 
-        turns, centroids = self._turns(audio, words) if self.diarize and words else ([], {})
+        turns, centroids = self._turns(original, heard) if self.diarize and heard else ([], {})
         speaker_matches: dict = {}
         if turns:
             label_of: dict[int, str] = {}

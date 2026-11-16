@@ -50,10 +50,19 @@ def test_lech_han_ve_do_dai_thi_giu_loi_whisper():
     assert merge_words(base, []) == base
 
 
-def test_moc_thoi_gian_lay_theo_tu_duoc_chon():
+def test_moc_thoi_gian_luon_theo_whisper():
+    # Từ thay thế nằm đúng khoảng thời gian của từ Whisper mà nó thay, bất kể mốc của mô hình kia.
     base = words("cơ án", start=10.0)
-    refined = [(10.1, 10.4, " phương"), (10.4, 10.9, " án")]
-    assert merge_words(base, refined) == [(10.1, 10.4, " phương"), (10.0 + 1, 10.0 + 1.5, " án")]
+    refined = [(3.0, 3.1, " phương"), (99.0, 99.9, " án")]
+    assert merge_words(base, refined) == [(10.0, 10.5, " phương"), (10.0 + 1, 10.0 + 1.5, " án")]
+    # Hai từ thay một từ: chia đều khoảng của từ đó.
+    base = [(0.0, 1.0, " nớp"), (1.0, 2.0, " lại")]
+    out = merge_words(base, [(7.0, 7.1, " ghi"), (7.1, 7.2, " chép"), (7.2, 7.3, " lại")])
+    assert out == [(0.0, 0.5, " ghi"), (0.5, 1.0, " chép"), (1.0, 2.0, " lại")]
+    # Từ thêm vào nằm ở khe giữa hai từ Whisper kề nó.
+    base = [(0.0, 1.0, " cần"), (1.4, 2.0, " báo"), (2.0, 3.0, " cáo")]
+    out = merge_words(base, [(0, 0, " cần"), (0, 0, " có"), (0, 0, " báo"), (0, 0, " cáo")])
+    assert out == [(0.0, 1.0, " cần"), (1.0, 1.4, " có"), (1.4, 2.0, " báo"), (2.0, 3.0, " cáo")]
 
 
 def test_tu_can_giu():
@@ -91,3 +100,114 @@ def test_tu_nghe_them_o_hai_dau_cau_bi_bo():
     base = words("Tối nay mọi người về.")
     refined = words("hôm tối nay mọi người về nhé")
     assert text(merge_words(base, refined)) == "Tối nay mọi người về."
+
+
+def test_ghep_token_bpe_thanh_tu_kem_moc():
+    from app.worker.refine import group_tokens
+
+    words, probs = group_tokens(["▁xin", "▁chà", "o", "▁mọi", "▁người"], [0.0, 0.4, 0.6, 1.0, 1.3], 10.0)
+    assert [t for _, _, t in words] == [" xin", " chào", " mọi", " người"]
+    assert words[1][0] == 10.4 and words[1][1] == 11.0
+    assert words[-1][1] == 11.5
+    assert probs is None
+    import math
+
+    _, probs = group_tokens(["▁xin", "▁chà", "o"], [0.0, 0.4, 0.6], 0.0, [math.log(0.9), math.log(0.5), math.log(0.8)])
+    assert round(probs[0], 3) == 0.9 and round(probs[1], 3) == round(math.sqrt(0.5 * 0.8), 3)
+
+
+def test_nhan_ra_thu_muc_transducer(tmp_path):
+    from app.worker.refine import is_transducer
+
+    for name in ("encoder.onnx", "decoder.onnx", "joiner.onnx"):
+        (tmp_path / name).write_bytes(b"")
+    assert not is_transducer(str(tmp_path))
+    (tmp_path / "tokens.txt").write_text("a 0\n")
+    assert is_transducer(str(tmp_path))
+
+
+def test_token_sherpa_dau_cach_va_chu_hoa():
+    from app.worker.refine import group_tokens, merge_words
+
+    words, _ = group_tokens([" TIẾNG", " C", "Ạ", "CH", " KH", "Ự", "NG"], [0.0, 0.7, 0.8, 0.9, 1.3, 1.4, 1.5], 0.0)
+    assert [t for _, _, t in words] == [" TIẾNG", " CẠCH", " KHỰNG"]
+    base = [(0.0, 0.5, " Tiếng"), (0.7, 1.0, " cọc"), (1.3, 1.6, " khựng.")]
+    assert "".join(t for _, _, t in merge_words(base, words)).strip() == "Tiếng cạch khựng."
+
+
+def test_bien_do_mac_dinh_theo_loai_mo_hinh(monkeypatch):
+    from app.worker import refine
+
+    monkeypatch.delenv("AI_WHISPER_REFINE_MARGIN", raising=False)
+    # PhoWhisper: chỉ thay khi tự tin hơn; transducer: luôn thay.
+    assert refine.margin(refine._WhisperEngine.default_margin) == 0.0
+    assert refine.margin(refine._TransducerEngine.default_margin) is None
+    # Đặt biến môi trường thì theo biến, cho cả hai loại.
+    monkeypatch.setenv("AI_WHISPER_REFINE_MARGIN", "0.1")
+    assert refine.margin(None) == 0.1
+    monkeypatch.setenv("AI_WHISPER_REFINE_MARGIN", "none")
+    assert refine.margin(0.0) is None
+
+
+def test_luot_sua_dung_bien_do_mac_dinh_cua_mo_hinh(monkeypatch):
+    from app.worker import refine
+
+    class Engine:
+        default_margin = None
+        trust_longer = False
+
+        def words(self, clip, offset):
+            return [(0.0, 0.5, " PHIÊN"), (0.5, 1.0, " ÂM")], [0.2, 0.2]
+
+    monkeypatch.delenv("AI_WHISPER_REFINE_MARGIN", raising=False)
+    monkeypatch.setenv("AI_WHISPER_REFINE_MODEL", "/khong/co")
+    monkeypatch.setattr(refine, "_load", lambda device, compute_type: Engine())
+    base = [(0.0, 0.5, " Phiên"), (0.5, 1.0, " năng.")]
+    clip = [0.0] * 16000
+    # Luôn thay dù Whisper tự tin hơn (0,9 so với 0,2).
+    out = refine.refine_words(clip, 0.0, base, "cpu", "int8", [0.9, 0.9])
+    assert "".join(t for _, _, t in out).strip() == "Phiên âm."
+    # Mô hình có biên độ mặc định 0 thì giữ lời Whisper trong cùng tình huống.
+    Engine.default_margin = 0.0
+    out = refine.refine_words(clip, 0.0, base, "cpu", "int8", [0.9, 0.9])
+    assert "".join(t for _, _, t in out).strip() == "Phiên năng."
+
+
+def test_whisper_ket_vong_lap_thi_lay_loi_mo_hinh_tieng_viet():
+    from app.worker.refine import is_loop
+
+    assert is_loop("em cứ nổi loại em cứ nổi loại em cứ nổi loại".split())
+    assert is_loop("alo alo alo".split())
+    assert not is_loop("em cứ nói em vừa nói cái gì nữa".split())
+    assert not is_loop("alo alo".split())
+
+    base = words("Nổi loại, em cứ nổi loại, em cứ nổi loại, em cứ nổi loại.")
+    refined = words("NÓI LẠI ĐI")
+    merged = merge_words(base, refined)
+    assert text(merged) == "Nói lại đi."
+    # Lời thay thế trải trên đúng khoảng thời gian của câu Whisper.
+    assert merged[0][0] == base[0][0] and merged[-1][1] == base[-1][1]
+    # Không kẹt vòng lặp mà lệch hẳn độ dài: vẫn giữ lời Whisper như trước.
+    base = words("Hôm nay chúng ta họp về kế hoạch quý tới của cả nhóm.")
+    assert text(merge_words(base, words("HÔM NAY"))) == "Hôm nay chúng ta họp về kế hoạch quý tới của cả nhóm."
+    # Mô hình tiếng Việt không nghe ra gì: giữ lời Whisper (không tự xoá câu).
+    looped = words("Alo, alo, alo, alo.")
+    assert text(merge_words(looped, [])) == "Alo, alo, alo, alo."
+
+
+def test_mo_hinh_tieng_viet_nghe_ra_dai_hon_han():
+    # Whisper chép cụt một đoạn dài; transducer nghe đủ câu.
+    base = [(10.0, 10.5, " How"), (10.5, 11.0, " about"), (11.0, 11.5, " it?")]
+    refined = words("TUẦN VỪA RỒI EM ĐÃ HOÀN THÀNH XONG BỘ API CHO TÍNH NĂNG ĐĂNG NHẬP")
+    # Mặc định (PhoWhisper hay bịa): giữ lời Whisper.
+    assert text(merge_words(base, refined)) == "How about it?"
+    merged = merge_words(base, refined, trust_longer=True)
+    assert text(merged) == "Tuần vừa rồi em đã hoàn thành xong bộ api cho tính năng đăng nhập?"
+    assert merged[0][0] == 10.0 and merged[-1][1] == 11.5
+
+
+def test_engine_transducer_tin_loi_dai_hon_whisper_thi_khong():
+    from app.worker import refine
+
+    assert refine._TransducerEngine.trust_longer is True
+    assert refine._WhisperEngine.trust_longer is False
