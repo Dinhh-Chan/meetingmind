@@ -162,6 +162,9 @@ export class MeetingProcessingService {
                 objectKey: dto.objectKey,
                 language: meeting.language,
                 voiceProfiles,
+                // Ngữ cảnh cho bước chuẩn hoá transcript của AI (viết đúng tên người, thuật ngữ).
+                title: meeting.title,
+                people: (await this.peopleOf(meeting)).map((p) => p.name),
             },
         });
 
@@ -292,7 +295,8 @@ export class MeetingProcessingService {
                 startMs: segment.startMs,
                 endMs: segment.endMs,
                 text: segment.text,
-                rawText: segment.text,
+                // Lời máy nghe; khác `text` ở những dòng LLM đã sửa lỗi nghe.
+                rawText: segment.rawText ?? segment.text,
                 confidence: segment.confidence,
                 language: segment.language,
                 isOverlapping: segment.isOverlapping ?? false,

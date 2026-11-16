@@ -191,6 +191,41 @@ Cài mô hình: tải `encoder.onnx`, `decoder.onnx`, `joiner.onnx`, `tokens.txt
 | `AI_WHISPER_REFINE_INT8` | `0` | `1` để dùng bản lượng tử hoá `*.int8.onnx` |
 | `AI_WHISPER_LANGUAGES` | `vi,en` | một đoạn chỉ được đổi sang các ngôn ngữ này (ngoài ngôn ngữ chính); buổi học tiếng Việt từng có 3,5 % thời lượng bị nhận nhầm thành tiếng Tây Ban Nha / Indonesia |
 
+### Chuẩn hoá transcript bằng LLM
+
+Sau khi nhận dạng, `polish.py` đưa transcript cho LLM theo từng khối 50 dòng (kèm tên cuộc họp, tên người tham
+dự và 6 dòng liền trước làm ngữ cảnh) để sửa lỗi nghe: từ gần âm ("sau với" → "so với", "truy cập SQL" →
+"truy vấn SQL") và thuật ngữ tiếng Anh bị chép theo âm ("đẩy vốt" → "đẩy code", "sơ walker" → "Swagger",
+"Playbride" → "Playwright"). LLM chỉ trả những dòng nó sửa. Hai lớp chặn sửa quá tay: mỗi khối được sửa 3 lần
+độc lập, chỉ nhận chỗ sửa mà ít nhất 2 lần cùng đưa ra; mỗi dòng sửa không được đổi quá nửa số từ, không dài /
+ngắn hẳn đi, không đổi con số. Lời máy gốc gửi kèm ở `rawText` (Core lưu, giao diện cho xem lại ở dòng đã sửa).
+LLM lỗi hoặc quá 10 phút thì gửi lời máy nguyên vẹn. Chỉ áp dụng cho bản chính thức, không cho phiên âm trực
+tiếp.
+
+Đo trên bản ghi bot Google Meet một người đọc kịch bản (tỷ lệ sai từ so với kịch bản, trước → sau), cùng lời
+máy đầu vào cho mọi model:
+
+| Model | đọc chậm (24,2 %) | đọc nhanh, tiếng đục (57,7 %) | thời gian mỗi khối | nhận xét |
+| --- | --- | --- | --- | --- |
+| `gemma-4-31B-it` (đang dùng) | 20,1 % | 51,0 % | 0,5–2 s | sửa đúng hầu hết thuật ngữ; chỗ lời máy vô nghĩa có khi đoán sai ("cần trước" → "hiện trước") |
+| `DeepSeek-V4.1-Flash` | 20,8 % | 56,4 % | 26–160 s | ít sửa hơn nhưng gần như không sửa sai; quá chậm cho cuộc họp dài |
+| `gpt-oss-120b` | 21,5 % | 57,0 % | 4–7 s | sửa sai chỗ đang đúng ("task" → "tài liệu") |
+| `GLM-5.2` | lỗi (hết token) | 53,0 % | 8–68 s | đổi cả chữ đúng ở buổi học toán ("trừ B" → "chữ B") |
+
+Bỏ phiếu 3 lần với gemma gần như không đổi kết quả so với một lần (model sửa rất nhất quán), giữ làm lưới an
+toàn vì chỉ tốn ~2 giây. Giới hạn: hai bản ghi, người đọc có nói khác kịch bản; LLM không cứu được đoạn máy
+nghe sai hẳn, và có thể thay một chỗ vô nghĩa bằng chỗ vô nghĩa khác trôi chảy hơn — vì vậy luôn giữ lời máy
+gốc để đối chiếu.
+
+| Biến | Mặc định | |
+| --- | --- | --- |
+| `AI_POLISH` | `1` | `0` để tắt; không có `AI_LLM_API_KEY` thì tự bỏ qua |
+| `AI_POLISH_MODEL` / `AI_POLISH_FALLBACK_MODEL` | `gemma-4-31B-it` / (trống) | model sửa và model dự phòng |
+| `AI_POLISH_VOTES` / `AI_POLISH_MIN_AGREE` | `3` / `2` | số lần sửa độc lập mỗi khối và số lần tối thiểu phải trùng nhau |
+| `AI_POLISH_MAX_CHANGE` | `0.5` | tỷ lệ từ tối đa được đổi trong một dòng |
+| `AI_POLISH_CHUNK_LINES` | `50` | số dòng mỗi lần gọi |
+| `AI_POLISH_TOTAL_TIMEOUT_S` | `600` | quá thời gian này thì gửi lời máy |
+
 ### Phiên âm trực tiếp (ghi âm trên trình duyệt)
 
 `POST /internal/voice/live-window`: vài giây một lần trình duyệt gửi phần âm thanh chưa chốt (tối đa ~28 s),

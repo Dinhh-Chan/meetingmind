@@ -85,6 +85,9 @@ export interface TranscriptionRequestedPayload {
     bucket: string;
     objectKey: string;
     language: string;
+    /** Tên cuộc họp và tên người tham dự: ngữ cảnh để AI sửa lỗi nghe (tên riêng, thuật ngữ). */
+    title?: string;
+    people?: string[];
 }
 
 export interface TranscriptSegmentResult {
@@ -92,6 +95,8 @@ export interface TranscriptSegmentResult {
     startMs: number;
     endMs: number;
     text: string;
+    /** Lời máy nghe trước khi LLM chuẩn hoá; vắng thì `text` chính là lời máy. */
+    rawText?: string;
     confidence?: number;
     /** Ngôn ngữ STT nhận diện cho riêng đoạn này (ISO 639-1). */
     language?: string;

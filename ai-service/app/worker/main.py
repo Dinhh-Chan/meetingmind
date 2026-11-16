@@ -13,7 +13,7 @@ import os
 import aio_pika
 
 from app.worker import contracts as c
-from app.worker import gpu_watch, knowledge_indexer, knowledge_store
+from app.worker import gpu_watch, knowledge_indexer, knowledge_store, polish
 from app.worker.analyzer import get_analyzer
 from app.worker.transcriber import get_transcriber
 
@@ -24,6 +24,34 @@ logging.basicConfig(
 log = logging.getLogger("ai-worker")
 
 PREFETCH = int(os.environ.get("AI_WORKER_PREFETCH", "1"))
+
+
+# Chuẩn hoá cả transcript không được quá ngần này giây; quá thì gửi lời máy.
+POLISH_TOTAL_TIMEOUT_S = float(os.environ.get("AI_POLISH_TOTAL_TIMEOUT_S", "600"))
+
+
+async def polish_transcript(segments: list[dict], payload: dict) -> list[dict]:
+    """LLM sửa lỗi nghe trong transcript (polish.py). Lỗi hay quá giờ thì trả lời máy nguyên vẹn."""
+    if not segments or not polish.enabled():
+        return segments
+    try:
+        polished, stats = await asyncio.wait_for(
+            polish.polish(
+                segments,
+                people=payload.get("people") or None,
+                title=payload.get("title") or None,
+                glossary=payload.get("glossary") or None,
+            ),
+            timeout=POLISH_TOTAL_TIMEOUT_S,
+        )
+    except Exception as err:  # noqa: BLE001 - bước thêm, không được làm hỏng phiên âm
+        log.warning("Chuẩn hoá transcript lỗi, giữ lời máy: %s", str(err) or type(err).__name__)
+        return segments
+    log.info(
+        "Chuẩn hoá transcript: sửa %d/%d dòng, loại %d dòng sửa quá tay, %d khối lỗi",
+        stats["changed"], len(segments), stats["rejected"], stats["failed_chunks"],
+    )
+    return polished
 
 
 async def handle_transcription(
@@ -42,6 +70,7 @@ async def handle_transcription(
             # Vân giọng của người tham dự đã đăng ký: để nhận ra ai là "Người nói N".
             voice_profiles=payload.get("voiceProfiles") or [],
         )
+        segments = await polish_transcript(result.segments, payload)
         out = c.envelope(
             c.TRANSCRIPTION_COMPLETED,
             env["workspaceId"],
@@ -51,7 +80,7 @@ async def handle_transcription(
                 "meetingId": payload["meetingId"],
                 "runId": result.run_id,
                 "model": result.model,
-                "segments": result.segments,
+                "segments": segments,
                 "language": result.language,
                 "languages": result.languages,
                 "speakerMatches": result.speaker_matches,
