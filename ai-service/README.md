@@ -193,12 +193,13 @@ Cài mô hình: tải `encoder.onnx`, `decoder.onnx`, `joiner.onnx`, `tokens.txt
 
 ### Chuẩn hoá transcript bằng LLM
 
-Sau khi nhận dạng, `polish.py` đưa transcript cho LLM theo từng khối 50 dòng (kèm tên cuộc họp, tên người tham
-dự và 6 dòng liền trước làm ngữ cảnh) để sửa lỗi nghe: từ gần âm ("sau với" → "so với", "truy cập SQL" →
+Sau khi nhận dạng, `polish.py` đưa transcript cho LLM theo từng khối 50 dòng (kèm tên người tham dự và 6 dòng
+liền trước làm ngữ cảnh) để sửa lỗi nghe: từ gần âm ("sau với" → "so với", "truy cập SQL" →
 "truy vấn SQL") và thuật ngữ tiếng Anh bị chép theo âm ("đẩy vốt" → "đẩy code", "sơ walker" → "Swagger",
-"Playbride" → "Playwright"). LLM chỉ trả những dòng nó sửa. Hai lớp chặn sửa quá tay: mỗi khối được sửa 3 lần
-độc lập, chỉ nhận chỗ sửa mà ít nhất 2 lần cùng đưa ra; mỗi dòng sửa không được đổi quá nửa số từ, không dài /
-ngắn hẳn đi, không đổi con số. Lời máy gốc gửi kèm ở `rawText` (Core lưu, giao diện cho xem lại ở dòng đã sửa).
+"Playbride" → "Playwright"). LLM chỉ trả những dòng nó sửa. Ba lớp chặn sửa quá tay: mỗi khối được sửa 3 lần
+độc lập, chỉ nhận chỗ sửa mà ít nhất 2 lần cùng đưa ra; chỉ nhận chỗ thay từ, không nhận thêm từ không ai nói
+hay bỏ từ máy đã nghe; mỗi dòng sửa không được đổi quá nửa số từ, không dài / ngắn hẳn đi, không đổi con số.
+Tên cuộc họp không đưa vào ngữ cảnh vì kéo model về chữ trong tên ("cần trước" → "sprint trước"). Lời máy gốc gửi kèm ở `rawText` (Core lưu, giao diện cho xem lại ở dòng đã sửa).
 LLM lỗi hoặc quá 10 phút thì gửi lời máy nguyên vẹn. Chỉ áp dụng cho bản chính thức, không cho phiên âm trực
 tiếp.
 

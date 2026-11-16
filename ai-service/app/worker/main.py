@@ -39,7 +39,6 @@ async def polish_transcript(segments: list[dict], payload: dict) -> list[dict]:
             polish.polish(
                 segments,
                 people=payload.get("people") or None,
-                title=payload.get("title") or None,
                 glossary=payload.get("glossary") or None,
             ),
             timeout=POLISH_TOTAL_TIMEOUT_S,

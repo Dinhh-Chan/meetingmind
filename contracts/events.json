@@ -26,7 +26,6 @@
         "objectKey": "string",
         "language": "string · vi | en",
         "voiceProfiles": "array? · [{ userId, embedding: number[] }] vân giọng người tham dự đã đăng ký, để gợi ý ai là Người nói N",
-        "title": "string? · tên cuộc họp, ngữ cảnh cho bước chuẩn hoá transcript",
         "people": "array? · tên người tham dự và thành viên dự án, để AI viết đúng tên riêng"
       }
     },

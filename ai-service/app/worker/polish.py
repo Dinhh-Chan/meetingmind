@@ -10,6 +10,7 @@ lại, thêm ý, đổi con số. Hai lớp chặn:
 - Bỏ phiếu: mỗi khối được sửa vài lần độc lập (`votes`), chỉ nhận chỗ sửa mà ít nhất
   `min_agree` lần cùng đưa ra. Chỗ model biết chắc ("sơ walker" → "Swagger") lần nào
   cũng ra như nhau; chỗ nó đoán thì mỗi lần một kiểu.
+- Chỉ nhận chỗ thay từ nghe nhầm; thêm từ không ai nói hay bỏ từ máy đã nghe thì loại.
 - Kiểm tra từng dòng (`acceptable`): không đổi quá nửa số từ, không dài/ngắn hẳn đi,
   không đổi con số; trượt thì giữ nguyên lời máy.
 Lời máy gốc luôn được giữ ở `rawText` để đối chiếu. Lỗi LLM (hết giờ, JSON hỏng) không
@@ -149,13 +150,14 @@ def build_messages(
     lines: list[tuple[int, str, str]],
     context: list[tuple[int, str, str]] | None = None,
     people: list[str] | None = None,
-    title: str | None = None,
     glossary: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    """`lines`: (số dòng, người nói, lời). `context`: vài dòng liền trước, chỉ để hiểu mạch."""
+    """`lines`: (số dòng, người nói, lời). `context`: vài dòng liền trước, chỉ để hiểu mạch.
+
+    Không đưa tên cuộc họp: thử với tên "Họp sprint tuần này" thì model kéo các chỗ vô
+    nghĩa về chữ "sprint" ("tiến độ cần trước" → "tiến độ sprint trước").
+    """
     parts: list[str] = []
-    if title:
-        parts.append(f"Cuộc họp: {title}")
     if people:
         parts.append("Người tham dự: " + ", ".join(people))
     if glossary:
@@ -217,12 +219,17 @@ def vote(original: str, candidates: list[str], min_agree: int) -> str:
 
     Hai bản "cùng đưa ra" một chỗ sửa khi cùng vị trí và cùng từ, không kể chữ hoa và
     dấu câu ("code" và "code," là một); cách viết lấy theo số đông.
+
+    Chỉ nhận chỗ THAY từ: thêm từ không ai nói ("cho tuần" → "cho tuần tới") hay bỏ từ
+    máy đã nghe đều là đoán nội dung, không phải sửa lỗi nghe.
     """
     counts: Counter = Counter()
     forms: dict[tuple, Counter] = {}
     for candidate in candidates:
         seen = set()
         for i1, i2, new in edit_ops(original, candidate):
+            if i1 == i2 or not new:
+                continue
             key = (i1, i2, tuple(_key(t) for t in new))
             if key in seen:
                 continue
@@ -300,10 +307,9 @@ async def _polish_chunk(
     lines: list[tuple[int, str, str]],
     context: list[tuple[int, str, str]],
     people: list[str] | None,
-    title: str | None,
     glossary: list[str] | None,
 ) -> tuple[dict[int, str], int]:
-    messages = build_messages(lines, context, people, title, glossary)
+    messages = build_messages(lines, context, people, glossary)
     answers = await asyncio.gather(
         *(_ask(client, settings, messages, lines) for _ in range(settings.votes)), return_exceptions=True
     )
@@ -317,7 +323,6 @@ async def _polish_chunk(
 async def polish(
     segments: list[dict[str, Any]],
     people: list[str] | None = None,
-    title: str | None = None,
     glossary: list[str] | None = None,
     settings: Settings | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
@@ -352,7 +357,7 @@ async def polish(
             context = chunks[n - 1][-settings.context_lines :] if n else []
             async with gate:
                 try:
-                    return await _polish_chunk(client, settings, chunks[n], context, people, title, glossary)
+                    return await _polish_chunk(client, settings, chunks[n], context, people, glossary)
                 except LlmError as err:
                     log.warning("Chuẩn hoá transcript: khối %d/%d lỗi, giữ nguyên lời máy: %s", n + 1, len(chunks), err)
                     return None

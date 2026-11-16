@@ -162,8 +162,7 @@ export class MeetingProcessingService {
                 objectKey: dto.objectKey,
                 language: meeting.language,
                 voiceProfiles,
-                // Ngữ cảnh cho bước chuẩn hoá transcript của AI (viết đúng tên người, thuật ngữ).
-                title: meeting.title,
+                // Ngữ cảnh cho bước chuẩn hoá transcript của AI (viết đúng tên người).
                 people: (await this.peopleOf(meeting)).map((p) => p.name),
             },
         });

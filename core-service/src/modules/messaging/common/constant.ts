@@ -85,8 +85,7 @@ export interface TranscriptionRequestedPayload {
     bucket: string;
     objectKey: string;
     language: string;
-    /** Tên cuộc họp và tên người tham dự: ngữ cảnh để AI sửa lỗi nghe (tên riêng, thuật ngữ). */
-    title?: string;
+    /** Tên người tham dự và thành viên dự án: để AI viết đúng tên riêng khi sửa lỗi nghe. */
     people?: string[];
 }
 

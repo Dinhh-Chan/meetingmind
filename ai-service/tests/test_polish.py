@@ -58,11 +58,10 @@ def test_prompt_co_nguoi_du_hop_thuat_ngu_va_ngu_canh():
         [(7, "Người nói 1", "đẩy vốt lên nhánh dev")],
         context=[(6, "Người nói 2", "phần backend thế nào rồi em")],
         people=["Minh", "Hùng"],
-        title="Họp sprint 12",
         glossary=["Swagger", "VNPay"],
     )
     user = messages[1]["content"]
-    assert "Người tham dự: Minh, Hùng" in user and "Cuộc họp: Họp sprint 12" in user and "Swagger, VNPay" in user
+    assert "Người tham dự: Minh, Hùng" in user and "Swagger, VNPay" in user
     assert user.index("[6] Người nói 2") < user.index("Các dòng cần xem và sửa") < user.index("[7] Người nói 1: đẩy vốt")
     assert "KHÔNG ĐƯỢC LÀM" in messages[0]["content"]
 
@@ -234,15 +233,26 @@ def test_worker_dua_ten_cuoc_hop_va_nguoi_du_vao_buoc_chuan_hoa(monkeypatch):
 
     seen = {}
 
-    async def fake(segments, people=None, title=None, glossary=None):
-        seen.update(people=people, title=title, glossary=glossary)
+    async def fake(segments, people=None, glossary=None):
+        seen.update(people=people, glossary=glossary)
         return [{**segments[0], "text": "đã sửa", "rawText": segments[0]["text"]}], {"changed": 1, "rejected": 0, "failed_chunks": 0}
 
     monkeypatch.setattr(main.polish, "enabled", lambda: True)
     monkeypatch.setattr(main.polish, "polish", fake)
     out = asyncio.run(main.polish_transcript(SEGMENTS[:1], {"title": "Họp sprint", "people": ["Minh", "Hùng"]}))
     assert out[0]["text"] == "đã sửa" and out[0]["rawText"] == SEGMENTS[0]["text"]
-    assert seen == {"people": ["Minh", "Hùng"], "title": "Họp sprint", "glossary": None}
+    # Tên cuộc họp không đưa vào ngữ cảnh (kéo model về chữ trong tên).
+    assert seen == {"people": ["Minh", "Hùng"], "glossary": None}
     # Tắt hoặc không có khoá LLM: không gọi gì, trả nguyên.
     monkeypatch.setattr(main.polish, "enabled", lambda: False)
     assert asyncio.run(main.polish_transcript(SEGMENTS, {})) is SEGMENTS
+
+
+def test_khong_nhan_them_tu_hay_bo_tu():
+    # Thêm "tới" (không ai nói) và "chậm" lặp: loại. Thay "sau" → "so": nhận.
+    assert vote("chốt nhiệm vụ cho tuần và bắt đầu", ["chốt nhiệm vụ cho tuần tới và bắt đầu"], 1) == "chốt nhiệm vụ cho tuần và bắt đầu"
+    assert vote("đang bị chậm, 30% sau với dự kiến.", ["đang bị chậm, chậm 30% so với dự kiến."], 1) == "đang bị chậm, 30% so với dự kiến."
+    # Bỏ từ máy đã nghe ("vô", "tin vào"): loại, dù chỗ khác của dòng vẫn được sửa.
+    assert vote("em đã đẩy vô lên nhánh dev trên sơ walker", ["Em đã đẩy lên nhánh dev trên Swagger"], 1) == "Em đã đẩy vô lên nhánh dev trên Swagger"
+    # Thay hai từ bằng một từ (và ngược lại) vẫn là thay.
+    assert vote("tài liệu trên sơ walker", ["tài liệu trên Swagger"], 1) == "tài liệu trên Swagger"
