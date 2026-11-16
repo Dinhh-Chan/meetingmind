@@ -318,4 +318,8 @@ class MeetBot:
             else:
                 alone_since = None
             if int(elapsed) % 30 < 2:
-                log.info("Đang ghi %.0fs: %s", elapsed, stats)
+                try:
+                    rtp = await page.evaluate("() => window.__mmRecorder.rtp()")
+                except Exception as err:  # noqa: BLE001 - chỉ để chẩn đoán, không được làm hỏng phiên ghi
+                    rtp = {"error": str(err)[:120]}
+                log.info("Đang ghi %.0fs: %s | âm thanh nhận về: %s", elapsed, stats, rtp)
