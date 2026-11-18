@@ -217,7 +217,18 @@ export class ClarifyBodyDto {
 
 export class AnswerBodyDto {
     @IsString()
-    answer: string;
+    @IsOptional()
+    answer?: string;
+
+    /** Người thực hiện người được hỏi chọn; điền luôn vào đề xuất đang chờ duyệt. */
+    @IsString()
+    @IsOptional()
+    assigneeId?: string;
+
+    /** Thời hạn YYYY-MM-DD người được hỏi chốt. */
+    @IsString()
+    @IsOptional()
+    deadline?: string;
 }
 
 export class TemplateBodyDto {
@@ -501,7 +512,7 @@ export class WorkflowController {
 
     @Post("clarifications/:id/answer")
     answerClarification(@ReqUser() user: User, @Param("id") id: string, @Body() dto: AnswerBodyDto) {
-        return this.workflowService.answerClarification(user._id, id, dto.answer);
+        return this.workflowService.answerClarification(user._id, id, dto);
     }
 
     /* task */

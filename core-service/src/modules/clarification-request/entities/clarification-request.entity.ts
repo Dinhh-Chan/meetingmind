@@ -76,4 +76,14 @@ export class ClarificationRequest implements BaseEntity {
     @IsOptional()
     @EntityDefinition.field({ label: "Thời điểm trả lời" })
     answeredAt?: Date;
+
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Người thực hiện do người được hỏi chọn" })
+    answerAssigneeId?: string;
+
+    @IsString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Thời hạn do người được hỏi chốt (YYYY-MM-DD)" })
+    answerDeadline?: string;
 }

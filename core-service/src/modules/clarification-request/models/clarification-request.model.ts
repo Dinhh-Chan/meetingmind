@@ -42,4 +42,12 @@ export class ClarificationRequestModel extends Model implements ClarificationReq
 
     @Column({ type: DataType.DATE, allowNull: true })
     answeredAt?: Date;
+
+    /** Người thực hiện mà người được hỏi chọn khi phản hồi (điền luôn vào đề xuất). */
+    @Column({ type: DataType.STRING, allowNull: true })
+    answerAssigneeId?: string;
+
+    /** Thời hạn (YYYY-MM-DD) mà người được hỏi chốt khi phản hồi. */
+    @Column({ type: DataType.STRING(10), allowNull: true })
+    answerDeadline?: string;
 }

@@ -1111,18 +1111,59 @@ export class WorkflowService {
         });
     }
 
-    /** Người được hỏi trả lời; mỗi yêu cầu trả lời một lần. */
-    async answerClarification(userId: string, requestId: string, answer: string) {
+    /**
+     * Người được hỏi trả lời; mỗi yêu cầu trả lời một lần. Ngoài lời trả lời, họ
+     * chọn được người thực hiện và chốt thời hạn: hai giá trị này được điền luôn vào
+     * đề xuất còn chờ duyệt (người duyệt vẫn là người bấm Duyệt), và hiện trong phản
+     * hồi cho người đã hỏi.
+     */
+    async answerClarification(
+        userId: string,
+        requestId: string,
+        input: { answer?: string; assigneeId?: string; deadline?: string },
+    ) {
         const request = await this.clarificationRequestService.getById(null, requestId);
         if (!request) throw ApiError.NotFound("error-clarification-not-found");
         if (request.recipientId !== userId) throw ApiError.Forbidden("error-forbidden");
         if (request.status !== ClarificationStatus.PENDING) {
             throw ApiError.BadRequest("error-clarification-answered");
         }
-        const text = answer?.trim();
-        if (!text) throw ApiError.BadRequest("error-clarification-empty");
+        const text = input.answer?.trim() || "";
+        const assigneeId = input.assigneeId?.trim() || undefined;
+        const deadline = input.deadline?.trim() || undefined;
+        if (!text && !assigneeId && !deadline) throw ApiError.BadRequest("error-clarification-empty");
+
+        const item = await this.reviewItemService.getById(null, request.reviewItemId);
+        const payload = { ...((item?.payload as Record<string, unknown>) ?? {}) };
+        if (deadline) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) throw ApiError.BadRequest("error-deadline-past");
+            if (deadline !== payload.deadline) assertDeadlineNotPast(deadline);
+        }
+        if (assigneeId) {
+            // Người thực hiện phải xem được cuộc họp (thành viên dự án hoặc người dự).
+            const meeting = await this.meetingService.getOne(null, { _id: request.meetingId, deletedAt: null });
+            if (
+                !meeting ||
+                !(await this.permissionService.canOnMeeting(assigneeId, meeting, Permission.MEETING_VIEW))
+            ) {
+                throw ApiError.BadRequest("error-recipient-no-access");
+            }
+        }
+        if (item && item.status === ReviewItemStatus.PENDING && (assigneeId || deadline)) {
+            await this.reviewItemService.updateById(null, item._id, {
+                payload: {
+                    ...payload,
+                    ...(assigneeId ? { assigneeId } : {}),
+                    ...(deadline ? { deadline } : {}),
+                },
+                editedById: userId,
+                editedAt: new Date(),
+            });
+        }
         return this.clarificationRequestService.updateById(null, request._id, {
             answer: text,
+            answerAssigneeId: assigneeId,
+            answerDeadline: deadline,
             status: ClarificationStatus.ANSWERED,
             answeredAt: new Date(),
         });
