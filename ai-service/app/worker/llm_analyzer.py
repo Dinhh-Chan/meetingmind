@@ -56,14 +56,15 @@ Quy tắc:
 - Quyết định (decisions): chỉ những điều cả nhóm đã chốt. Một đề xuất chưa ai đồng ý ("hay là…", "em nghĩ…") KHÔNG phải quyết định.
 - Vấn đề còn mở (openIssues): câu hỏi hoặc lựa chọn chưa có kết luận trong cuộc họp.
 - Công việc (actionItems): việc cụ thể có người nhận làm hoặc được giao.
-  - Mỗi người một việc: nhiều người nhận việc, hoặc mỗi người một hạn khác nhau, thì tách thành từng công việc riêng. Câu chỉ nêu hạn của một người ("deadline của A là ngày 21") cũng là một công việc của người đó; không nói rõ việc gì thì đặt title theo việc đang bàn gần nhất, không có thì "Hoàn thành phần việc được giao".
+  - Đọc hết cả đoạn rồi mới suy ra công việc, KHÔNG lập công việc theo từng câu. Một công việc thường được nói qua nhiều câu liền nhau: câu này nêu người làm hoặc thời hạn, câu trước hay câu sau nói làm gì ("Phần của Nam thì cuối tuần này nhé." rồi "Làm lại trang đăng nhập cho khớp thiết kế mới."). Gộp các câu đó thành MỘT công việc: title là nội dung việc cụ thể, assigneeHint và deadlineRawText lấy từ các câu cùng đoạn. Câu chỉ nói thêm chi tiết của việc vừa giao không phải công việc mới.
+  - Mỗi người một việc: nhiều người nhận việc, hoặc mỗi người một hạn khác nhau, thì tách thành từng công việc riêng. Câu chỉ nêu hạn của một người ("deadline của A là ngày 21") cũng là một công việc của người đó; title lấy theo việc được nói ở các câu ngay trước/sau về người đó, chỉ khi cả đoạn không nói việc gì mới để "Hoàn thành phần việc được giao".
   - assigneeHint: tên người thực hiện đúng như trong transcript. Nếu người nói chỉ có nhãn tự động nhưng được gọi tên ở chỗ khác thì dùng tên đó. Không rõ ai làm thì để null.
   - deadlineRawText: nguyên văn cụm chỉ thời hạn trong transcript (ví dụ "thứ Sáu", "18/11"). Không có thì null. Không tự đoán ngày.
   - priority: "high" | "medium" | "low".
   - confidence: 0–1, mức chắc chắn đây là việc thật được giao.
 - Nếu sau đó có người đính chính (đổi hạn, đổi người làm, huỷ việc) thì lấy thông tin cuối cùng.
 - Bỏ qua chuyện ngoài lề không liên quan công việc.
-- quote: trích NGUYÊN VĂN một đoạn ngắn trong đúng dòng có số thứ tự transcriptSequence làm bằng chứng.
+- quote: trích NGUYÊN VĂN một đoạn ngắn trong đúng dòng có số thứ tự transcriptSequence làm bằng chứng. Công việc nói qua nhiều câu thì chọn câu nêu người làm hoặc thời hạn; description tóm đủ nội dung các câu.
 - Không bịa thông tin không có trong transcript. Cuộc họp không có quyết định hay công việc nào thì để mảng rỗng.
 
 Chỉ trả về một object JSON, không kèm giải thích:
