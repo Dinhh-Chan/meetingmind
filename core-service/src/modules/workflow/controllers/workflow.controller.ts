@@ -10,7 +10,7 @@ import {
     ProjectMemberRole,
 } from "@module/project-member/common/constant";
 import { User } from "@module/user/entities/user.entity";
-import { WorkspaceMemberRole } from "@module/workspace-member/common/constant";
+import { WorkspaceMemberRole, WorkspaceMemberStatus } from "@module/workspace-member/common/constant";
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res } from "@nestjs/common";
 import { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
@@ -331,6 +331,19 @@ export class InviteBodyDto {
     role: WorkspaceMemberRole;
 }
 
+export class MemberPatchDto {
+    @IsString()
+    workspaceId: string;
+
+    @IsOptional()
+    @IsEnum(WorkspaceMemberRole)
+    role?: WorkspaceMemberRole;
+
+    @IsOptional()
+    @IsEnum(WorkspaceMemberStatus)
+    status?: WorkspaceMemberStatus;
+}
+
 /* ---------------------------------------------------------- controller */
 
 /**
@@ -634,5 +647,14 @@ export class WorkflowController {
     @Post("members/invite")
     inviteMember(@ReqUser() user: User, @Body() dto: InviteBodyDto) {
         return this.workflowService.inviteMember(user._id, dto.workspaceId, dto.identifier, dto.role);
+    }
+
+    /** Đổi vai trò hoặc vô hiệu hoá / mở lại thành viên workspace. */
+    @Put("members/:userId")
+    updateMember(@ReqUser() user: User, @Param("userId") targetUserId: string, @Body() dto: MemberPatchDto) {
+        return this.workflowService.updateWorkspaceMember(user._id, dto.workspaceId, targetUserId, {
+            role: dto.role,
+            status: dto.status,
+        });
     }
 }

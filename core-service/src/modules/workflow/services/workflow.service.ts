@@ -1736,6 +1736,45 @@ export class WorkflowService {
     }
 
     /**
+     * Đổi vai trò hoặc vô hiệu hoá / mở lại một thành viên workspace. Không đụng tới
+     * Owner và không tự sửa mình; liên quan tới Admin (đang là hoặc sắp là) cần quyền
+     * quản lý Admin (Owner).
+     */
+    async updateWorkspaceMember(
+        userId: string,
+        workspaceId: string,
+        targetUserId: string,
+        patch: { role?: WorkspaceMemberRole; status?: WorkspaceMemberStatus },
+    ) {
+        await this.permissionService.assert(userId, workspaceId, Permission.WORKSPACE_MEMBER_MANAGE);
+        if (targetUserId === userId) throw ApiError.Forbidden("error-forbidden");
+        const member = await this.workspaceMemberService.getOne(null, { workspaceId, userId: targetUserId });
+        if (!member) throw ApiError.NotFound("error-user-not-in-workspace");
+        if (member.role === WorkspaceMemberRole.OWNER || patch.role === WorkspaceMemberRole.OWNER) {
+            throw ApiError.BadRequest("error-role-invalid");
+        }
+        if (patch.status === WorkspaceMemberStatus.INVITED) throw ApiError.BadRequest("error-role-invalid");
+        if (member.role === WorkspaceMemberRole.ADMIN || patch.role === WorkspaceMemberRole.ADMIN) {
+            await this.permissionService.assert(userId, workspaceId, Permission.WORKSPACE_ADMIN_MANAGE);
+        }
+        const update: Record<string, unknown> = {};
+        if (patch.role && patch.role !== member.role) update.role = patch.role;
+        if (patch.status && patch.status !== member.status) update.status = patch.status;
+        if (!Object.keys(update).length) return member;
+        const updated = await this.workspaceMemberService.updateById(null, member._id, update as never);
+        const name = await this.nameOf(targetUserId);
+        await this.activityLogService.record({
+            workspaceId,
+            actorId: userId,
+            type: ActivityType.PERMISSION_GRANTED,
+            target: update.status
+                ? `${name} → ${update.status === WorkspaceMemberStatus.DISABLED ? "Vô hiệu hoá" : "Hoạt động lại"} · Workspace`
+                : `${name} → ${ROLE_LABEL[update.role as string] ?? update.role} · Workspace`,
+        });
+        return updated;
+    }
+
+    /**
      * Thêm (hoặc đổi vai trò) thành viên dự án. PM thêm được Member/Viewer;
      * gán vai trò PM cần quyền Owner/Admin workspace.
      */
