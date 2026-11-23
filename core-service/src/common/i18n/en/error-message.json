@@ -75,5 +75,6 @@
     "error-task-title-required": "Task title is required",
     "error-assignee-no-access": "The assignee is not in this project",
     "error-reset-link-invalid": "The reset link is invalid or has expired",
-    "error-mail-send-failed": "Could not send the email, try again later"
+    "error-mail-send-failed": "Could not send the email, try again later",
+    "error-risk-not-found": "Risk flag not found"
 }

@@ -6,6 +6,7 @@ export type ErrorCode =
     | "error-meeting-url-required"
     | "error-bot-session-not-found"
     | "error-task-not-found"
+    | "error-risk-not-found"
     | "error-reset-link-invalid"
     | "error-mail-send-failed"
     | "error-task-title-required"
