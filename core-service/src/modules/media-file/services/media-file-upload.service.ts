@@ -14,6 +14,10 @@ const AUDIO_MIME = [
     "audio/x-wav",
     "audio/webm",
     "audio/ogg",
+    // Ghi âm trên app Android (AAC dạng ADTS, đọc được khi tệp còn đang ghi).
+    "audio/aac",
+    "audio/x-aac",
+    "audio/aacp",
     "video/mp4",
     "video/webm",
 ];
