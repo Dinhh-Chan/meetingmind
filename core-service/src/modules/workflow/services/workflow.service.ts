@@ -52,6 +52,8 @@ import { ActivityType } from "@module/activity-log/common/constant";
 import { ActivityLogService } from "@module/activity-log/services/activity-log.service";
 import { MinutesTemplateService } from "@module/minutes-template/services/minutes-template.service";
 import { MinioService } from "@module/minio/minio.service";
+import { ProjectStatus } from "@module/project/common/constant";
+import { WorkspaceService } from "@module/workspace/services/workspace.service";
 import { ProcessingJobType } from "@module/processing-job/common/constant";
 import { ProcessingJobService } from "@module/processing-job/services/processing-job.service";
 import { ClarificationRequestService } from "@module/clarification-request/services/clarification-request.service";
@@ -163,7 +165,100 @@ export class WorkflowService {
         private readonly minutesTemplateService: MinutesTemplateService,
         private readonly processingJobService: ProcessingJobService,
         private readonly minioService: MinioService,
+        private readonly workspaceService: WorkspaceService,
     ) {}
+
+    /* ------------------------------------------- sửa transcript, workspace, dự án */
+
+    /**
+     * Sửa chữ một đoạn transcript (máy nghe nhầm). Cùng quyền với gán người nói; giữ lời
+     * máy nghe ban đầu ở `rawText` để đối chiếu.
+     */
+    async editSegmentText(
+        userId: string,
+        meetingId: string,
+        segmentId: string,
+        text: string,
+        transcriptVersionId?: string,
+    ) {
+        const value = text.trim();
+        if (!value) throw ApiError.BadRequest("error-segment-text-empty");
+        const { version } = await this.editableTranscript(userId, meetingId, transcriptVersionId);
+        const segment = await this.transcriptSegmentService.getOne(null, {
+            _id: segmentId,
+            transcriptVersionId: version._id,
+        });
+        if (!segment) throw ApiError.NotFound("error-transcript-not-found");
+        if (segment.text === value) return segment;
+        return this.transcriptSegmentService.updateById(null, segment._id, {
+            text: value,
+            rawText: segment.rawText || segment.text,
+        } as never);
+    }
+
+    /** Đổi tên, múi giờ của workspace. */
+    async updateWorkspace(userId: string, workspaceId: string, patch: { name?: string; timezone?: string }) {
+        await this.permissionService.assert(userId, workspaceId, Permission.WORKSPACE_SETTINGS_UPDATE);
+        const update: Record<string, unknown> = {};
+        if (patch.name !== undefined) {
+            const name = patch.name.trim();
+            if (!name) throw ApiError.BadRequest("error-workspace-name-empty");
+            update.name = name;
+        }
+        if (patch.timezone) update.timezone = patch.timezone;
+        if (!Object.keys(update).length) return this.workspaceService.getById(null, workspaceId);
+        return this.workspaceService.updateById(null, workspaceId, update as never);
+    }
+
+    /** Rời workspace: Owner phải chuyển quyền sở hữu trước. Gỡ luôn khỏi các dự án của workspace. */
+    async leaveWorkspace(userId: string, workspaceId: string) {
+        const member = await this.workspaceMemberService.getOne(null, { workspaceId, userId });
+        if (!member) throw ApiError.NotFound("error-user-not-in-workspace");
+        if (member.role === WorkspaceMemberRole.OWNER) throw ApiError.BadRequest("error-owner-cannot-leave");
+        const projects = await this.projectService.getMany(null, { workspaceId });
+        for (const p of projects) {
+            const pm = await this.projectMemberService.getOne(null, { projectId: p._id, userId });
+            if (pm) await this.projectMemberService.deleteById(null, pm._id);
+        }
+        await this.workspaceMemberService.deleteById(null, member._id);
+        await this.activityLogService.record({
+            workspaceId,
+            actorId: userId,
+            type: ActivityType.PERMISSION_GRANTED,
+            target: `${await this.nameOf(userId)} rời workspace`,
+        });
+        return { left: true };
+    }
+
+    /** Sửa tên, mô tả, lưu trữ / khôi phục dự án. */
+    async updateProject(
+        userId: string,
+        projectId: string,
+        patch: { name?: string; description?: string | null; status?: ProjectStatus },
+    ) {
+        const project = await this.projectService.getOne(null, { _id: projectId, deletedAt: null });
+        if (!project) throw ApiError.NotFound("error-project-not-found");
+        await this.permissionService.assert(userId, project.workspaceId, Permission.PROJECT_UPDATE, { projectId });
+        const update: Record<string, unknown> = {};
+        if (patch.name !== undefined) {
+            const name = patch.name.trim();
+            if (!name) throw ApiError.BadRequest("error-project-name-empty");
+            update.name = name;
+        }
+        if (patch.description !== undefined) update.description = patch.description?.trim() || null;
+        if (patch.status) update.status = patch.status;
+        if (!Object.keys(update).length) return project;
+        return this.projectService.updateById(null, project._id, update as never);
+    }
+
+    /** Xoá mềm dự án (Owner/Admin); cuộc họp, task vẫn giữ trong cơ sở dữ liệu. */
+    async deleteProject(userId: string, projectId: string) {
+        const project = await this.projectService.getOne(null, { _id: projectId, deletedAt: null });
+        if (!project) throw ApiError.NotFound("error-project-not-found");
+        await this.permissionService.assert(userId, project.workspaceId, Permission.PROJECT_DELETE, { projectId });
+        await this.projectService.updateById(null, project._id, { deletedAt: new Date() } as never);
+        return { _id: project._id };
+    }
 
     /* ------------------------------------------------------- tiện ích */
 

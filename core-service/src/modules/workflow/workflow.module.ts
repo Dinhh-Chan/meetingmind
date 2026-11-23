@@ -21,6 +21,7 @@ import { WorkspaceMemberModule } from "@module/workspace-member/workspace-member
 import { InvitationModule } from "@module/invitation/invitation.module";
 import { ProjectMemberModule } from "@module/project-member/project-member.module";
 import { ProjectModule } from "@module/project/project.module";
+import { WorkspaceModule } from "@module/workspace/workspace.module";
 import { Module } from "@nestjs/common";
 import { MeetingProcessingModule } from "@module/meeting-processing/meeting-processing.module";
 import { MeetingRecordModule } from "@module/meeting-record/meeting-record.module";
@@ -35,6 +36,7 @@ import { WorkflowService } from "./services/workflow.service";
 
 @Module({
     imports: [
+        WorkspaceModule,
         InvitationModule,
         ProjectModule,
         ProjectMemberModule,

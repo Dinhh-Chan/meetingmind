@@ -83,5 +83,9 @@
     "error-assignee-no-access": "Người được giao chưa thuộc dự án này",
     "error-reset-link-invalid": "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn",
     "error-mail-send-failed": "Không gửi được email, thử lại sau",
-    "error-risk-not-found": "Không tìm thấy cảnh báo"
+    "error-risk-not-found": "Không tìm thấy cảnh báo",
+    "error-segment-text-empty": "Đoạn transcript không được để trống",
+    "error-workspace-name-empty": "Tên workspace không được để trống",
+    "error-owner-cannot-leave": "Owner phải chuyển quyền sở hữu trước khi rời workspace",
+    "error-project-name-empty": "Tên dự án không được để trống"
 }

@@ -5,6 +5,7 @@ import {
 } from "@module/action-item/common/constant";
 import { MeetingAccessScope, MeetingSourceType } from "@module/meeting/common/constant";
 import { NoteType, NoteVisibility } from "@module/note/common/constant";
+import { ProjectStatus } from "@module/project/common/constant";
 import {
     ProjectDiscipline,
     ProjectMemberRole,
@@ -344,6 +345,36 @@ export class MemberPatchDto {
     status?: WorkspaceMemberStatus;
 }
 
+export class SegmentTextDto extends TranscriptTargetBodyDto {
+    @IsString()
+    text: string;
+}
+
+export class WorkspacePatchDto {
+    @IsOptional()
+    @IsString()
+    name?: string;
+
+    @IsOptional()
+    @IsString()
+    timezone?: string;
+}
+
+export class ProjectPatchDto {
+    @IsOptional()
+    @IsString()
+    name?: string;
+
+    @IsOptional()
+    @ValidateIf((_, v) => v !== null)
+    @IsString()
+    description?: string | null;
+
+    @IsOptional()
+    @IsEnum(ProjectStatus)
+    status?: ProjectStatus;
+}
+
 /* ---------------------------------------------------------- controller */
 
 /**
@@ -647,6 +678,37 @@ export class WorkflowController {
     @Post("members/invite")
     inviteMember(@ReqUser() user: User, @Body() dto: InviteBodyDto) {
         return this.workflowService.inviteMember(user._id, dto.workspaceId, dto.identifier, dto.role);
+    }
+
+    /** Sửa chữ một đoạn transcript. */
+    @Put("meetings/:id/segments/:segmentId")
+    editSegment(
+        @ReqUser() user: User,
+        @Param("id") id: string,
+        @Param("segmentId") segmentId: string,
+        @Body() dto: SegmentTextDto,
+    ) {
+        return this.workflowService.editSegmentText(user._id, id, segmentId, dto.text, dto.transcriptVersionId);
+    }
+
+    @Put("workspaces/:id")
+    updateWorkspace(@ReqUser() user: User, @Param("id") id: string, @Body() dto: WorkspacePatchDto) {
+        return this.workflowService.updateWorkspace(user._id, id, dto);
+    }
+
+    @Post("workspaces/:id/leave")
+    leaveWorkspace(@ReqUser() user: User, @Param("id") id: string) {
+        return this.workflowService.leaveWorkspace(user._id, id);
+    }
+
+    @Put("projects/:id")
+    updateProject(@ReqUser() user: User, @Param("id") id: string, @Body() dto: ProjectPatchDto) {
+        return this.workflowService.updateProject(user._id, id, dto);
+    }
+
+    @Delete("projects/:id")
+    deleteProject(@ReqUser() user: User, @Param("id") id: string) {
+        return this.workflowService.deleteProject(user._id, id);
     }
 
     /** Đổi vai trò hoặc vô hiệu hoá / mở lại thành viên workspace. */

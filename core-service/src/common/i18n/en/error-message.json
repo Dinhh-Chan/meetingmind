@@ -76,5 +76,9 @@
     "error-assignee-no-access": "The assignee is not in this project",
     "error-reset-link-invalid": "The reset link is invalid or has expired",
     "error-mail-send-failed": "Could not send the email, try again later",
-    "error-risk-not-found": "Risk flag not found"
+    "error-risk-not-found": "Risk flag not found",
+    "error-segment-text-empty": "Transcript segment text is empty",
+    "error-workspace-name-empty": "Workspace name is empty",
+    "error-owner-cannot-leave": "The owner must transfer ownership before leaving",
+    "error-project-name-empty": "Project name is empty"
 }
