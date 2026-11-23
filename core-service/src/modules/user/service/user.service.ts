@@ -177,6 +177,32 @@ export class UserService
         return withoutPassword(res);
     }
 
+    /** Tài khoản theo email (hoặc tên đăng nhập là email), kèm hash mật khẩu để ký link đặt lại. */
+    async findForPasswordReset(email: string) {
+        const value = email.trim().toLowerCase();
+        const [byEmail] = await this.userRepository.getMany(
+            { email: value },
+            { enableDataPartition: false },
+        );
+        if (byEmail) return byEmail;
+        const [byUsername] = await this.userRepository.getMany(
+            { username: value },
+            { enableDataPartition: false },
+        );
+        return byUsername;
+    }
+
+    async getForPasswordReset(userId: string) {
+        return this.userRepository.getById(userId, { enableDataPartition: false });
+    }
+
+    /** Đặt mật khẩu mới qua link quên mật khẩu (đã kiểm tra token ở nơi gọi). */
+    async setPasswordFromReset(userId: string, newPass: string) {
+        await this.userRepository.updateById(userId, {
+            password: await createUserPassword(newPass),
+        });
+    }
+
     async comparePassword(user: User, password: string) {
         return bcrypt.compare(password, user.password);
     }

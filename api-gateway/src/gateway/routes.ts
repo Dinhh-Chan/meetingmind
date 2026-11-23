@@ -8,7 +8,7 @@ type Rule = { method: string; path: RegExp };
 
 /** Gọi được khi chưa đăng nhập. */
 const PUBLIC_ROUTES: Rule[] = [
-    { method: "POST", path: /^\/auth\/(login|register|refresh|logout|google)\/?$/ },
+    { method: "POST", path: /^\/auth\/(login|register|refresh|logout|google|forgot-password|reset-password)\/?$/ },
     { method: "GET", path: /^\/auth\/(providers|invite)\/?$/ },
     { method: "GET", path: /^\/app\/timestamp\/?$/ },
 ];
@@ -16,8 +16,8 @@ const PUBLIC_ROUTES: Rule[] = [
 /** Kênh nội bộ giữa các service: chỉ gọi trong mạng Docker, không qua gateway. */
 const INTERNAL_PREFIXES = [/^\/microservice(\/|$)/, /^\/internal(\/|$)/];
 
-/** Đăng nhập, đăng ký: giới hạn chặt hơn theo IP. */
-const AUTH_LIMITED = /^\/auth\/(login|register|google)\/?$/;
+/** Đăng nhập, đăng ký, quên mật khẩu: giới hạn chặt hơn theo IP. */
+const AUTH_LIMITED = /^\/auth\/(login|register|google|forgot-password|reset-password)\/?$/;
 
 export const isPublic = (method: string, path: string) =>
     method === "OPTIONS" || PUBLIC_ROUTES.some((r) => r.method === method && r.path.test(path));

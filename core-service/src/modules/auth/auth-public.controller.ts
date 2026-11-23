@@ -13,8 +13,10 @@ import { LoginRequestDto } from "./dto/login-request.dto";
 import { LoginResponseDto } from "./dto/login-response.dto";
 import { LogoutDto } from "./dto/logout.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { ForgotPasswordDto, ResetPasswordDto } from "./dto/password-reset.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { Auth } from "./entities/auth.entity";
+import { PasswordResetService } from "./password-reset.service";
 
 @Controller("auth")
 @ApiTags("auth")
@@ -25,6 +27,7 @@ export class AuthPublicController {
         private readonly invitationService: InvitationService,
         private readonly mailService: MailService,
         private readonly configService: ConfigService<Configuration>,
+        private readonly passwordResetService: PasswordResetService,
     ) {}
 
     /** Cách đăng nhập máy chủ đang bật, để giao diện hiện nút Google khi có. */
@@ -54,6 +57,17 @@ export class AuthPublicController {
     @Post("register")
     async register(@Body() dto: RegisterDto) {
         return this.userService.register(dto);
+    }
+
+    /** Quên mật khẩu: gửi link đặt lại tới email (trả như nhau dù email có tài khoản hay không). */
+    @Post("forgot-password")
+    async forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.passwordResetService.requestReset(dto.email);
+    }
+
+    @Post("reset-password")
+    async resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.passwordResetService.resetPassword(dto.token, dto.password);
     }
 
     @ApiRecordResponse(LoginResponseDto)

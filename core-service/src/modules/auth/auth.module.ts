@@ -14,6 +14,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { AuthPublicController } from "./auth-public.controller";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { PasswordResetService } from "./password-reset.service";
 import { JwtStrategy } from "./common/jwt.strategy";
 import { AuthSqlRepository } from "./repository/auth-sql.repository";
 
@@ -29,6 +30,7 @@ import { AuthSqlRepository } from "./repository/auth-sql.repository";
     ],
     providers: [
         AuthService,
+        PasswordResetService,
         RepositoryProvider(Entity.AUTH, AuthSqlRepository),
         RepositoryProvider(Entity.USER, UserSqlRepository),
         TransactionProvider(SqlTransaction),

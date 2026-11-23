@@ -80,5 +80,7 @@
     "error-thread-not-found": "Không tìm thấy cuộc trò chuyện",
     "error-thread-title-empty": "Tên cuộc trò chuyện trống",
     "error-task-title-required": "Task cần có tên",
-    "error-assignee-no-access": "Người được giao chưa thuộc dự án này"
+    "error-assignee-no-access": "Người được giao chưa thuộc dự án này",
+    "error-reset-link-invalid": "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn",
+    "error-mail-send-failed": "Không gửi được email, thử lại sau"
 }

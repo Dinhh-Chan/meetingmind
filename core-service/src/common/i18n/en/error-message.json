@@ -73,5 +73,7 @@
     "error-thread-not-found": "Conversation not found",
     "error-thread-title-empty": "Conversation title is empty",
     "error-task-title-required": "Task title is required",
-    "error-assignee-no-access": "The assignee is not in this project"
+    "error-assignee-no-access": "The assignee is not in this project",
+    "error-reset-link-invalid": "The reset link is invalid or has expired",
+    "error-mail-send-failed": "Could not send the email, try again later"
 }
