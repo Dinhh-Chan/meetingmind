@@ -260,6 +260,29 @@ export class MinutesSectionDto {
     content: string;
 }
 
+export class CreateTaskBodyDto {
+    @IsString()
+    workspaceId: string;
+
+    @IsString()
+    projectId: string;
+
+    @IsString()
+    title: string;
+
+    @IsOptional()
+    @IsString()
+    assigneeId?: string | null;
+
+    @IsOptional()
+    @IsDateString()
+    deadline?: string | null;
+
+    @IsOptional()
+    @IsEnum(ActionItemPriority)
+    priority?: ActionItemPriority;
+}
+
 export class CommentBodyDto {
     @IsString()
     body: string;
@@ -516,6 +539,16 @@ export class WorkflowController {
     }
 
     /* task */
+
+    @Post("tasks")
+    createTask(@ReqUser() user: User, @Body() dto: CreateTaskBodyDto) {
+        return this.workflowService.createTask(user._id, dto);
+    }
+
+    @Delete("tasks/:id")
+    deleteTask(@ReqUser() user: User, @Param("id") id: string) {
+        return this.workflowService.deleteTask(user._id, id);
+    }
 
     @Put("tasks/:id")
     updateTask(@ReqUser() user: User, @Param("id") id: string, @Body() dto: TaskPatchBodyDto) {

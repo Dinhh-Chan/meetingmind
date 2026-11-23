@@ -71,5 +71,7 @@
     "error-document-too-large": "Document exceeds 20 MB",
     "error-document-not-found": "Document not found",
     "error-thread-not-found": "Conversation not found",
-    "error-thread-title-empty": "Conversation title is empty"
+    "error-thread-title-empty": "Conversation title is empty",
+    "error-task-title-required": "Task title is required",
+    "error-assignee-no-access": "The assignee is not in this project"
 }

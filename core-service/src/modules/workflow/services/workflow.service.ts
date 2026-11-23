@@ -1277,6 +1277,75 @@ export class WorkflowService {
      * Cập nhật task. Đổi trạng thái: PM/Admin hoặc người được giao. Giao
      * người, đổi hạn/ưu tiên/tiêu đề: chỉ người có quyền lên kế hoạch (§13.6).
      */
+    /**
+     * Task tạo tay trong một dự án (không sinh từ đề xuất AI). Giao cho người khác cần
+     * quyền giao việc; người nhận phải xem được dự án.
+     */
+    async createTask(
+        userId: string,
+        input: {
+            workspaceId: string;
+            projectId: string;
+            title: string;
+            assigneeId?: string | null;
+            deadline?: string | null;
+            priority?: ActionItemPriority;
+        },
+    ) {
+        const scope = { projectId: input.projectId };
+        await this.permissionService.assert(
+            userId,
+            input.workspaceId,
+            Permission.TASK_CREATE,
+            scope,
+        );
+        const title = input.title?.trim();
+        if (!title) throw ApiError.BadRequest("error-task-title-required");
+        const assigneeId = input.assigneeId || null;
+        if (assigneeId && assigneeId !== userId) {
+            await this.permissionService.assert(
+                userId,
+                input.workspaceId,
+                Permission.TASK_ASSIGN,
+                scope,
+            );
+        }
+        if (
+            assigneeId &&
+            !(await this.permissionService.can(
+                assigneeId,
+                input.workspaceId,
+                Permission.TASK_VIEW,
+                scope,
+            ))
+        ) {
+            throw ApiError.BadRequest("error-assignee-no-access");
+        }
+        assertDeadlineNotPast(input.deadline);
+        return this.actionItemService.create(null, {
+            workspaceId: input.workspaceId,
+            projectId: input.projectId,
+            title,
+            proposerId: userId,
+            assigneeId,
+            deadline: input.deadline ? new Date(input.deadline) : null,
+            deadlineNeedsConfirm: false,
+            priority: input.priority || ActionItemPriority.MEDIUM,
+            status: ActionItemStatus.TODO,
+            source: ActionItemSource.MANUAL,
+            createdById: userId,
+        } as never);
+    }
+
+    /** Xoá mềm một task (giữ bản ghi để khôi phục, không còn hiện ở danh sách). */
+    async deleteTask(userId: string, taskId: string) {
+        const task = await this.taskFor(userId, taskId, Permission.TASK_DELETE);
+        await this.actionItemService.updateById(null, task._id, {
+            deletedAt: new Date(),
+        } as never);
+        return { _id: task._id };
+    }
+
     async updateTask(userId: string, taskId: string, patch: TaskPatch) {
         const current = await this.taskFor(userId, taskId, Permission.TASK_VIEW);
         // Giao diện gửi lại cả trường không đổi: chỉ tính là "lên kế hoạch" khi

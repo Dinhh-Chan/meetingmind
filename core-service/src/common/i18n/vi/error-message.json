@@ -78,5 +78,7 @@
     "error-document-too-large": "Tài liệu vượt quá 20 MB",
     "error-document-not-found": "Không tìm thấy tài liệu",
     "error-thread-not-found": "Không tìm thấy cuộc trò chuyện",
-    "error-thread-title-empty": "Tên cuộc trò chuyện trống"
+    "error-thread-title-empty": "Tên cuộc trò chuyện trống",
+    "error-task-title-required": "Task cần có tên",
+    "error-assignee-no-access": "Người được giao chưa thuộc dự án này"
 }
