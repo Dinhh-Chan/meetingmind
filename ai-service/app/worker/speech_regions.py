@@ -99,6 +99,17 @@ def silero_seconds(audio) -> float:
     return sum(t["end"] - t["start"] for t in get_speech_timestamps(audio, VadOptions())) / SAMPLE_RATE
 
 
+def short_chunks(audio, size_s: float = 8.0) -> list[float]:
+    """Vùng có tiếng theo năng lượng chia thành đoạn ≤ `size_s` giây, dạng clip_timestamps."""
+    out: list[float] = []
+    for start, end in energy_regions(audio):
+        t = start
+        while t < end:
+            out += [round(t, 2), round(min(end, t + size_s), 2)]
+            t += size_s
+    return out
+
+
 def speech_filter(audio) -> dict:
     """Tham số lọc tiếng nói cho model.transcribe().
 

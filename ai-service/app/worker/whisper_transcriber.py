@@ -27,7 +27,7 @@ from app.worker import gpu_watch
 from app.worker.equalize import equalize
 from app.worker.diarizer import Diarizer, Word, build_segments
 from app.worker import refine
-from app.worker.speech_regions import speech_filter, speech_probe
+from app.worker.speech_regions import short_chunks, speech_filter, speech_probe
 from app.worker.storage import download_to_temp
 from app.worker.transcriber import TranscriptResult
 
@@ -271,11 +271,24 @@ class WhisperTranscriber:
             base,
         )
 
+        # Vùng có tiếng đo trên âm thanh gốc: cân bằng âm sắc đổi độ to từng dải, làm
+        # bản ghi nền ồn trông như có khoảng lặng và rơi nhầm vào nhánh cắt theo năng lượng.
         first_pass, info = self.model.transcribe(
-            audio, language=base, beam_size=s.beam_size, **speech_filter(audio), **DECODE
+            audio, language=base, beam_size=s.beam_size, **speech_filter(original), **DECODE
         )
         # Không nhận diện được và Core không gợi ý: lấy ngôn ngữ Whisper tự chọn.
         base = base or info.language
+        first_pass = list(first_pass)
+        if not any(seg.text.strip() and not is_hallucination(seg.text) for seg in first_pass):
+            # Bản ghi ngắn, ồn: nghe cả bài Whisper chỉ bịa ("đăng ký kênh…") và bỏ lời thật.
+            # Nghe lại từng đoạn ngắn như phiên âm trực tiếp (bản ghi 23/11: 0 câu → 3 câu).
+            chunks = short_chunks(original)
+            if chunks:
+                log.info("Lượt đầu không ra câu nào: nghe lại theo %d đoạn ngắn", len(chunks) // 2)
+                retry, _ = self.model.transcribe(
+                    audio, language=base, beam_size=s.beam_size, vad_filter=False, clip_timestamps=chunks, **DECODE
+                )
+                first_pass = list(retry)
 
         words: list[Word] = []
         # Từ của Whisper trước lượt sửa: ranh giới các khúc tách người nói lấy theo đây,

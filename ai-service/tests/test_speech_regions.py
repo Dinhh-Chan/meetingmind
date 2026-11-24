@@ -67,3 +67,13 @@ def test_cau_bia_moi_bi_loc():
 
     assert is_hallucination("Hãy subscribe cho kênh La La School Để không bỏ lỡ")
     assert not is_hallucination("Deadline của My Hoàng là 25 tháng 12")
+
+
+def test_chia_doan_ngan_cho_lan_nghe_lai():
+    from app.worker.speech_regions import short_chunks
+
+    audio = _audio((1, 0.001), (20, 0.05), (1, 0.001))
+    chunks = short_chunks(audio)
+    pairs = list(zip(chunks[::2], chunks[1::2]))
+    assert len(pairs) == 3 and all(b - a <= 8.0 + 1e-6 for a, b in pairs)
+    assert pairs[0][0] < 1.0 and pairs[-1][1] > 20.5
