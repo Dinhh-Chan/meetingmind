@@ -38,7 +38,7 @@ SPEAKER_LABEL = "Người nói 1"
 
 # Câu Whisper hay bịa ra ở đoạn im lặng hoặc ồn: học từ phụ đề video trên mạng.
 HALLUCINATIONS = re.compile(
-    r"(đăng ký kênh|subscribe|ghiền mì gõ|like và share|bấm chuông|"
+    r"(đăng ký kênh|subscribe|ghiền mì gõ|la la school|like và share|bấm chuông|"
     r"gặp lại[^.!?]{0,40}video|thanks for watching|"
     r"cảm ơn các bạn đã (theo dõi|xem video))",
     re.IGNORECASE,

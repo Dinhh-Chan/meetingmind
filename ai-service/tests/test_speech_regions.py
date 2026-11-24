@@ -51,3 +51,19 @@ def test_loi_silero_thi_giu_mac_dinh(monkeypatch):
 
     monkeypatch.setattr(speech_regions, "silero_seconds", boom)
     assert speech_filter(_audio((1, 0.001), (5, 0.05))) == {"vad_filter": True}
+
+
+def test_nen_on_phu_gan_het_bai_thi_nghe_ca_bai(monkeypatch):
+    """Bản ghi 23/11: ồn liên tục, năng lượng coi cả bài là tiếng nói; Silero gần như
+    không giữ gì. Cắt theo năng lượng ra một khối dài làm Whisper bỏ lời ở đầu."""
+    rng = np.random.default_rng(0)
+    audio = (rng.standard_normal(20 * SAMPLE_RATE) * 0.08).astype(np.float32)
+    monkeypatch.setattr(speech_regions, "silero_seconds", lambda a: 0.5)
+    assert speech_filter(audio) == {"vad_filter": False}
+
+
+def test_cau_bia_moi_bi_loc():
+    from app.worker.whisper_transcriber import is_hallucination
+
+    assert is_hallucination("Hãy subscribe cho kênh La La School Để không bỏ lỡ")
+    assert not is_hallucination("Deadline của My Hoàng là 25 tháng 12")

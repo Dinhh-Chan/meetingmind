@@ -116,6 +116,14 @@ def speech_filter(audio) -> dict:
         ratio = float(os.environ.get("AI_VAD_FALLBACK_RATIO", "0.6"))
         if silero >= ratio * energy:
             return default
+        total = len(audio) / SAMPLE_RATE
+        # Nền ồn liên tục (quạt, phòng vang, micro laptop bật lọc ồn kém): "có tiếng" theo
+        # năng lượng phủ gần hết bài nên cắt theo năng lượng chỉ ra một khối dài, Whisper
+        # bỏ qua lời ở đầu khối rồi bịa câu ở cuối. Khi đó để Whisper nghe cả bài theo cửa
+        # sổ 30 giây của nó (bản ghi 23/11: 0 câu → đủ các câu có hạn, người làm).
+        if energy >= float(os.environ.get("AI_VAD_NOISY_COVERAGE", "0.8")) * total:
+            log.info("Silero chỉ giữ %.0f s, nền ồn phủ %.0f/%.0f s: nghe cả bài, không cắt", silero, energy, total)
+            return {"vad_filter": False}
         log.info("Silero chỉ giữ %.0f s trên %.0f s có tiếng: cắt theo năng lượng (%d vùng)", silero, energy, len(regions))
         return {"vad_filter": False, "clip_timestamps": [x for region in regions for x in region]}
     except Exception:  # noqa: BLE001 - lọc tiếng nói là phần phụ, không được làm hỏng phiên âm
