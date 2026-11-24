@@ -44,4 +44,12 @@ export class BotSessionModel extends Model implements BotSession {
 
     @Column({ type: DataType.TEXT, allowNull: true })
     error?: string;
+
+    /** Hẹn bot vào phòng lúc này (đúng giờ họp, trước 2 phút…); trống = vào ngay. */
+    @Column({ type: DataType.DATE, allowNull: true })
+    scheduledAt?: Date;
+
+    /** Lúc Core đã gửi lệnh vào phòng cho bot-worker. */
+    @Column({ type: DataType.DATE, allowNull: true })
+    dispatchedAt?: Date;
 }

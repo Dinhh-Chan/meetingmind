@@ -36,6 +36,9 @@ export class AuthPublicController {
         return {
             google: this.configService.get("google", { infer: true }).clientId || null,
             inviteByEmail: this.mailService.enabled,
+            // Tên bot hiện trong phòng họp: bot vào Meet bằng tài khoản Google đã đăng
+            // nhập nên Meet lấy tên của tài khoản đó; đặt BOT_DISPLAY_NAME cho khớp.
+            botName: process.env.BOT_DISPLAY_NAME || "MeetingMind Bot",
         };
     }
 

@@ -15,6 +15,7 @@ import { OutboxService } from "@module/messaging/services/outbox.service";
 import { Permission } from "@module/permission/common/constant";
 import { PermissionService } from "@module/permission/services/permission.service";
 import { Injectable, Logger } from "@nestjs/common";
+import { Interval } from "@nestjs/schedule";
 
 /** Phiên còn đang chạy: chưa kết thúc theo cách nào. */
 const ACTIVE: string[] = [
@@ -82,8 +83,11 @@ export class MeetingBotService {
         return this.latest(meetingId);
     }
 
-    /** Mời bot vào phòng ngay. Gọi lại khi bot đang chạy thì trả về phiên đó. */
-    async invite(userId: string, meetingId: string) {
+    /**
+     * Mời bot vào phòng: ngay, hoặc hẹn lúc `joinAt` (đúng giờ họp, trước 2 phút…). Gọi
+     * lại khi bot đang chạy / đang chờ giờ thì trả về phiên đó.
+     */
+    async invite(userId: string, meetingId: string, joinAt?: Date) {
         const meeting = await this.meetingFor(userId, meetingId);
         if (!meeting.meetingUrl || !MEET_URL.test(meeting.meetingUrl)) {
             throw ApiError.BadRequest("error-meeting-url-required");
@@ -91,6 +95,8 @@ export class MeetingBotService {
         const current = await this.latest(meetingId);
         if (current && ACTIVE.includes(current.status)) return current;
 
+        // Hẹn quá 30 giây nữa thì chờ tới giờ mới gửi lệnh; sớm hơn thì vào ngay.
+        const later = joinAt && joinAt.getTime() > Date.now() + 30_000 ? joinAt : undefined;
         const session = await this.botSessionService.create(null, {
             workspaceId: meeting.workspaceId,
             meetingId,
@@ -98,20 +104,53 @@ export class MeetingBotService {
             joinUrl: meeting.meetingUrl,
             attempt: (current?.attempt ?? 0) + 1,
             requestedById: userId,
-        });
+            scheduledAt: later ?? null,
+            dispatchedAt: later ? null : new Date(),
+        } as never);
+        if (later) {
+            this.logger.log(`Hẹn bot vào phòng cuộc họp ${meetingId} lúc ${later.toISOString()}`);
+            return session;
+        }
+        await this.dispatch(session, meeting.workspaceId);
+        return session;
+    }
+
+    /** Gửi lệnh vào phòng cho bot-worker. */
+    private async dispatch(session: BotSession, workspaceId: string) {
+        const meetingId = session.meetingId;
         await this.outboxService.emit({
             aggregateType: "bot_session",
             aggregateId: session._id,
             eventType: EventType.BOT_JOIN_REQUESTED,
-            workspaceId: meeting.workspaceId,
+            workspaceId,
             correlationId: meetingId,
             payload: {
                 botSessionId: session._id,
                 meetingId,
-                joinUrl: meeting.meetingUrl,
+                joinUrl: session.joinUrl,
             },
         });
-        return session;
+    }
+
+    /** Tới giờ hẹn thì gửi lệnh vào phòng (kiểm tra mỗi 20 giây). */
+    @Interval(20_000)
+    async dispatchDue() {
+        try {
+            const queued = await this.botSessionService.getMany(null, {
+                status: BotSessionStatus.QUEUED,
+                dispatchedAt: null,
+            } as never);
+            const now = Date.now();
+            for (const s of queued) {
+                if (!s.scheduledAt || new Date(s.scheduledAt).getTime() > now) continue;
+                // Đánh dấu trước rồi mới gửi: hai lượt kiểm tra chồng nhau không gửi hai lần.
+                await this.botSessionService.updateById(null, s._id, { dispatchedAt: new Date() } as never);
+                await this.dispatch(s, s.workspaceId);
+                this.logger.log(`Tới giờ hẹn: gửi bot vào phòng cuộc họp ${s.meetingId}`);
+            }
+        } catch (err) {
+            this.logger.warn(`Không gửi được bot đã hẹn giờ: ${(err as Error).message}`);
+        }
     }
 
     async stop(userId: string, meetingId: string) {

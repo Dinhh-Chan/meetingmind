@@ -375,6 +375,12 @@ export class ProjectPatchDto {
     status?: ProjectStatus;
 }
 
+export class InviteBotBodyDto {
+    @IsOptional()
+    @IsDateString()
+    joinAt?: string;
+}
+
 /* ---------------------------------------------------------- controller */
 
 /**
@@ -398,9 +404,11 @@ export class WorkflowController {
         return this.meetingBotService.getBot(user._id, id);
     }
 
+    /** Mời bot; `joinAt` (ISO) để hẹn giờ vào phòng, bỏ trống thì vào ngay. */
     @Post("meetings/:id/bot")
-    inviteBot(@ReqUser() user: User, @Param("id") id: string) {
-        return this.meetingBotService.invite(user._id, id);
+    inviteBot(@ReqUser() user: User, @Param("id") id: string, @Body() dto: InviteBotBodyDto) {
+        const joinAt = dto?.joinAt ? new Date(dto.joinAt) : undefined;
+        return this.meetingBotService.invite(user._id, id, joinAt && !Number.isNaN(joinAt.getTime()) ? joinAt : undefined);
     }
 
     @Post("meetings/:id/bot/stop")

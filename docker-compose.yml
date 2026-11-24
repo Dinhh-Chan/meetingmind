@@ -162,6 +162,8 @@ services:
       SMTP_SECURE: ${SMTP_SECURE:-1}
       # Địa chỉ giao diện người nhận mở được, dùng trong link mời.
       APP_URL: ${APP_URL:-http://localhost:3001}
+      # Tên bot hiện trong Google Meet = tên tài khoản Google bot đăng nhập; giao diện hiện tên này.
+      BOT_DISPLAY_NAME: ${BOT_DISPLAY_NAME:-MeetingMind Bot}
     ports:
       - "3010:3010"
     healthcheck:

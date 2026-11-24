@@ -85,4 +85,20 @@ export class BotSession implements BaseEntity {
     @IsOptional()
     @EntityDefinition.field({ label: "Lỗi" })
     error?: string;
+
+    /**
+     * Hẹn giờ vào phòng (trống = vào ngay)
+     */
+    @IsDateString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Hẹn giờ vào phòng" })
+    scheduledAt?: Date;
+
+    /**
+     * Đã gửi lệnh vào phòng lúc
+     */
+    @IsDateString()
+    @IsOptional()
+    @EntityDefinition.field({ label: "Đã gửi lệnh lúc" })
+    dispatchedAt?: Date;
 }
